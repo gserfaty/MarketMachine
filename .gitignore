@@ -6,3 +6,5 @@ __pycache__/
 .DS_Store
 .claude/
 CLAUDE.md
+docs/PLAN.md
+docs/EVAL.md
