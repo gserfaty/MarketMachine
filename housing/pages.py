@@ -307,3 +307,76 @@ def render_findings() -> None:
     )
 
     st.warning(DISCLAIMER)
+
+def render_market_profiles():
+    st.header("Market Profiles")
+
+    metro_df = _safe_load_metro()
+    if metro_df is None:
+        st.stop()
+        return
+
+    metro_only = metro_df[metro_df["region_type"] != "country"]
+    table = analysis.appreciation_table(metro_only)
+    markets = sorted(metro_only["region"].dropna().unique())
+
+    selected = st.selectbox("Select a market", markets)
+    market = table[table["region"] == selected].iloc[0]
+    history = metro_only[metro_only["region"] == selected].sort_values("date")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Home Value", f"${market['value']:,.0f}")
+    c2.metric("1Y Appreciation", f"{market['chg_1y']:.1%}")
+    c3.metric("5Y Appreciation", f"{market['chg_5y']:.1%}")
+    c4.metric("Size Rank", f"#{int(market['size_rank'])}")
+
+    st.subheader("Home Value History")
+    st.line_chart(history, x="date", y="value")
+
+    # Compare markets
+    st.subheader("Compare Markets")
+    comparison_options = [m for m in markets if m != selected]
+    comparison_name = st.selectbox("Compare with", comparison_options)
+    comparison = table[table["region"] == comparison_name].iloc[0]
+
+    comparison_table = pd.DataFrame({
+        "Metric": ["Home Value", "1Y Appreciation", "5Y Appreciation"],
+        selected: [
+            f"${market['value']:,.0f}",
+            f"{market['chg_1y']:.1%}",
+            f"{market['chg_5y']:.1%}",
+        ],
+        comparison_name: [
+            f"${comparison['value']:,.0f}",
+            f"{comparison['chg_1y']:.1%}",
+            f"{comparison['chg_5y']:.1%}",
+        ],
+    })
+
+    st.dataframe(comparison_table, use_container_width=True, hide_index=True)
+
+    comparison_history = metro_only[
+        metro_only["region"] == comparison_name
+    ].sort_values("date")
+
+    chart_data = pd.concat([
+        history[["date", "value"]].assign(market=selected),
+        comparison_history[["date", "value"]].assign(market=comparison_name),
+    ]).pivot(index="date", columns="market", values="value")
+
+    st.line_chart(chart_data)
+
+    # KNN similar markets
+    st.subheader("Similar Markets")
+    try:
+        similar = analysis.find_similar_markets(metro_only, selected, n_neighbors=5)
+
+        st.dataframe(
+            similar[["region", "state", "value", "chg_1y", "chg_5y"]],
+            use_container_width=True,
+            hide_index=True,
+        )
+    except ValueError:
+        st.info(f"Similar market analysis isn't available for {selected}.")
+
+    st.warning(DISCLAIMER)
