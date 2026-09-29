@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import StandardScaler
 
 
 def yoy(series: pd.Series) -> pd.Series:
@@ -52,3 +54,86 @@ def national_series(long_df: pd.DataFrame) -> pd.Series:
         country = long_df[long_df["region"] == "United States"]
     country = country.sort_values("date")
     return country.set_index("date")["value"]
+
+def find_similar_markets(
+    metro_df: pd.DataFrame,
+    selected_region: str,
+    n_neighbors: int = 5,
+) -> pd.DataFrame:
+
+    # One row per metro containing latest value
+    # and historical appreciation metrics.
+    table = appreciation_table(metro_df).copy()
+
+    features = [
+        "value",
+        "chg_1y",
+        "chg_5y",
+    ]
+
+    model_df = (
+        table[
+            ["region", "state", "size_rank"] + features
+        ]
+        .dropna()
+        .reset_index(drop=True)
+    )
+
+    # Optional: restrict this to reasonably significant metros.
+    model_df = model_df[
+        model_df["size_rank"] <= 200
+    ].reset_index(drop=True)
+
+    # Find the row corresponding to the selected market.
+    matches = model_df.index[
+        model_df["region"] == selected_region
+    ].tolist()
+
+    if not matches:
+        raise ValueError(
+            f"{selected_region} is not available for similarity analysis."
+        )
+
+    selected_idx = matches[0]
+
+    # ---------------------------------
+    # Scale features
+    # ---------------------------------
+
+    scaler = StandardScaler()
+
+    X = scaler.fit_transform(
+        model_df[features]
+    )
+
+    # ---------------------------------
+    # Fit nearest-neighbor model
+    # ---------------------------------
+
+    model = NearestNeighbors(
+        n_neighbors=min(n_neighbors + 1, len(model_df)),
+        metric="euclidean",
+    )
+
+    model.fit(X)
+
+    # ---------------------------------
+    # Find neighbors
+    # ---------------------------------
+
+    distances, indices = model.kneighbors(
+        X[selected_idx].reshape(1, -1)
+    )
+
+    neighbors = model_df.iloc[
+        indices[0]
+    ].copy()
+
+    neighbors["distance"] = distances[0]
+
+    # First result should be the market itself.
+    neighbors = neighbors[
+        neighbors["region"] != selected_region
+    ].head(n_neighbors)
+
+    return neighbors.reset_index(drop=True)
