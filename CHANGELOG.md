@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Step 2
+- Added: `blend` predictor (average of model and naive momentum) in the backtest; served-forecast statement on the ML forecast page.
+- Changed: `pred_12m` and `national_pred` are now the blend; `ForecastResult.metrics` has a `blend` row.
+
 ### Added
 - Yearly rolling-origin backtest (expanding window, 2010 onward) with per-year and average scorecards.
 - Metrics: bias (mean pred - actual, pp), rank IC (mean per-date Spearman across metros),

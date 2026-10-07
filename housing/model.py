@@ -1,5 +1,7 @@
 """ML forecasting: feature engineering, rolling-origin backtest, model fit.
 
+The served forecast (`pred_12m`, `national_pred`) is the equal-weight blend of model and naive momentum.
+
 No Streamlit import here.
 """
 from __future__ import annotations
@@ -104,7 +106,7 @@ def split_for_year(
 class ForecastResult:
     metrics: pd.DataFrame
     backtest: pd.DataFrame
-    predictions: pd.DataFrame
+    predictions: pd.DataFrame  # pred_12m is the served blend
     national_pred: float
     as_of: pd.Timestamp
     feature_importance: pd.Series | None = None
@@ -128,7 +130,13 @@ def _fit_model(train: pd.DataFrame, feature_cols: list[str]) -> HistGradientBoos
     return model
 
 
-PREDICTORS = ["model", "naive_momentum", "zero"]
+PREDICTORS = ["model", "blend", "naive_momentum", "zero"]
+SERVED = "blend"
+def blend(model_simple, naive_simple):
+    """Equal-weight average of two simple-return forecasts."""
+    return (model_simple + naive_simple) / 2
+
+
 METRICS = ["MAE", "bias", "direction_acc", "rank_ic", "top_decile_lift"]
 
 
@@ -145,13 +153,16 @@ def rolling_backtest(
         # ponytail: fit on quarterly origins only (1/3 of rows, ~3.5x faster); drop if CPU allows
         train = train[train["date"].dt.month.isin([1, 4, 7, 10])]
         m = _fit_model(train, feature_cols)
+        model_col = np.exp(m.predict(test[feature_cols])) - 1.0
+        naive_col = np.exp(test["r12"].to_numpy()) - 1.0
         out.append(pd.DataFrame({
             "region": test["region"].to_numpy(),
             "date": test["date"].to_numpy(),
             "year": year,
             "actual": np.exp(test["y"].to_numpy()) - 1.0,
-            "model": np.exp(m.predict(test[feature_cols])) - 1.0,
-            "naive_momentum": np.exp(test["r12"].to_numpy()) - 1.0,
+            "model": model_col,
+            "blend": blend(model_col, naive_col),
+            "naive_momentum": naive_col,
             "zero": 0.0,
         }))
     if not out:
@@ -219,12 +230,14 @@ def train_and_evaluate(
     latest_feat = feat.xs(as_of, level="date").dropna(subset=feature_cols, how="any")
     latest_pred_log = full_model.predict(latest_feat[feature_cols])
     latest_pred_simple = np.exp(latest_pred_log) - 1.0
+    naive_latest = np.exp(latest_feat["r12"].to_numpy()) - 1.0
+    served = blend(latest_pred_simple, naive_latest)
 
     latest_snapshot = long_df[long_df["date"] == as_of][["region", "state", "value"]].drop_duplicates(
         "region"
     )
     predictions = pd.DataFrame(
-        {"region": latest_feat.index, "pred_12m": latest_pred_simple}
+        {"region": latest_feat.index, "pred_12m": served}
     ).merge(latest_snapshot, on="region", how="left")
     predictions = predictions[["region", "state", "value", "pred_12m"]].sort_values(
         "pred_12m", ascending=False

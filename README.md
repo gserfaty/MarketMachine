@@ -21,7 +21,7 @@ the app shows a clear error/warning instead of crashing.
 
 1. **Market overview** — KPIs (US typical value, YoY change, mortgage rate, Case-Shiller YoY) and trend charts.
 2. **Regional explorer** — filter/sort metros or states, bar chart of top movers, state choropleth, per-region history.
-3. **ML forecast** — backtest scorecard vs. baselines, national 12-month call, per-metro predictions.
+3. **ML forecast** — backtest scorecard vs. baselines, served blend forecast (national 12-month call, per-metro predictions).
 4. **Findings** — top gainers, top/bottom predicted movers, most valuable metros.
 
 ## Local development
@@ -59,7 +59,11 @@ overlap ~92%. The served forecast is fit on all rows. Final-year (2025) is parti
 - top-decile lift (pp): mean outcome of the top 10% predicted metros minus the all-metro mean.
   Higher is better; 0 = no skill.
 
-**Baselines.** `naive_momentum` (predict the trailing 12-month return) and `zero` (no change;
+**Served forecast.** The page and Findings serve `blend`, the equal-weight average of the model
+and naive momentum (simple returns). Backtest average MAE is about 3.7 pp for the blend vs ~3.8 model
+vs ~4.2 momentum; the page shows live numbers. `blend` is scored in the same backtest.
+
+**Baselines and predictors.** `blend`, `model`, `naive_momentum` (predict the trailing 12-month return) and `zero` (no change;
 rank IC and lift are n/a because it ranks nothing).
 
 Past backtest performance does not guarantee future results.

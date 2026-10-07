@@ -44,3 +44,5 @@ def test_forecast_page_scorecard():
     assert not at.exception
     assert len(at.dataframe) >= 2
     assert "rank ic" in " ".join(m.value for m in at.markdown).lower()
+    txt = " ".join([m.value for m in at.markdown] + [i.value for i in at.info]).lower()
+    assert "served forecast" in txt and "blend" in txt

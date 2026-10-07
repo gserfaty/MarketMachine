@@ -230,44 +230,48 @@ def render_forecast() -> None:
     st.dataframe(disp, use_container_width=True)
 
     bt = result.backtest
-    per_year = bt[bt["predictor"].isin(["model", "naive_momentum"])].pivot(
+    per_year = bt[bt["predictor"].isin(["model", "blend", "naive_momentum"])].pivot(
         index="year", columns="predictor", values=["MAE", "bias", "rank_ic", "top_decile_lift"]
     )
     per_year.columns = [f"{metric} · {pred}" for metric, pred in per_year.columns]
     per_year["n"] = bt[bt["predictor"] == "model"].set_index("year")["n"]
     st.dataframe(per_year.round(2), use_container_width=True)
 
-    ic = bt[bt["predictor"].isin(["model", "naive_momentum"])]
+    ic = bt[bt["predictor"].isin(["model", "blend", "naive_momentum"])]
     st.plotly_chart(px.line(ic, x="year", y="rank_ic", color="predictor", title="Rank IC by year"),
                     use_container_width=True)
 
-    mo, nv, zr = m.loc["model"], m.loc["naive_momentum"], m.loc["zero"]
+    mo, bl, nv, zr = m.loc["model"], m.loc["blend"], m.loc["naive_momentum"], m.loc["zero"]
     tone = "pessimistic" if mo["bias"] < 0 else "optimistic"
     st.markdown(
-        f"- Average miss: model {mo['MAE']:.2f} pp vs momentum {nv['MAE']:.2f} pp vs no-change {zr['MAE']:.2f} pp.\n"
+        f"- Average miss: model {mo['MAE']:.2f} pp vs blend {bl['MAE']:.2f} pp vs momentum {nv['MAE']:.2f} pp vs no-change {zr['MAE']:.2f} pp.\n"
         f"- Bias: model is on average {abs(mo['bias']):.2f} pp too {tone}.\n"
-        f"- Ranking (rank IC {mo['rank_ic']:.2f} vs {nv['rank_ic']:.2f} for momentum): "
+        f"- Ranking (rank IC {mo['rank_ic']:.2f} model, {bl['rank_ic']:.2f} blend, {nv['rank_ic']:.2f} momentum): "
         "0 = random ordering, 1 = perfect; above ~0.3 is a useful ranking.\n"
         f"- Top-10% picks beat the average metro by {mo['top_decile_lift']:.2f} pp/yr "
         f"(momentum: {nv['top_decile_lift']:.2f} pp).\n"
         f"- Direction right {mo['direction_acc'] * 100:.0f}% of the time."
     )
 
-    if mo["MAE"] < nv["MAE"] and mo["rank_ic"] > nv["rank_ic"]:
-        st.success("The model beats the naive momentum baseline on both error (MAE) and ranking (rank IC).")
-    else:
-        st.info("The model does not beat the naive momentum baseline on both error (MAE) and ranking (rank IC).")
+    st.info(
+        "Served forecast: **blend** = average of the ML model and naive momentum (simple returns). "
+        f"Backtest average MAE: blend {bl['MAE']:.2f} pp vs model {mo['MAE']:.2f} pp vs momentum {nv['MAE']:.2f} pp; "
+        f"rank IC: blend {bl['rank_ic']:.2f} vs model {mo['rank_ic']:.2f} vs momentum {nv['rank_ic']:.2f}. "
+        "The blend is served because averaging two partly independent forecasts cuts the miss."
+    )
+    if bl["MAE"] > mo["MAE"]:
+        st.warning("In this backtest the blend no longer beats the model on MAE.")
 
     direction = "Up" if result.national_pred >= 0 else "Down"
     st.metric(
-        "National 12-month call",
+        "National 12-month call (blend)",
         f"{direction}, {result.national_pred * 100:+.1f}% predicted",
     )
 
     st.subheader("Distribution of metro-level 12-month predictions")
     st.plotly_chart(px.histogram(result.predictions, x="pred_12m", nbins=30), use_container_width=True)
 
-    st.subheader("Per-metro predictions")
+    st.subheader("Per-metro predictions (blend)")
     search = st.text_input("Search region")
     preds = result.predictions.copy()
     if search:
@@ -284,7 +288,9 @@ def render_forecast() -> None:
             "It is evaluated with a yearly rolling-origin backtest (2010 onward): each year is "
             "predicted by a model trained only on rows whose 12-month outcome was already known "
             "at the start of that year, and compared with a naive momentum baseline and a "
-            "zero-change baseline. Backtest fits use quarterly origins only, for speed."
+            "zero-change baseline. Backtest fits use quarterly origins only, for speed. The served forecast is the equal-weight "
+            "average of the model and the trailing-12-month momentum, in simple-return space, and it "
+            "is scored in the same backtest."
         )
 
     _footer_disclaimer()
