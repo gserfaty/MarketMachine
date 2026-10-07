@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 import pandas as pd
 
@@ -74,11 +75,20 @@ def test_score_backtest_known_values():
     assert np.isclose(s.loc["model", "top_decile_lift"], 4.5)
 
 
-def test_train_and_evaluate_with_mortgage():
-    long_df, mortgage = _load()
-    result = model.train_and_evaluate(long_df, mortgage)
+@pytest.fixture(scope="module")
+def mortgage_result():
+    from conftest import FIXTURES_DIR
+    with pytest.MonkeyPatch.context() as mp:  # autouse offline fixture is function-scoped
+        mp.setenv("MICHIGANMEN_DATA_DIR", FIXTURES_DIR)
+        long_df, mortgage = _load()
+        return model.train_and_evaluate(long_df, mortgage)
 
-    assert set(result.metrics.index) == {"model", "naive_momentum", "zero"}
+
+def test_train_and_evaluate_with_mortgage(mortgage_result):
+    long_df, _ = _load()
+    result = mortgage_result
+
+    assert set(result.metrics.index) == {"model", "blend", "naive_momentum", "zero"}
     assert (result.metrics["MAE"] >= 0).all()
     assert (result.metrics["direction_acc"] >= 0).all()
     assert (result.metrics["direction_acc"] <= 1).all()
@@ -89,6 +99,20 @@ def test_train_and_evaluate_with_mortgage():
     assert len(result.predictions) == n_metros
     assert np.isfinite(result.national_pred)
     assert result.as_of == long_df["date"].max()
+
+
+def test_backtest_blend_is_average(mortgage_result):
+    b = mortgage_result.metrics["bias"]
+    assert np.isclose(b["blend"], (b["model"] + b["naive_momentum"]) / 2)
+
+
+def test_served_is_blend(monkeypatch):
+    assert model.blend(np.array([0.02]), np.array([0.06]))[0] == 0.04
+    monkeypatch.setattr(model, "blend", lambda m, n: n)
+    long_df, mortgage = _load()
+    r = model.train_and_evaluate(long_df, mortgage)
+    us_r12 = model.build_features(long_df, mortgage).loc[("United States", r.as_of), "r12"]
+    assert np.isclose(r.national_pred, np.exp(us_r12) - 1)
 
 
 def test_train_and_evaluate_without_mortgage():
