@@ -43,6 +43,8 @@ pytest
 
 A `HistGradientBoostingRegressor` predicts each metro's 12-month log return from point-in-time
 price-momentum, volatility, and macro (mortgage rate) features.
+Training rows are weighted by recency (weight halves every 3 years
+of origin age), so the model adapts faster after regime changes.
 
 **Backtest protocol.** Rolling-origin, expanding window, one refit per test year (2010 onward,
 metros only). Test = all monthly origins in that year. Train = only rows whose 12-month outcome
@@ -60,8 +62,9 @@ overlap ~92%. The served forecast is fit on all rows. Final-year (2025) is parti
   Higher is better; 0 = no skill.
 
 **Served forecast.** The page and Findings serve `blend`, the equal-weight average of the model
-and naive momentum (simple returns). Backtest average MAE is about 3.7 pp for the blend vs ~3.8 model
-vs ~4.2 momentum; the page shows live numbers. `blend` is scored in the same backtest.
+and naive momentum (simple returns). Backtest average MAE is about 3.63 pp for the blend vs ~3.68 model
+vs ~4.2 momentum; the page shows live numbers. The backtest still shows a pessimistic bias
+(~-0.9 pp blend), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
 
 **Baselines and predictors.** `blend`, `model`, `naive_momentum` (predict the trailing 12-month return) and `zero` (no change;
 rank IC and lift are n/a because it ranks nothing).

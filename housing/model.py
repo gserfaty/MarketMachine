@@ -1,6 +1,7 @@
 """ML forecasting: feature engineering, rolling-origin backtest, model fit.
 
 The served forecast (`pred_12m`, `national_pred`) is the equal-weight blend of model and naive momentum.
+The model fit uses exponential recency weights with a 3-year half-life.
 
 No Streamlit import here.
 """
@@ -117,7 +118,14 @@ def _active_feature_cols(df: pd.DataFrame) -> list[str]:
     return [c for c in FEATURE_COLS if c in df.columns and df[c].notna().any()]
 
 
-def _fit_model(train: pd.DataFrame, feature_cols: list[str]) -> HistGradientBoostingRegressor:
+HALF_LIFE_YEARS = 3.0
+
+
+def recency_weights(dates: pd.Series, ref_date: pd.Timestamp, half_life: float = HALF_LIFE_YEARS) -> np.ndarray:
+    return np.asarray(0.5 ** (((ref_date - dates).dt.days / 365.25) / half_life))
+
+
+def _fit_model(train: pd.DataFrame, feature_cols: list[str], ref_date: pd.Timestamp) -> HistGradientBoostingRegressor:
     model = HistGradientBoostingRegressor(
         max_iter=300,
         learning_rate=0.05,
@@ -126,7 +134,7 @@ def _fit_model(train: pd.DataFrame, feature_cols: list[str]) -> HistGradientBoos
         l2_regularization=1.0,
         random_state=0,
     )
-    model.fit(train[feature_cols], train["y"])
+    model.fit(train[feature_cols], train["y"], sample_weight=recency_weights(train["date"], ref_date))
     return model
 
 
@@ -152,7 +160,7 @@ def rolling_backtest(
             continue
         # ponytail: fit on quarterly origins only (1/3 of rows, ~3.5x faster); drop if CPU allows
         train = train[train["date"].dt.month.isin([1, 4, 7, 10])]
-        m = _fit_model(train, feature_cols)
+        m = _fit_model(train, feature_cols, test["date"].min())
         model_col = np.exp(m.predict(test[feature_cols])) - 1.0
         naive_col = np.exp(test["r12"].to_numpy()) - 1.0
         out.append(pd.DataFrame({
@@ -224,9 +232,9 @@ def train_and_evaluate(
     metrics = summarize_backtest(backtest)
 
     # Final fit on every row with a known target, then predict at the latest date.
-    full_model = _fit_model(combined, feature_cols)
-
     as_of = feat.index.get_level_values("date").max()
+    full_model = _fit_model(combined, feature_cols, as_of)
+
     latest_feat = feat.xs(as_of, level="date").dropna(subset=feature_cols, how="any")
     latest_pred_log = full_model.predict(latest_feat[feature_cols])
     latest_pred_simple = np.exp(latest_pred_log) - 1.0
