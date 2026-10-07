@@ -22,6 +22,14 @@ URLS: dict[str, str] = {
         "https://files.zillowstatic.com/research/public_csvs/zhvi/"
         "State_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
     ),
+    "inventory_metro": (
+        "https://files.zillowstatic.com/research/public_csvs/invt_fs/"
+        "Metro_invt_fs_uc_sfrcondo_sm_month.csv"
+    ),
+    "price_cut_metro": (
+        "https://files.zillowstatic.com/research/public_csvs/perc_listings_price_cut/"
+        "Metro_perc_listings_price_cut_uc_sfrcondo_sm_month.csv"
+    ),
     "MORTGAGE30US": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US",
     "CSUSHPINSA": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CSUSHPINSA",
 }
@@ -30,6 +38,8 @@ URLS: dict[str, str] = {
 _OFFLINE_FILENAMES: dict[str, str] = {
     "zhvi_metro": "zhvi_metro.csv",
     "zhvi_state": "zhvi_state.csv",
+    "inventory_metro": "inventory_metro.csv",
+    "price_cut_metro": "price_cut_metro.csv",
     "MORTGAGE30US": "MORTGAGE30US.csv",
     "CSUSHPINSA": "CSUSHPINSA.csv",
 }
@@ -128,6 +138,15 @@ def load_zhvi(kind: Literal["metro", "state"]) -> pd.DataFrame:
 def load_fred(series_id: str) -> pd.Series:
     raw_bytes = _read_bytes(source(series_id))
     return parse_fred(io.BytesIO(raw_bytes), series_id)
+
+
+def load_supply() -> pd.DataFrame:
+    """Metro for-sale inventory and price-cut share. Columns: region, date, inventory, price_cut."""
+    parts = []
+    for key, name in (("inventory_metro", "inventory"), ("price_cut_metro", "price_cut")):
+        df = parse_zhvi(io.BytesIO(_read_bytes(source(key))))
+        parts.append(df[["region", "date", "value"]].rename(columns={"value": name}))
+    return parts[0].merge(parts[1], on=["region", "date"], how="outer")
 
 
 def to_wide(long_df: pd.DataFrame) -> pd.DataFrame:

@@ -13,9 +13,10 @@ def _load():
 
 def test_build_features_no_lookahead():
     long_df, mortgage = _load()
-    feat_full = model.build_features(long_df, mortgage)
+    supply = data.load_supply()
+    feat_full = model.build_features(long_df, mortgage, supply)
 
-    cutoff = pd.Timestamp("2018-06-30")
+    cutoff = pd.Timestamp("2020-06-30")
     long_df_altered = long_df.copy()
     mask = long_df_altered["date"] > cutoff
     rng = np.random.default_rng(1)
@@ -26,7 +27,11 @@ def test_build_features_no_lookahead():
     mortgage_altered = mortgage.copy()
     mortgage_altered.loc[mortgage_altered.index > cutoff] = 999.0
 
-    feat_altered = model.build_features(long_df_altered, mortgage_altered)
+    supply_altered = supply.copy()
+    sm = supply_altered["date"] > cutoff
+    supply_altered.loc[sm, ["inventory", "price_cut"]] *= 3
+
+    feat_altered = model.build_features(long_df_altered, mortgage_altered, supply_altered)
 
     at_cutoff_full = feat_full.xs(cutoff, level="date", drop_level=False)
     at_cutoff_altered = feat_altered.xs(cutoff, level="date", drop_level=False)
@@ -35,6 +40,19 @@ def test_build_features_no_lookahead():
     pd.testing.assert_frame_equal(
         at_cutoff_full.loc[common_idx], at_cutoff_altered.loc[common_idx], check_exact=False
     )
+
+
+def test_supply_features():
+    long_df, mortgage = _load()
+    feat = model.build_features(long_df, mortgage, data.load_supply())
+    d = feat.index.get_level_values("date")
+    r = feat.index.get_level_values("region")
+    assert feat.loc[d < "2019-03-01", "inv_yoy"].isna().all()
+    assert feat.loc[(d >= "2019-03-01") & (r != "Boise City, ID"), "inv_yoy"].notna().all()
+    assert feat.loc[r == "Boise City, ID", "inv_yoy"].isna().all()
+    assert feat["pc"].dropna().between(0, 1).all()
+    none = model.build_features(long_df, mortgage)
+    assert none[model.SUPPLY_COLS].isna().all().all()
 
 
 def test_build_target_basic():
@@ -81,7 +99,7 @@ def mortgage_result():
     with pytest.MonkeyPatch.context() as mp:  # autouse offline fixture is function-scoped
         mp.setenv("MICHIGANMEN_DATA_DIR", FIXTURES_DIR)
         long_df, mortgage = _load()
-        return model.train_and_evaluate(long_df, mortgage)
+        return model.train_and_evaluate(long_df, mortgage, supply=data.load_supply())
 
 
 def test_train_and_evaluate_with_mortgage(mortgage_result):

@@ -32,9 +32,17 @@ def cached_fred(series_id: str, data_dir: str | None = None) -> pd.Series | None
         return None
 
 
+@st.cache_data(ttl=86400, show_spinner="Loading Zillow listings data...")
+def cached_supply(data_dir: str | None = None) -> pd.DataFrame | None:
+    try:
+        return data.load_supply()
+    except Exception:
+        return None
+
+
 @st.cache_resource(show_spinner="Training forecast model...")
-def cached_forecast(as_of_key: str, _long_df: pd.DataFrame, _mortgage) -> model.ForecastResult:
-    return model.train_and_evaluate(_long_df, _mortgage)
+def cached_forecast(as_of_key: str, _long_df: pd.DataFrame, _mortgage, _supply) -> model.ForecastResult:
+    return model.train_and_evaluate(_long_df, _mortgage, supply=_supply)
 
 
 def _safe_load_metro() -> pd.DataFrame | None:
@@ -217,8 +225,11 @@ def render_forecast() -> None:
         return
     mortgage = cached_fred("MORTGAGE30US", _data_dir_key())
 
-    as_of_key = str(metro_df["date"].max())
-    result = cached_forecast(as_of_key, metro_df, mortgage)
+    supply = cached_supply(_data_dir_key())
+    if supply is None:
+        st.warning("Zillow listings data unavailable; forecast runs without supply features.")
+    as_of_key = f"{metro_df['date'].max()}|supply={supply is not None}"
+    result = cached_forecast(as_of_key, metro_df, mortgage, supply)
 
     st.subheader("How well has the model done? (backtest)")
     m = result.metrics
@@ -259,7 +270,9 @@ def render_forecast() -> None:
         f"rank IC: blend {bl['rank_ic']:.2f} vs model {mo['rank_ic']:.2f} vs momentum {nv['rank_ic']:.2f}. "
         "The blend is served because averaging two partly independent forecasts cuts the miss. "
         "The model weights recent history more (3-year half-life), which lowered backtest MAE slightly; "
-        "it does not remove the pessimistic bias."
+        "it does not remove the pessimistic bias. "
+        "Since step 4 the model also uses metro for-sale inventory (YoY) and the share of listings "
+        "with a price cut (Zillow, from 2018)."
     )
     if bl["MAE"] > mo["MAE"]:
         st.warning("In this backtest the blend no longer beats the model on MAE.")
@@ -324,8 +337,9 @@ def render_findings() -> None:
         hide_index=True,
     )
 
-    as_of_key = str(metro_df["date"].max())
-    result = cached_forecast(as_of_key, metro_df, mortgage)
+    supply = cached_supply(_data_dir_key())
+    as_of_key = f"{metro_df['date'].max()}|supply={supply is not None}"
+    result = cached_forecast(as_of_key, metro_df, mortgage, supply)
     preds = result.predictions[result.predictions["region"] != "United States"]
 
     st.subheader("Top 15 predicted gainers (next 12 months)")
