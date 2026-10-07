@@ -52,6 +52,12 @@ def test_load_fred_offline():
     assert not s.empty
 
 
+def test_load_supply_offline():
+    df = data.load_supply()
+    assert set(df.columns) == {"region", "date", "inventory", "price_cut"}
+    assert not df.empty and "United States" in set(df["region"])
+
+
 def test_to_wide_pivots_by_region():
     df = data.load_zhvi("metro")
     wide = data.to_wide(df)

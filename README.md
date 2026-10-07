@@ -11,6 +11,8 @@ the most valuable markets.
 All free, public, and require no API key:
 
 - [Zillow Home Value Index (ZHVI)](https://www.zillow.com/research/data/) — metro and state, smoothed/seasonally adjusted, all-homes tier.
+- Zillow for-sale inventory (metro, from 2018) — count of listings; used as year-over-year change.
+- Zillow share of listings with a price cut (metro, from 2018).
 - [FRED `MORTGAGE30US`](https://fred.stlouisfed.org/series/MORTGAGE30US) — weekly 30-year fixed mortgage rate.
 - [FRED `CSUSHPINSA`](https://fred.stlouisfed.org/series/CSUSHPINSA) — Case-Shiller US National Home Price Index.
 
@@ -45,6 +47,9 @@ A `HistGradientBoostingRegressor` predicts each metro's 12-month log return from
 price-momentum, volatility, and macro (mortgage rate) features.
 Training rows are weighted by recency (weight halves every 3 years
 of origin age), so the model adapts faster after regime changes.
+Supply features (metro for-sale inventory YoY, share of listings with a price cut and its 12-month change)
+start in 2018 and are left NaN where missing; they enter the backtest from 2020/2021 and do not change earlier
+years. Zillow revises these values, so history is the current vintage (same caveat as ZHVI).
 
 **Backtest protocol.** Rolling-origin, expanding window, one refit per test year (2010 onward,
 metros only). Test = all monthly origins in that year. Train = only rows whose 12-month outcome
@@ -62,7 +67,7 @@ overlap ~92%. The served forecast is fit on all rows. Final-year (2025) is parti
   Higher is better; 0 = no skill.
 
 **Served forecast.** The page and Findings serve `blend`, the equal-weight average of the model
-and naive momentum (simple returns). Backtest average MAE is about 3.63 pp for the blend vs ~3.68 model
+and naive momentum (simple returns). Backtest average MAE is about 3.59 pp for the blend vs ~3.58 model
 vs ~4.2 momentum; the page shows live numbers. The backtest still shows a pessimistic bias
 (~-0.9 pp blend), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
 

@@ -3,6 +3,8 @@
 The served forecast (`pred_12m`, `national_pred`) is the equal-weight blend of model and naive momentum.
 The model fit uses exponential recency weights with a 3-year half-life.
 
+Supply features (inventory YoY, price-cut share) start in 2018 and may be NaN; HGB handles NaN natively.
+
 No Streamlit import here.
 """
 from __future__ import annotations
@@ -19,7 +21,9 @@ FEATURE_COLS = [
     "r1", "r3", "r6", "r12", "r24", "r36",
     "vol12", "accel", "drawdown36", "rel_us", "us_r12",
     "log_size_rank", "mort", "mort_chg12",
+    "inv_yoy", "pc", "pc_chg12",
 ]
+SUPPLY_COLS = ["inv_yoy", "pc", "pc_chg12"]
 
 _US_REGION = "United States"
 
@@ -29,7 +33,8 @@ def _melt(df: pd.DataFrame, name: str) -> pd.DataFrame:
     return m
 
 
-def build_features(long_df: pd.DataFrame, mortgage: pd.Series | None = None) -> pd.DataFrame:
+def build_features(long_df: pd.DataFrame, mortgage: pd.Series | None = None, supply: pd.DataFrame | None = None
+) -> pd.DataFrame:
     """Panel of point-in-time features keyed (region, date).
 
     Every feature at date t is computed only from data available at or before t
@@ -65,6 +70,16 @@ def build_features(long_df: pd.DataFrame, mortgage: pd.Series | None = None) -> 
     feat = feat.merge(size_rank, on=["region", "date"], how="left")
     feat["log_size_rank"] = np.log1p(feat["size_rank"])
     feat = feat.drop(columns=["size_rank"])
+
+    if supply is not None:
+        inv = supply.pivot_table(index="date", columns="region", values="inventory")
+        pc = supply.pivot_table(index="date", columns="region", values="price_cut")
+        inv_yoy = np.log(inv / inv.shift(12)).replace([np.inf, -np.inf], np.nan)
+        for df_, name in ((inv_yoy, "inv_yoy"), (pc, "pc"), (pc - pc.shift(12), "pc_chg12")):
+            feat = feat.merge(_melt(df_, name), on=["region", "date"], how="left")
+    else:
+        for c in SUPPLY_COLS:
+            feat[c] = np.nan
 
     if mortgage is not None:
         mort_df = mortgage.rename("mort").reset_index()
@@ -160,8 +175,9 @@ def rolling_backtest(
             continue
         # ponytail: fit on quarterly origins only (1/3 of rows, ~3.5x faster); drop if CPU allows
         train = train[train["date"].dt.month.isin([1, 4, 7, 10])]
-        m = _fit_model(train, feature_cols, test["date"].min())
-        model_col = np.exp(m.predict(test[feature_cols])) - 1.0
+        cols = [c for c in feature_cols if train[c].notna().any()]
+        m = _fit_model(train, cols, test["date"].min())
+        model_col = np.exp(m.predict(test[cols])) - 1.0
         naive_col = np.exp(test["r12"].to_numpy()) - 1.0
         out.append(pd.DataFrame({
             "region": test["region"].to_numpy(),
@@ -221,9 +237,9 @@ def summarize_backtest(scores: pd.DataFrame) -> pd.DataFrame:
 
 
 def train_and_evaluate(
-    long_df: pd.DataFrame, mortgage: pd.Series | None, horizon: int = 12
+    long_df: pd.DataFrame, mortgage: pd.Series | None, supply: pd.DataFrame | None = None, horizon: int = 12
 ) -> ForecastResult:
-    feat = build_features(long_df, mortgage)
+    feat = build_features(long_df, mortgage, supply)
     target = build_target(long_df, horizon=horizon)
     combined = feat.join(target.rename("y"), how="inner").reset_index()
 
@@ -235,7 +251,9 @@ def train_and_evaluate(
     as_of = feat.index.get_level_values("date").max()
     full_model = _fit_model(combined, feature_cols, as_of)
 
-    latest_feat = feat.xs(as_of, level="date").dropna(subset=feature_cols, how="any")
+    latest_feat = feat.xs(as_of, level="date").dropna(
+        subset=[c for c in feature_cols if c not in SUPPLY_COLS], how="any"
+    )
     latest_pred_log = full_model.predict(latest_feat[feature_cols])
     latest_pred_simple = np.exp(latest_pred_log) - 1.0
     naive_latest = np.exp(latest_feat["r12"].to_numpy()) - 1.0

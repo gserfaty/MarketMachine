@@ -125,6 +125,32 @@ def build_case_shiller(rng: np.random.Generator) -> pd.DataFrame:
     return df
 
 
+SUPPLY_MONTHS = pd.date_range("2018-03-31", "2026-08-31", freq="ME")
+
+
+def _supply_frame(rng: np.random.Generator, draw) -> pd.DataFrame:
+    labels = [d.strftime("%Y-%m-%d") for d in SUPPLY_MONTHS]
+    rows = [(1, 0, "United States", "country", np.nan)] + [
+        (rid, rank, name, "msa", state) for rid, rank, name, state, *_ in METROS if name != NAN_UNTIL_METRO
+    ]
+    return pd.DataFrame(
+        [
+            {"RegionID": rid, "SizeRank": rank, "RegionName": name, "RegionType": rt, "StateName": st,
+             **dict(zip(labels, draw(rng, len(labels))))}
+            for rid, rank, name, rt, st in rows
+        ]
+    )
+
+
+def build_inventory(rng: np.random.Generator) -> pd.DataFrame:
+    # Boise City is left out on purpose to exercise NaN tolerance.
+    return _supply_frame(rng, lambda r, n: (r.uniform(5000, 20000) * np.exp(np.cumsum(r.normal(0, 0.03, n)))).round())
+
+
+def build_price_cut(rng: np.random.Generator) -> pd.DataFrame:
+    return _supply_frame(rng, lambda r, n: r.uniform(0.05, 0.35, n).round(4))
+
+
 def main() -> None:
     os.makedirs(FIXTURES_DIR, exist_ok=True)
     rng = np.random.default_rng(0)
@@ -133,6 +159,10 @@ def main() -> None:
     build_zhvi_state(rng).to_csv(os.path.join(FIXTURES_DIR, "zhvi_state.csv"), index=False)
     build_mortgage(rng).to_csv(os.path.join(FIXTURES_DIR, "MORTGAGE30US.csv"), index=False)
     build_case_shiller(rng).to_csv(os.path.join(FIXTURES_DIR, "CSUSHPINSA.csv"), index=False)
+
+    rng = np.random.default_rng(1)
+    build_inventory(rng).to_csv(os.path.join(FIXTURES_DIR, "inventory_metro.csv"), index=False)
+    build_price_cut(rng).to_csv(os.path.join(FIXTURES_DIR, "price_cut_metro.csv"), index=False)
 
 
 if __name__ == "__main__":

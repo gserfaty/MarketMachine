@@ -5,6 +5,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Step 4
+- Added: metro supply features from two Zillow sources (for-sale inventory, share of listings with a price cut):
+  `inv_yoy`, `pc`, `pc_chg12`. NaN-tolerant (history starts 2018); folds drop all-NaN columns.
+- Before/after, real-data backtest averages: blend MAE 3.631 -> 3.588, blend rank IC 0.469 -> 0.474,
+  blend bias -0.94 -> -0.91; 2019+ blend MAE 4.257 -> 4.159, 2019+ rank IC 0.464 -> 0.476.
+- Tried and rejected: ZORI price-to-rent and rent growth (hurt MAE); new listings and days to pending (added nothing).
+  BLS metro unemployment skipped (download returns 403).
+- The model (MAE 3.581) now edges out the blend (3.588); serving stays `blend`.
+
 ### Step 3
 - Changed: the model fit uses exponential recency sample weights (half-life 3 years, measured from the first
   test origin in the backtest and from as_of in the served fit).
