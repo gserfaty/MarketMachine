@@ -220,18 +220,43 @@ def render_forecast() -> None:
     as_of_key = str(metro_df["date"].max())
     result = cached_forecast(as_of_key, metro_df, mortgage)
 
-    st.subheader("Model vs. baselines (test period)")
-    metrics_display = result.metrics.copy()
-    metrics_display["direction_acc"] = (metrics_display["direction_acc"] * 100).map(lambda v: f"{v:.1f}%")
-    metrics_display["MAE"] = metrics_display["MAE"].map(lambda v: f"{v:.2f} pp")
-    st.dataframe(metrics_display, use_container_width=True)
+    st.subheader("How well has the model done? (backtest)")
+    m = result.metrics
+    disp = m.copy()
+    for c in ("MAE", "bias", "top_decile_lift"):
+        disp[c] = m[c].map(lambda v: "n/a" if pd.isna(v) else f"{v:.2f} pp")
+    disp["direction_acc"] = m["direction_acc"].map(lambda v: f"{v * 100:.1f}%")
+    disp["rank_ic"] = m["rank_ic"].map(lambda v: "n/a" if pd.isna(v) else f"{v:.2f}")
+    st.dataframe(disp, use_container_width=True)
 
-    model_mae = result.metrics.loc["model", "MAE"]
-    naive_mae = result.metrics.loc["naive_momentum", "MAE"]
-    if model_mae < naive_mae:
-        st.success(f"The model beats the naive momentum baseline: {model_mae:.2f} pp vs {naive_mae:.2f} pp MAE.")
+    bt = result.backtest
+    per_year = bt[bt["predictor"].isin(["model", "naive_momentum"])].pivot(
+        index="year", columns="predictor", values=["MAE", "bias", "rank_ic", "top_decile_lift"]
+    )
+    per_year.columns = [f"{metric} · {pred}" for metric, pred in per_year.columns]
+    per_year["n"] = bt[bt["predictor"] == "model"].set_index("year")["n"]
+    st.dataframe(per_year.round(2), use_container_width=True)
+
+    ic = bt[bt["predictor"].isin(["model", "naive_momentum"])]
+    st.plotly_chart(px.line(ic, x="year", y="rank_ic", color="predictor", title="Rank IC by year"),
+                    use_container_width=True)
+
+    mo, nv, zr = m.loc["model"], m.loc["naive_momentum"], m.loc["zero"]
+    tone = "pessimistic" if mo["bias"] < 0 else "optimistic"
+    st.markdown(
+        f"- Average miss: model {mo['MAE']:.2f} pp vs momentum {nv['MAE']:.2f} pp vs no-change {zr['MAE']:.2f} pp.\n"
+        f"- Bias: model is on average {abs(mo['bias']):.2f} pp too {tone}.\n"
+        f"- Ranking (rank IC {mo['rank_ic']:.2f} vs {nv['rank_ic']:.2f} for momentum): "
+        "0 = random ordering, 1 = perfect; above ~0.3 is a useful ranking.\n"
+        f"- Top-10% picks beat the average metro by {mo['top_decile_lift']:.2f} pp/yr "
+        f"(momentum: {nv['top_decile_lift']:.2f} pp).\n"
+        f"- Direction right {mo['direction_acc'] * 100:.0f}% of the time."
+    )
+
+    if mo["MAE"] < nv["MAE"] and mo["rank_ic"] > nv["rank_ic"]:
+        st.success("The model beats the naive momentum baseline on both error (MAE) and ranking (rank IC).")
     else:
-        st.info(f"The model does not beat the naive momentum baseline: {model_mae:.2f} pp vs {naive_mae:.2f} pp MAE.")
+        st.info("The model does not beat the naive momentum baseline on both error (MAE) and ranking (rank IC).")
 
     direction = "Up" if result.national_pred >= 0 else "Down"
     st.metric(
@@ -256,8 +281,10 @@ def render_forecast() -> None:
         st.write(
             "A gradient-boosted tree model is trained on point-in-time price-momentum, "
             "volatility, and macro features to predict each metro's 12-month log return. "
-            "It is validated on a held-out, chronologically later window against a naive "
-            "momentum baseline and a zero-change baseline."
+            "It is evaluated with a yearly rolling-origin backtest (2010 onward): each year is "
+            "predicted by a model trained only on rows whose 12-month outcome was already known "
+            "at the start of that year, and compared with a naive momentum baseline and a "
+            "zero-change baseline. Backtest fits use quarterly origins only, for speed."
         )
 
     _footer_disclaimer()
