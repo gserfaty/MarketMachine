@@ -257,7 +257,9 @@ def render_forecast() -> None:
         "Served forecast: **blend** = average of the ML model and naive momentum (simple returns). "
         f"Backtest average MAE: blend {bl['MAE']:.2f} pp vs model {mo['MAE']:.2f} pp vs momentum {nv['MAE']:.2f} pp; "
         f"rank IC: blend {bl['rank_ic']:.2f} vs model {mo['rank_ic']:.2f} vs momentum {nv['rank_ic']:.2f}. "
-        "The blend is served because averaging two partly independent forecasts cuts the miss."
+        "The blend is served because averaging two partly independent forecasts cuts the miss. "
+        "The model weights recent history more (3-year half-life), which lowered backtest MAE slightly; "
+        "it does not remove the pessimistic bias."
     )
     if bl["MAE"] > mo["MAE"]:
         st.warning("In this backtest the blend no longer beats the model on MAE.")

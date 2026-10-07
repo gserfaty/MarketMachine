@@ -120,3 +120,10 @@ def test_train_and_evaluate_without_mortgage():
     result = model.train_and_evaluate(long_df, mortgage=None)
     assert not result.predictions.empty
     assert np.isfinite(result.national_pred)
+
+
+def test_recency_weights():
+    dates = pd.Series(pd.to_datetime(["2020-01-01", "2017-01-01", "2014-01-01"]))
+    w = model.recency_weights(dates, pd.Timestamp("2020-01-01"))
+    assert np.allclose(w, [1, 0.5, 0.25], atol=0.01)
+    assert (np.diff(w) < 0).all()
