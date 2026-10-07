@@ -43,18 +43,35 @@ def test_build_target_basic():
     assert "United States" in y.index.get_level_values("region")
 
 
-def test_time_split_no_leakage():
+def test_split_for_year_no_leakage():
     long_df, mortgage = _load()
     feat = model.build_features(long_df, mortgage)
     target = model.build_target(long_df, horizon=12)
     combined = feat.join(target.rename("y"), how="inner").reset_index()
+    seen = 0
+    for year in range(2010, 2026):
+        train, test = model.split_for_year(combined, year)
+        if test.empty:
+            continue
+        seen += 1
+        assert (test["date"].dt.year == year).all()
+        assert train["date"].max() + pd.DateOffset(months=12) <= test["date"].min()
+    assert seen >= 10
 
-    train, test = model.time_split(combined, test_months=24, horizon=12)
-    assert not train.empty
-    assert not test.empty
-    max_train_origin = train["date"].max()
-    min_test_origin = test["date"].min()
-    assert max_train_origin + pd.DateOffset(months=12) < min_test_origin
+
+def test_score_backtest_known_values():
+    rows = []
+    for d in pd.to_datetime(["2020-01-31", "2020-02-29"]):
+        for i in range(10):
+            a = (i - 4.5) / 100
+            rows.append({"region": f"r{i}", "date": d, "year": 2020, "actual": a,
+                         "model": a, "reversed": -a, "zero": 0.0})
+    s = model.score_backtest(pd.DataFrame(rows), ["model", "reversed", "zero"]).set_index("predictor")
+    assert s.loc["model", "MAE"] == 0 and s.loc["model", "bias"] == 0
+    assert np.isclose(s.loc["model", "rank_ic"], 1) and np.isclose(s.loc["reversed", "rank_ic"], -1)
+    assert np.isnan(s.loc["zero", "rank_ic"]) and np.isnan(s.loc["zero", "top_decile_lift"])
+    # top 1 of 10 is actual 0.045; mean is 0 -> lift 4.5 pp
+    assert np.isclose(s.loc["model", "top_decile_lift"], 4.5)
 
 
 def test_train_and_evaluate_with_mortgage():
@@ -65,7 +82,8 @@ def test_train_and_evaluate_with_mortgage():
     assert (result.metrics["MAE"] >= 0).all()
     assert (result.metrics["direction_acc"] >= 0).all()
     assert (result.metrics["direction_acc"] <= 1).all()
-    assert (result.metrics["n_test"] > 0).all()
+    assert {"rank_ic", "top_decile_lift"} <= set(result.metrics.columns)
+    assert result.backtest["year"].nunique() >= 10
 
     n_metros = long_df.loc[long_df["date"] == long_df["date"].max(), "region"].nunique()
     assert len(result.predictions) == n_metros

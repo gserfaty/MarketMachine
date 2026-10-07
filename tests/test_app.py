@@ -37,3 +37,10 @@ def test_overview_shows_error_when_data_dir_missing(monkeypatch):
     at.run()
     assert not at.exception
     assert len(at.error) > 0
+
+
+def test_forecast_page_scorecard():
+    at = _run_page("ML forecast")
+    assert not at.exception
+    assert len(at.dataframe) >= 2
+    assert "rank ic" in " ".join(m.value for m in at.markdown).lower()

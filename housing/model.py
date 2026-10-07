@@ -1,4 +1,4 @@
-"""ML forecasting: feature engineering, time-based validation, model fit.
+"""ML forecasting: feature engineering, rolling-origin backtest, model fit.
 
 No Streamlit import here.
 """
@@ -88,26 +88,22 @@ def build_target(long_df: pd.DataFrame, horizon: int = 12) -> pd.Series:
     return m.set_index(["region", "date"])["y"]
 
 
-def time_split(
-    df: pd.DataFrame, test_months: int = 24, horizon: int = 12
+def split_for_year(
+    df: pd.DataFrame, year: int, horizon: int = 12
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Time-based train/test split with no leakage.
-
-    `df` must have a `date` column and only rows where the target is known.
-    Test = the last `test_months` origins. Train = origins early enough that
-    every train target window ends before the first test origin.
-    """
-    last_origin = df["date"].max()
-    test_start = last_origin - pd.DateOffset(months=test_months - 1)
-    train_cutoff = last_origin - pd.DateOffset(months=test_months + horizon)
-    test = df[(df["date"] >= test_start) & (df["date"] <= last_origin)].copy()
-    train = df[df["date"] <= train_cutoff].copy()
+    """Expanding-window split: test = origins in `year`; train = rows whose target
+    window ends no later than the first test origin (no leakage)."""
+    test = df[df["date"].dt.year == year].copy()
+    if test.empty:
+        return df.iloc[0:0].copy(), test
+    train = df[df["date"] + pd.DateOffset(months=horizon) <= test["date"].min()].copy()
     return train, test
 
 
 @dataclass
 class ForecastResult:
     metrics: pd.DataFrame
+    backtest: pd.DataFrame
     predictions: pd.DataFrame
     national_pred: float
     as_of: pd.Timestamp
@@ -132,8 +128,77 @@ def _fit_model(train: pd.DataFrame, feature_cols: list[str]) -> HistGradientBoos
     return model
 
 
-def _direction_acc(pred_simple: np.ndarray, actual_simple: np.ndarray) -> float:
-    return float(np.mean(np.sign(pred_simple) == np.sign(actual_simple)))
+PREDICTORS = ["model", "naive_momentum", "zero"]
+METRICS = ["MAE", "bias", "direction_acc", "rank_ic", "top_decile_lift"]
+
+
+def rolling_backtest(
+    combined: pd.DataFrame, feature_cols: list[str], horizon: int = 12, first_year: int = 2010
+) -> pd.DataFrame:
+    """Yearly expanding-window backtest on metros. Long frame of simple-return predictions."""
+    df = combined[combined["region"] != _US_REGION]
+    out = []
+    for year in range(first_year, int(df["date"].dt.year.max()) + 1):
+        train, test = split_for_year(df, year, horizon)
+        if test.empty or train.empty:
+            continue
+        # ponytail: fit on quarterly origins only (1/3 of rows, ~3.5x faster); drop if CPU allows
+        train = train[train["date"].dt.month.isin([1, 4, 7, 10])]
+        m = _fit_model(train, feature_cols)
+        out.append(pd.DataFrame({
+            "region": test["region"].to_numpy(),
+            "date": test["date"].to_numpy(),
+            "year": year,
+            "actual": np.exp(test["y"].to_numpy()) - 1.0,
+            "model": np.exp(m.predict(test[feature_cols])) - 1.0,
+            "naive_momentum": np.exp(test["r12"].to_numpy()) - 1.0,
+            "zero": 0.0,
+        }))
+    if not out:
+        raise ValueError("No test years with data for the backtest.")
+    return pd.concat(out, ignore_index=True)
+
+
+def _rank_ic(g: pd.DataFrame, col: str) -> float:
+    if g[col].nunique() < 2:
+        return float("nan")
+    return float(g[col].rank().corr(g["actual"].rank()))
+
+
+def _top_decile_lift(g: pd.DataFrame, col: str) -> float:
+    if g[col].nunique() < 2:
+        return float("nan")
+    k = max(1, int(np.ceil(0.1 * len(g))))
+    top = g[g[col].rank(method="first", ascending=False) <= k]
+    return float(top["actual"].mean() - g["actual"].mean()) * 100.0
+
+
+def score_backtest(preds: pd.DataFrame, predictors: list[str]) -> pd.DataFrame:
+    """One row per (year, predictor): MAE, bias, direction_acc, rank_ic, top_decile_lift, n."""
+    rows = []
+    for year, y in preds.groupby("year"):
+        for name in predictors:
+            err = y[name] - y["actual"]
+            by_date = [g for _, g in y.groupby("date")]
+            rows.append({
+                "year": year,
+                "predictor": name,
+                "MAE": float(err.abs().mean()) * 100.0,
+                "bias": float(err.mean()) * 100.0,
+                "direction_acc": float((np.sign(y[name]) == np.sign(y["actual"])).mean()),
+                "rank_ic": pd.Series([_rank_ic(g, name) for g in by_date]).mean(),
+                "top_decile_lift": pd.Series([_top_decile_lift(g, name) for g in by_date]).mean(),
+                "n": len(y),
+            })
+    return pd.DataFrame(rows)
+
+
+def summarize_backtest(scores: pd.DataFrame) -> pd.DataFrame:
+    """Equal-weight mean over years (NaN skipped) per predictor, plus year count."""
+    g = scores.groupby("predictor")
+    out = g[METRICS].mean()
+    out["years"] = g["year"].nunique()
+    return out.reindex([p for p in PREDICTORS if p in out.index])
 
 
 def train_and_evaluate(
@@ -143,28 +208,9 @@ def train_and_evaluate(
     target = build_target(long_df, horizon=horizon)
     combined = feat.join(target.rename("y"), how="inner").reset_index()
 
-    train, test = time_split(combined, test_months=24, horizon=horizon)
-
     feature_cols = _active_feature_cols(combined)
-    model = _fit_model(train, feature_cols)
-    pred_log = model.predict(test[feature_cols])
-    actual_log = test["y"].to_numpy()
-    pred_simple = np.exp(pred_log) - 1.0
-    actual_simple = np.exp(actual_log) - 1.0
-
-    naive_pred_simple = np.exp(test["r12"].to_numpy()) - 1.0
-    zero_pred_simple = np.zeros_like(actual_simple)
-
-    metrics_rows = []
-    for name, p in (
-        ("model", pred_simple),
-        ("naive_momentum", naive_pred_simple),
-        ("zero", zero_pred_simple),
-    ):
-        mae = float(np.mean(np.abs(p - actual_simple))) * 100.0
-        dacc = _direction_acc(p, actual_simple)
-        metrics_rows.append({"model": name, "MAE": mae, "direction_acc": dacc, "n_test": len(test)})
-    metrics = pd.DataFrame(metrics_rows).set_index("model")
+    backtest = score_backtest(rolling_backtest(combined, feature_cols, horizon), PREDICTORS)
+    metrics = summarize_backtest(backtest)
 
     # Final fit on every row with a known target, then predict at the latest date.
     full_model = _fit_model(combined, feature_cols)
@@ -189,6 +235,7 @@ def train_and_evaluate(
 
     return ForecastResult(
         metrics=metrics,
+        backtest=backtest,
         predictions=predictions,
         national_pred=national_pred,
         as_of=as_of,
