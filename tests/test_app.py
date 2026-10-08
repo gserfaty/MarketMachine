@@ -46,3 +46,4 @@ def test_forecast_page_scorecard():
     assert "rank ic" in " ".join(m.value for m in at.markdown).lower()
     txt = " ".join([m.value for m in at.markdown] + [i.value for i in at.info]).lower()
     assert "served forecast" in txt and "blend" in txt
+    assert "80% range" in " ".join(c.value for c in at.caption)

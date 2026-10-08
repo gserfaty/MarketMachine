@@ -118,6 +118,37 @@ def test_train_and_evaluate_with_mortgage(mortgage_result):
     assert np.isfinite(result.national_pred)
     assert result.as_of == long_df["date"].max()
 
+    p = result.predictions
+    assert (p.lo_12m <= p.pred_12m).all() and (p.pred_12m <= p.hi_12m).all()
+    m = result.metrics
+    assert 0 <= m.loc["blend", "coverage80"] <= 1 and m.loc["blend", "width80"] > 0
+    assert np.isnan(m.loc["model", "coverage80"])
+    assert np.isfinite(result.national_interval).all()
+
+
+def test_add_intervals_no_leakage():
+    rng = np.random.default_rng(0)
+    rows = [(r, y, rng.normal(0.03, 0.02), rng.normal(0.03, 0.02)) for y in range(2010, 2015) for r in "abcde"]
+    df = pd.DataFrame(rows, columns=["region", "year", "blend", "actual"])
+    df["vol12"] = 0.01
+
+    def run(**over):
+        d = df.copy()
+        for y, v in over.items():
+            d.loc[d.year == int(y[1:]), "actual"] = [10, -10, 10, -10, 10]
+        return model.add_intervals(d)
+
+    base = run()
+    assert base.loc[base.year < 2012, ["lo", "hi"]].isna().all().all()
+    ok = base[base.year >= 2012]
+    assert (ok.lo <= ok.blend).all() and (ok.blend <= ok.hi).all()
+    # 2012 outcomes feed 2014 intervals but not 2013; 2013-2014 outcomes feed neither.
+    alt = run(y2012=1)
+    assert np.allclose(alt.loc[alt.year == 2013, "lo"], base.loc[base.year == 2013, "lo"])
+    assert not np.allclose(alt.loc[alt.year == 2014, "lo"], base.loc[base.year == 2014, "lo"])
+    alt = run(y2013=1, y2014=1)
+    assert np.allclose(alt.loc[alt.year == 2014, "lo"], base.loc[base.year == 2014, "lo"])
+
 
 def test_backtest_blend_is_average(mortgage_result):
     b = mortgage_result.metrics["bias"]
