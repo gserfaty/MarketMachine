@@ -65,6 +65,12 @@ overlap ~92%. The served forecast is fit on all rows. Final-year (2025) is parti
   0 = random ordering, 1 = perfect; above ~0.3 is useful.
 - top-decile lift (pp): mean outcome of the top 10% predicted metros minus the all-metro mean.
   Higher is better; 0 = no skill.
+- coverage80 / width80 (blend only): share of actual outcomes inside the 80% range, and its mean width (pp).
+
+**Prediction intervals.** A forecast like "+3% (-1% to +6%)" means an 80% range: about 8 of 10 past forecasts
+landed inside it. The range comes from past blend backtest residuals, scaled by the metro's 12-month volatility,
+so volatile metros get wider ranges; for each year only earlier, already-resolved years are used. Backtest coverage
+is about 78% (slightly under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee.
 
 **Served forecast.** The page and Findings serve `blend`, the equal-weight average of the model
 and naive momentum (simple returns). Backtest average MAE is about 3.59 pp for the blend vs ~3.58 model

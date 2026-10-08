@@ -5,6 +5,8 @@ The model fit uses exponential recency weights with a 3-year half-life.
 
 Supply features (inventory YoY, price-cut share) start in 2018 and may be NaN; HGB handles NaN natively.
 
+Each served forecast carries an 80% interval: empirical vol12-scaled quantiles of past blend backtest residuals.
+
 No Streamlit import here.
 """
 from __future__ import annotations
@@ -126,6 +128,7 @@ class ForecastResult:
     national_pred: float
     as_of: pd.Timestamp
     feature_importance: pd.Series | None = None
+    national_interval: tuple[float, float] = (float("nan"), float("nan"))
 
 
 def _active_feature_cols(df: pd.DataFrame) -> list[str]:
@@ -160,7 +163,37 @@ def blend(model_simple, naive_simple):
     return (model_simple + naive_simple) / 2
 
 
-METRICS = ["MAE", "bias", "direction_acc", "rank_ic", "top_decile_lift"]
+METRICS = ["MAE", "bias", "direction_acc", "rank_ic", "top_decile_lift", "coverage80", "width80"]
+INTERVAL_Q = (0.1, 0.9)
+VOL_FLOOR = 0.001
+
+
+def interval_scale(vol12) -> np.ndarray:
+    return np.maximum(np.asarray(vol12, float), VOL_FLOOR)
+
+
+def z_quantiles(preds: pd.DataFrame) -> tuple[float, float]:
+    """INTERVAL_Q quantiles of vol12-scaled blend residuals (NaN skipped)."""
+    z = (preds["actual"] - preds[SERVED]) / interval_scale(preds["vol12"])
+    lo, hi = z.dropna().quantile(list(INTERVAL_Q))
+    return float(lo), float(hi)
+
+
+def add_intervals(preds: pd.DataFrame, gap: int = 2) -> pd.DataFrame:
+    """Add lo/hi; year Y uses only residuals from years <= Y-gap (Y-1 outcomes are not yet known)."""
+    out = preds.copy()
+    out["lo"] = np.nan
+    out["hi"] = np.nan
+    for year in out["year"].unique():
+        hist = preds[preds["year"] <= year - gap]
+        if hist.empty:
+            continue
+        zlo, zhi = z_quantiles(hist)
+        m = out["year"] == year
+        scale = interval_scale(out.loc[m, "vol12"])
+        out.loc[m, "lo"] = out.loc[m, SERVED] + zlo * scale
+        out.loc[m, "hi"] = out.loc[m, SERVED] + zhi * scale
+    return out
 
 
 def rolling_backtest(
@@ -183,6 +216,7 @@ def rolling_backtest(
             "region": test["region"].to_numpy(),
             "date": test["date"].to_numpy(),
             "year": year,
+            "vol12": test["vol12"].to_numpy(),
             "actual": np.exp(test["y"].to_numpy()) - 1.0,
             "model": model_col,
             "blend": blend(model_col, naive_col),
@@ -214,6 +248,11 @@ def score_backtest(preds: pd.DataFrame, predictors: list[str]) -> pd.DataFrame:
     for year, y in preds.groupby("year"):
         for name in predictors:
             err = y[name] - y["actual"]
+            cov = wid = float("nan")
+            if name == SERVED and {"lo", "hi"} <= set(y.columns) and y["lo"].notna().any():
+                v = y[y["lo"].notna()]
+                cov = float(((v["lo"] <= v["actual"]) & (v["actual"] <= v["hi"])).mean())
+                wid = float((v["hi"] - v["lo"]).mean()) * 100.0
             by_date = [g for _, g in y.groupby("date")]
             rows.append({
                 "year": year,
@@ -223,6 +262,8 @@ def score_backtest(preds: pd.DataFrame, predictors: list[str]) -> pd.DataFrame:
                 "direction_acc": float((np.sign(y[name]) == np.sign(y["actual"])).mean()),
                 "rank_ic": pd.Series([_rank_ic(g, name) for g in by_date]).mean(),
                 "top_decile_lift": pd.Series([_top_decile_lift(g, name) for g in by_date]).mean(),
+                "coverage80": cov,
+                "width80": wid,
                 "n": len(y),
             })
     return pd.DataFrame(rows)
@@ -244,7 +285,9 @@ def train_and_evaluate(
     combined = feat.join(target.rename("y"), how="inner").reset_index()
 
     feature_cols = _active_feature_cols(combined)
-    backtest = score_backtest(rolling_backtest(combined, feature_cols, horizon), PREDICTORS)
+    raw = add_intervals(rolling_backtest(combined, feature_cols, horizon))
+    backtest = score_backtest(raw, PREDICTORS)
+    zlo, zhi = z_quantiles(raw)
     metrics = summarize_backtest(backtest)
 
     # Final fit on every row with a known target, then predict at the latest date.
@@ -259,18 +302,24 @@ def train_and_evaluate(
     naive_latest = np.exp(latest_feat["r12"].to_numpy()) - 1.0
     served = blend(latest_pred_simple, naive_latest)
 
+    scale = interval_scale(latest_feat["vol12"].to_numpy())
     latest_snapshot = long_df[long_df["date"] == as_of][["region", "state", "value"]].drop_duplicates(
         "region"
     )
     predictions = pd.DataFrame(
-        {"region": latest_feat.index, "pred_12m": served}
+        {"region": latest_feat.index, "pred_12m": served,
+         "lo_12m": served + zlo * scale, "hi_12m": served + zhi * scale}
     ).merge(latest_snapshot, on="region", how="left")
-    predictions = predictions[["region", "state", "value", "pred_12m"]].sort_values(
+    predictions = predictions[["region", "state", "value", "pred_12m", "lo_12m", "hi_12m"]].sort_values(
         "pred_12m", ascending=False
     ).reset_index(drop=True)
 
     us_row = predictions[predictions["region"] == _US_REGION]
     national_pred = float(us_row["pred_12m"].iloc[0]) if not us_row.empty else float("nan")
+
+    national_interval = (
+        (float(us_row["lo_12m"].iloc[0]), float(us_row["hi_12m"].iloc[0])) if not us_row.empty else (float("nan"),) * 2
+    )
 
     return ForecastResult(
         metrics=metrics,
@@ -279,4 +328,5 @@ def train_and_evaluate(
         national_pred=national_pred,
         as_of=as_of,
         feature_importance=None,
+        national_interval=national_interval,
     )

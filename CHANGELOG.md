@@ -5,6 +5,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Step 5
+- Added: 80% prediction intervals on the served blend. Method: empirical quantiles (10%/90%) of past blend backtest
+  residuals scaled by the metro's 12-month volatility (vol12); year Y uses only years <= Y-2 (no leakage). No extra fits.
+- Real-data backtest (2012+): coverage 77.6% overall, 78.7% for 2019+; average width 14.0 pp overall, 16.4 pp for 2019+.
+  Point metrics unchanged (blend MAE 3.588, rank IC 0.474). New metrics `coverage80`, `width80`.
+- Rejected: quantile HGB (2 extra fits per year); constant-width residual quantiles (73% coverage).
+
 ### Step 4
 - Added: metro supply features from two Zillow sources (for-sale inventory, share of listings with a price cut):
   `inv_yoy`, `pc`, `pc_chg12`. NaN-tolerant (history starts 2018); folds drop all-NaN columns.

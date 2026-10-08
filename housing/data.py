@@ -23,12 +23,10 @@ URLS: dict[str, str] = {
         "State_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
     ),
     "inventory_metro": (
-        "https://files.zillowstatic.com/research/public_csvs/invt_fs/"
-        "Metro_invt_fs_uc_sfrcondo_sm_month.csv"
+        "https://files.zillowstatic.com/research/public_csvs/invt_fs/Metro_invt_fs_uc_sfrcondo_sm_month.csv"
     ),
     "price_cut_metro": (
-        "https://files.zillowstatic.com/research/public_csvs/perc_listings_price_cut/"
-        "Metro_perc_listings_price_cut_uc_sfrcondo_sm_month.csv"
+        "https://files.zillowstatic.com/research/public_csvs/perc_listings_price_cut/Metro_perc_listings_price_cut_uc_sfrcondo_sm_month.csv"
     ),
     "MORTGAGE30US": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US",
     "CSUSHPINSA": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CSUSHPINSA",

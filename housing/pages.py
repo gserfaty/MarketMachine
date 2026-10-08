@@ -217,6 +217,16 @@ def render_explorer() -> None:
     _footer_disclaimer()
 
 
+def fmt_range(pred, lo, hi) -> str:
+    return f"{pred*100:+.1f}% ({lo*100:+.1f}% to {hi*100:+.1f}%)"
+
+
+def _range_table(df: pd.DataFrame) -> pd.DataFrame:
+    out = df[["region", "state", "value"]].copy()
+    out["12-month forecast (80% range)"] = [fmt_range(p, l, h) for p, l, h in zip(df["pred_12m"], df["lo_12m"], df["hi_12m"])]
+    return out
+
+
 def render_forecast() -> None:
     st.header("ML forecast")
     metro_df = _safe_load_metro()
@@ -237,6 +247,8 @@ def render_forecast() -> None:
     for c in ("MAE", "bias", "top_decile_lift"):
         disp[c] = m[c].map(lambda v: "n/a" if pd.isna(v) else f"{v:.2f} pp")
     disp["direction_acc"] = m["direction_acc"].map(lambda v: f"{v * 100:.1f}%")
+    disp["coverage80"] = m["coverage80"].map(lambda v: "n/a" if pd.isna(v) else f"{v * 100:.1f}%")
+    disp["width80"] = m["width80"].map(lambda v: "n/a" if pd.isna(v) else f"{v:.1f} pp")
     disp["rank_ic"] = m["rank_ic"].map(lambda v: "n/a" if pd.isna(v) else f"{v:.2f}")
     st.dataframe(disp, use_container_width=True)
 
@@ -245,6 +257,9 @@ def render_forecast() -> None:
         index="year", columns="predictor", values=["MAE", "bias", "rank_ic", "top_decile_lift"]
     )
     per_year.columns = [f"{metric} · {pred}" for metric, pred in per_year.columns]
+    blend_iv = bt[bt["predictor"] == "blend"].set_index("year")
+    per_year["coverage80 · blend"] = blend_iv["coverage80"]
+    per_year["width80 · blend"] = blend_iv["width80"]
     per_year["n"] = bt[bt["predictor"] == "model"].set_index("year")["n"]
     st.dataframe(per_year.round(2), use_container_width=True)
 
@@ -279,8 +294,13 @@ def render_forecast() -> None:
 
     direction = "Up" if result.national_pred >= 0 else "Down"
     st.metric(
-        "National 12-month call (blend)",
-        f"{direction}, {result.national_pred * 100:+.1f}% predicted",
+        "National 12-month call (blend, 80% range)",
+        f"{direction}, {fmt_range(result.national_pred, *result.national_interval)}",
+    )
+    st.caption(
+        f"80% range: in the backtest (2012+, ranges built only from earlier years) the actual 12-month change "
+        f"fell inside it {bl['coverage80']:.0%} of the time; average width {bl['width80']:.1f} pp. "
+        "Misses cluster in market-wide shocks (2020, 2022), when the range is too narrow for every metro at once."
     )
 
     st.subheader("Distribution of metro-level 12-month predictions")
@@ -292,7 +312,9 @@ def render_forecast() -> None:
     if search:
         preds = preds[preds["region"].str.contains(search, case=False, na=False)]
     preds_display = preds.copy()
-    preds_display["pred_12m"] = (preds_display["pred_12m"] * 100).map(lambda v: f"{v:+.1f}%")
+    preds_display["pred_12m"] = [fmt_range(p, l, h) for p, l, h in zip(
+        preds_display["pred_12m"], preds_display["lo_12m"], preds_display["hi_12m"])]
+    preds_display = preds_display.drop(columns=["lo_12m", "hi_12m"])
     preds_display["value"] = preds_display["value"].map(lambda v: f"${v:,.0f}")
     st.dataframe(preds_display, use_container_width=True, hide_index=True)
 
@@ -343,10 +365,13 @@ def render_findings() -> None:
     preds = result.predictions[result.predictions["region"] != "United States"]
 
     st.subheader("Top 15 predicted gainers (next 12 months)")
-    st.dataframe(preds.sort_values("pred_12m", ascending=False).head(15), use_container_width=True, hide_index=True)
+    st.dataframe(_range_table(preds.sort_values("pred_12m", ascending=False).head(15)),
+                 use_container_width=True, hide_index=True)
 
     st.subheader("Bottom 10 predicted (next 12 months)")
-    st.dataframe(preds.sort_values("pred_12m", ascending=True).head(10), use_container_width=True, hide_index=True)
+    st.dataframe(_range_table(preds.sort_values("pred_12m", ascending=True).head(10)),
+                 use_container_width=True, hide_index=True)
+    st.caption("Ranges (80% range) are statistical estimates, not guarantees.")
 
     st.subheader("Top 15 most valuable metros")
     st.dataframe(
