@@ -29,6 +29,7 @@ URLS: dict[str, str] = {
         "https://files.zillowstatic.com/research/public_csvs/perc_listings_price_cut/Metro_perc_listings_price_cut_uc_sfrcondo_sm_month.csv"
     ),
     "MORTGAGE30US": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US",
+    "MORTGAGE15US": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE15US",
     "CSUSHPINSA": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CSUSHPINSA",
 }
 
@@ -39,6 +40,7 @@ _OFFLINE_FILENAMES: dict[str, str] = {
     "inventory_metro": "inventory_metro.csv",
     "price_cut_metro": "price_cut_metro.csv",
     "MORTGAGE30US": "MORTGAGE30US.csv",
+    "MORTGAGE15US": "MORTGAGE15US.csv",
     "CSUSHPINSA": "CSUSHPINSA.csv",
 }
 

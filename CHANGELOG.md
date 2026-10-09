@@ -5,6 +5,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Step 6
+- Added: "Financing estimator" page comparing 30/20/15/10-year fixed loans (rate, APR, P&I, tax, insurance, PMI/MIP, PITI,
+  total interest) with an amortization chart, plus an optional DTI check. Math lives in pure `housing/finance.py`.
+- Rates: new FRED series `MORTGAGE15US`; 30y and 15y PMMS monthly averages, 20y interpolated and 10y extrapolated linearly.
+  Conventional terms over 15y are adjusted by approximate Fannie Mae LLPA (2023-05-01) at 0.25% rate per point; FHA/VA use a rule of thumb.
+- APR: rate at which the PV of P&I plus MI equals the loan less lender fees (upfront FHA/VA fees are financed).
+- Hardcoded tables with as-of dates: FHFA conforming limit $832,750 (2025-11-25), Tax Foundation property tax (2024 ACS),
+  NAIC 2022 insurance, HUD Mortgagee Letter 2023-05 (2023-03-20), VA funding fee (2023-04-07); PMI card is illustrative.
+
 ### Step 5
 - Added: 80% prediction intervals on the served blend. Method: empirical quantiles (10%/90%) of past blend backtest
   residuals scaled by the metro's 12-month volatility (vol12); year Y uses only years <= Y-2 (no leakage). No extra fits.
