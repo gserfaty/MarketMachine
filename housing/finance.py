@@ -241,3 +241,44 @@ def arm_schedule(principal: float, initial_rate: float, index: float, margin: fl
 def arm_scenarios(principal: float, initial_rate: float, sofr: float, margin: float, plan: str) -> dict[str, pd.DataFrame]:
     return {name: arm_schedule(principal, initial_rate, sofr + shift, margin, **ARM_PLANS[plan])
             for name, shift in ARM_SCENARIOS.items()}
+
+
+Z80 = 1.2816  # standard normal 90th pct -> central 80% range
+MIN_HISTORY_MONTHS = 120
+SELL_COST_PCT = 6.0  # typical agent commission + seller closing costs (rule of thumb)
+PROJECTION_YEARS = (1, 5, 10, 30)
+
+
+def appreciation_params(values: pd.Series) -> tuple[float, float]:
+    """Monthly price series -> (mu, sd5): annualized log growth, and std of overlapping 5-year log returns."""
+    lp = np.log(values.dropna().astype(float).reset_index(drop=True))
+    if len(lp) < MIN_HISTORY_MONTHS:
+        raise ValueError(f"Need at least {MIN_HISTORY_MONTHS} months of history, got {len(lp)}.")
+    mu = float((lp.iloc[-1] - lp.iloc[0]) / ((len(lp) - 1) / 12))
+    return mu, float((lp - lp.shift(60)).std())
+
+
+def equity_projection(v0: float, schedule: pd.DataFrame, mu: float, sd5: float,
+                      year1: tuple[float, float, float] | None = None,
+                      sell_pct: float = SELL_COST_PCT, years: int = 30) -> pd.DataFrame:
+    """Yearly value / equity / net-if-sold with an 80% range (nominal $).
+
+    Random walk on log value: value_t = V0*(1+y1)*exp(mu*h + k*Z80*sd5*sqrt(h/5)), k in {-1,0,1}, h = t-1 years after
+    year 1 (h = t, y1 = 0 when no forecast). Adding the year-1 extreme to the later extreme is slightly conservative.
+    """
+    t = np.arange(1, years + 1)
+    h = t - 1 if year1 else t
+    y = year1 or (0.0, 0.0, 0.0)
+    spread = Z80 * sd5 * np.sqrt(h / 5)
+    mid = v0 * (1 + y[1]) * np.exp(mu * h)
+    lo = np.minimum(v0 * (1 + y[0]) * np.exp(mu * h - spread), mid)
+    hi = np.maximum(v0 * (1 + y[2]) * np.exp(mu * h + spread), mid)
+    bal = schedule["balance"].to_numpy()
+    idx = 12 * t - 1
+    balance = np.where(idx < len(bal), bal[np.minimum(idx, len(bal) - 1)], 0.0)
+    keep = 1 - sell_pct / 100
+    out = {"year": t, "balance": balance}
+    for s, v in (("_lo", lo), ("", mid), ("_hi", hi)):
+        out["value" + s], out["equity" + s], out["net" + s] = v, v - balance, v * keep - balance
+    return pd.DataFrame(out)[["year", "value_lo", "value", "value_hi", "balance", "equity_lo", "equity", "equity_hi",
+                              "net_lo", "net", "net_hi"]]

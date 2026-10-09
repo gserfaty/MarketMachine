@@ -5,6 +5,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Step 8
+- Added: equity projection on the Financing estimator (home value, remaining balance, equity, net equity if sold; years 1/5/10/30
+  table plus a yearly chart) for the selected fixed or ARM (index flat) loan.
+- Year 1 uses the served ML blend with its 80% range (historical-trend fallback if the forecast is unavailable). Years 2+ use the
+  metro's historical log growth with a sqrt-time 80% range from its 5-year returns (120-month minimum, else United States).
+- Selling costs default to ~6% of sale price (editable). Shared `_forecast` helper so pages hit one forecast cache key.
+- Verified on live Zillow metros: median-metro 10y value change +5% / +46% / +97% (lo / mid / hi).
+
 ### Step 7
 - Added: 5/6 and 10/6 SOFR ARMs on the Financing estimator (conventional only) with four constant-index scenarios
   (flat, +2 pp, -1 pp, caps worst case): P&I after first reset, max P&I, total interest, and a payment chart vs the 30y fixed.
