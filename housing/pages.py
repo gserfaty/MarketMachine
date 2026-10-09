@@ -8,7 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from housing import analysis, data, model
+from housing import analysis, data, finance, model
 
 DISCLAIMER = "Forecasts are statistical estimates, not financial advice."
 
@@ -454,3 +454,123 @@ def render_market_profiles():
         st.info(f"Similar market analysis isn't available for {selected}.")
 
     st.warning(DISCLAIMER)
+
+
+def render_financing() -> None:
+    st.header("Financing estimator")
+    st.warning(
+        "Estimate only — not a loan quote or offer, and not financial advice. Nothing you enter is stored; "
+        "no personal data beyond a credit band is collected."
+    )
+    metro_df = _safe_load_metro()
+    table = None
+    if metro_df is not None:
+        table = analysis.appreciation_table(metro_df[metro_df["region_type"] != "country"]).sort_values("size_rank")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        use_metro = table is not None and st.radio("Price source", ["Metro typical value", "Manual"]) == "Metro typical value"
+        state_default = "CA"
+        if use_metro:
+            metro = st.selectbox("Metro", table["region"].tolist())
+            row = table[table["region"] == metro].iloc[0]
+            price = float(row["value"])
+            st.caption(f"Typical home value: ${price:,.0f}")
+            if row["state"] in finance.PROPERTY_TAX_PCT:
+                state_default = row["state"]
+        else:
+            price = st.number_input("Home price ($)", min_value=10_000.0, value=400_000.0, step=10_000.0)
+        down_mode = st.radio("Down payment as", ["%", "$"], horizontal=True)
+        if down_mode == "%":
+            down_pct = st.number_input("Down payment (%)", min_value=0.0, max_value=99.0, value=20.0, step=1.0)
+        else:
+            down_pct = st.number_input("Down payment ($)", min_value=0.0, value=price * 0.2, step=5_000.0) / price * 100
+    with c2:
+        band = st.selectbox("Credit score band", finance.CREDIT_BANDS, index=finance.CREDIT_BANDS.index("740-759"))
+        loan_type = st.selectbox("Loan type", list(finance.MIN_DOWN_PCT), format_func=lambda x: {"conventional": "Conventional", "fha": "FHA", "va": "VA"}[x])
+        states = sorted(finance.PROPERTY_TAX_PCT)
+        state = st.selectbox("State", states, index=states.index(state_default))
+        fees_pct = st.number_input("Lender fees (% of loan, for APR)", min_value=0.0, max_value=10.0, value=1.0, step=0.25)
+
+    with st.expander("Override tax/insurance"):
+        tax_pct = st.number_input("Property tax (% of value / yr)", min_value=0.0, value=float(finance.PROPERTY_TAX_PCT[state]), step=0.05, key=f"tax_{state}")
+        ins_annual = st.number_input("Home insurance ($ / yr)", min_value=0.0, value=float(finance.HOME_INS_ANNUAL[state]), step=100.0, key=f"ins_{state}")
+    with st.expander("DTI check"):
+        income = st.number_input("Gross monthly income ($)", min_value=0.0, value=0.0, step=500.0)
+        debts = st.number_input("Other monthly debts ($)", min_value=0.0, value=0.0, step=50.0)
+
+    s30 = cached_fred("MORTGAGE30US", _data_dir_key())
+    s15 = cached_fred("MORTGAGE15US", _data_dir_key())
+    s30 = s30.dropna() if s30 is not None else None
+    s15 = s15.dropna() if s15 is not None else None
+    if s30 is None or s15 is None or s30.empty or s15.empty:
+        st.warning("Live mortgage rates (FRED) unavailable — enter rates manually.")
+        r30 = st.number_input("30-year fixed rate (%)", min_value=0.0, max_value=20.0, value=6.5, step=0.05)
+        r15 = st.number_input("15-year fixed rate (%)", min_value=0.0, max_value=20.0, value=5.8, step=0.05)
+    else:
+        r30, r15 = float(s30.iloc[-1]), float(s15.iloc[-1])
+        st.caption(f"PMMS average, {s30.index[-1]:%b %Y}: 30y {r30:.2f}%, 15y {r15:.2f}% (Freddie Mac via FRED). "
+                   "20y is interpolated and 10y extrapolated from these.")
+    rb = finance.base_rates(r30, r15)
+
+    try:
+        res = {t: finance.estimate(price, down_pct, loan_type, band, state, t, rb, fees_pct, tax_pct, ins_annual)
+               for t in finance.TERMS}
+    except ValueError as e:
+        st.error(str(e))
+        _footer_disclaimer()
+        return
+
+    if res[30]["jumbo"]:
+        st.info("Jumbo: pricing varies by lender; high-cost counties allow up to $1,249,125.")
+    m = lambda k: [f"${res[t][k]:,.0f}" for t in finance.TERMS]  # noqa: E731
+    out = pd.DataFrame(
+        {
+            "Rate": [f"{res[t]['rate']:.3f}%" for t in finance.TERMS],
+            "APR": [f"{res[t]['apr']:.3f}%" for t in finance.TERMS],
+            "P&I": m("pi"), "Tax": m("tax"), "Insurance": m("ins"), "PMI/MIP": m("mi"), "PITI": m("piti"),
+            "Total interest": m("total_interest"), "Upfront fee": m("upfront"),
+        },
+        index=[f"{t}-year" for t in finance.TERMS],
+    ).T
+    st.dataframe(out, use_container_width=True)
+
+    if income > 0:
+        for t in (30, 15):
+            front, back = finance.dti(res[t]["piti"], debts, income)
+            msg = f"{t}-year DTI: front-end {front:.1f}%, back-end {back:.1f}%."
+            if back > finance.DTI_MAX:
+                st.warning(msg + f" Back-end DTI above {finance.DTI_MAX:.0f}%: most lenders would decline.")
+            elif back > finance.DTI_WARN:
+                st.warning(msg + f" Back-end DTI above {finance.DTI_WARN:.0f}%: approval gets harder.")
+            else:
+                st.write(msg)
+
+    term = st.selectbox("Amortization chart term", finance.TERMS, format_func=lambda t: f"{t}-year")
+    sch = res[term]["schedule"].assign(year=lambda d: (d["month"] - 1) // 12 + 1)
+    yearly = sch.groupby("year").agg(principal=("principal", "sum"), interest=("interest", "sum"), balance=("balance", "last"))
+    fig = go.Figure()
+    fig.add_bar(x=yearly.index, y=yearly["principal"], name="Principal")
+    fig.add_bar(x=yearly.index, y=yearly["interest"], name="Interest")
+    fig.add_scatter(x=yearly.index, y=yearly["balance"], name="Remaining balance", yaxis="y2")
+    fig.update_layout(
+        barmode="stack", xaxis_title="Year", yaxis_title="Paid per year ($)",
+        yaxis2=dict(title="Balance ($)", overlaying="y", side="right"), legend=dict(orientation="h"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    with st.expander("Sources & assumptions"):
+        st.markdown(
+            "- **Base rates:** Freddie Mac PMMS 30y and 15y via FRED (monthly average); 20y linearly interpolated, 10y linearly extrapolated.\n"
+            "- **Conforming limit:** $832,750 (FHFA, release of 2025-11-25); high-cost ceiling $1,249,125.\n"
+            "- **Property tax:** Tax Foundation, Property Taxes by State and County (2024 ACS, published 2026-03-16).\n"
+            "- **Insurance:** NAIC 2022 via III Facts + Statistics. 2022 data, likely below 2026 premiums.\n"
+            "- **Conventional rate adjustment:** approximate Fannie Mae LLPA Matrix Table 1 (purchase, effective 2023-05-01), terms over 15 years only, at 0.25% rate per point vs the PMMS reference borrower. Approximate.\n"
+            "- **PMI:** illustrative rate card, not verified; drops off when the balance reaches 78% of price.\n"
+            "- **FHA MIP:** HUD Mortgagee Letter 2023-05 (effective 2023-03-20); 1.75% upfront, financed.\n"
+            "- **VA funding fee:** first use, purchase, VA.gov effective 2023-04-07; financed; no MI.\n"
+            "- **FHA/VA rate:** conventional base minus 0.25 plus a small credit adder (rule of thumb).\n"
+            "- **APR:** rate at which the present value of payments (P&I plus MI) equals the loan less lender fees.\n"
+            "- **Not modeled:** county loan limits, points, HOA, flood insurance, ARMs; MI and FHA/VA adjustments are approximations."
+        )
+    _footer_disclaimer()

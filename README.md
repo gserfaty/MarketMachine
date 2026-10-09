@@ -14,6 +14,9 @@ All free, public, and require no API key:
 - Zillow for-sale inventory (metro, from 2018) — count of listings; used as year-over-year change.
 - Zillow share of listings with a price cut (metro, from 2018).
 - [FRED `MORTGAGE30US`](https://fred.stlouisfed.org/series/MORTGAGE30US) — weekly 30-year fixed mortgage rate.
+- [FRED `MORTGAGE15US`](https://fred.stlouisfed.org/series/MORTGAGE15US) — weekly 15-year fixed mortgage rate.
+- Hardcoded reference tables (sources and as-of dates in `housing/finance.py` and the page): FHFA conforming limit,
+  Tax Foundation property tax rates, NAIC/III 2022 insurance premiums, approximate Fannie Mae LLPA, HUD FHA MIP, VA funding fee.
 - [FRED `CSUSHPINSA`](https://fred.stlouisfed.org/series/CSUSHPINSA) — Case-Shiller US National Home Price Index.
 
 Data is downloaded at runtime and cached (`st.cache_data`, 24h TTL). If a source is unavailable,
@@ -25,6 +28,8 @@ the app shows a clear error/warning instead of crashing.
 2. **Regional explorer** — filter/sort metros or states, bar chart of top movers, state choropleth, per-region history.
 3. **ML forecast** — backtest scorecard vs. baselines, served blend forecast (national 12-month call, per-metro predictions).
 4. **Findings** — top gainers, top/bottom predicted movers, most valuable metros.
+5. **Market Profile** — single-metro profile, comparison, and similar markets.
+6. **Financing estimator** — 30/20/15/10-year loan comparison and amortization chart.
 
 ## Local development
 
@@ -81,6 +86,16 @@ vs ~4.2 momentum; the page shows live numbers. The backtest still shows a pessim
 rank IC and lift are n/a because it ranks nothing).
 
 Past backtest performance does not guarantee future results.
+
+## Financing estimator
+
+Base rates are the latest monthly Freddie Mac PMMS averages (30y and 15y); 20y is interpolated linearly in term and 10y
+extrapolated. For conventional loans over 15 years, an approximate Fannie Mae LLPA (credit band x LTV) moves the rate by 0.25%
+per point relative to the PMMS reference borrower (740-759, 80% LTV). FHA/VA use a rule-of-thumb discount. Mortgage insurance:
+illustrative PMI that drops at 78% of price, FHA upfront and annual MIP per HUD ML 2023-05, VA funding fee (financed, no MI).
+APR is the rate at which the present value of P&I plus MI equals the loan less lender fees.
+Limits: an estimate, not a loan quote; insurance data is from 2022 and likely below current premiums; LLPA and PMI tables are
+approximate; no county loan limits, points, HOA or flood insurance.
 
 ## Deploy to Streamlit Community Cloud
 

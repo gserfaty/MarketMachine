@@ -1,7 +1,7 @@
 """michiganmen — US housing market analytics and ML forecast (Streamlit app)."""
 import streamlit as st
 
-from housing.pages import render_explorer, render_findings, render_forecast, render_overview, render_market_profiles
+from housing.pages import render_explorer, render_findings, render_forecast, render_overview, render_market_profiles, render_financing
 
 st.set_page_config(page_title="michiganmen — US Housing", layout="wide")
 
@@ -11,6 +11,7 @@ PAGES = {
     "ML forecast": render_forecast,
     "Findings": render_findings,
     "Market Profile": render_market_profiles,
+    "Financing estimator": render_financing,
 }
 
 

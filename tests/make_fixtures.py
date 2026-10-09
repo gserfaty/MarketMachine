@@ -113,6 +113,14 @@ def build_mortgage(rng: np.random.Generator) -> pd.DataFrame:
     return df
 
 
+def build_mortgage15() -> pd.DataFrame:
+    # Own RNG so other fixtures stay byte-identical.
+    rng = np.random.default_rng(15)
+    weeks = pd.date_range("2025-09-05", periods=50, freq="W-FRI")
+    values = 4.2 + np.linspace(0, 0.8, 50) + rng.normal(0, 0.04, 50)
+    return pd.DataFrame({"observation_date": weeks.strftime("%Y-%m-%d"), "MORTGAGE15US": values.round(2)})
+
+
 def build_case_shiller(rng: np.random.Generator) -> pd.DataFrame:
     months = pd.date_range("2000-01-01", "2026-06-01", freq="MS")
     n = len(months)
@@ -159,6 +167,7 @@ def main() -> None:
     build_zhvi_state(rng).to_csv(os.path.join(FIXTURES_DIR, "zhvi_state.csv"), index=False)
     build_mortgage(rng).to_csv(os.path.join(FIXTURES_DIR, "MORTGAGE30US.csv"), index=False)
     build_case_shiller(rng).to_csv(os.path.join(FIXTURES_DIR, "CSUSHPINSA.csv"), index=False)
+    build_mortgage15().to_csv(os.path.join(FIXTURES_DIR, "MORTGAGE15US.csv"), index=False)
 
     rng = np.random.default_rng(1)
     build_inventory(rng).to_csv(os.path.join(FIXTURES_DIR, "inventory_metro.csv"), index=False)
