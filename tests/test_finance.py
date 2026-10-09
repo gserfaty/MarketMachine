@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 
 from housing import finance as f
@@ -144,3 +145,51 @@ def test_arm_balance_zero():
 def test_arm_worst_case():
     s = f.arm_scenarios(400000, 6.9, 3.8, 2.75, "5/6")["Caps worst case"]
     assert s["rate"].max() == pytest.approx(6.9 + 5)
+
+
+def test_appreciation_params_exact():
+    s = pd.Series(100 * np.exp(0.03 * np.arange(180) / 12))
+    mu, sd5 = f.appreciation_params(s)
+    assert mu == pytest.approx(0.03, abs=1e-12)
+    assert sd5 == pytest.approx(0, abs=1e-12)
+
+
+def test_appreciation_params_short():
+    with pytest.raises(ValueError):
+        f.appreciation_params(pd.Series(np.linspace(100, 200, 119)))
+    with pytest.raises(ValueError):
+        f.appreciation_params(pd.Series([np.nan] * 10 + list(np.linspace(100, 200, 119))))
+
+
+def test_equity_compounding():
+    d = f.equity_projection(100000, f.amortization_schedule(80000, 6, 360), 0.05, 0.0)
+    assert d["value"].iloc[9] == pytest.approx(100000 * np.exp(0.5), abs=0.01)
+    assert (d.value_lo == d.value).all() and (d.value == d.value_hi).all()
+
+
+def test_equity_year1_forecast():
+    d = f.equity_projection(100000, f.amortization_schedule(80000, 6, 360), 0.04, 0.1, (-0.02, 0.03, 0.08))
+    assert [d[c].iloc[0] for c in ("value_lo", "value", "value_hi")] == pytest.approx([98000, 103000, 108000], abs=0.01)
+    assert d["value"].iloc[4] == pytest.approx(103000 * np.exp(0.16), abs=0.01)
+    assert d["value_lo"].iloc[4] == pytest.approx(98000 * np.exp(0.16 - f.Z80 * 0.1 * np.sqrt(4 / 5)), abs=0.01)
+
+
+def test_equity_balance_subtraction():
+    s = f.amortization_schedule(80000, 6, 180)
+    d = f.equity_projection(100000, s, 0.03, 0.1, sell_pct=6)
+    assert d["balance"].iloc[4] == s["balance"].iloc[59]
+    assert (d["balance"].iloc[14:] == 0).all()
+    assert np.allclose(d.equity, d.value - d.balance)
+    assert np.allclose(d.net, d.value * 0.94 - d.balance, atol=0.01)
+
+
+def test_equity_range_ordering():
+    fixed = f.amortization_schedule(300000, 6, 360)
+    arm = f.arm_schedule(300000, 6.0, 3.8, 2.75, 60, (2, 1, 5))
+    assert arm["balance"].iloc[-1] < 0.01
+    for sch in (fixed, arm):
+        for mu, sd5, y1 in [(0.04, 0.1, (-0.02, 0.03, 0.08)), (0.0, 0.2, None), (0.02, 0.15, (0.05, 0.03, 0.08))]:
+            d = f.equity_projection(400000, sch, mu, sd5, y1)
+            for c in ("value", "equity", "net"):
+                assert (d[c + "_lo"] <= d[c] + 1e-9).all() and (d[c] <= d[c + "_hi"] + 1e-9).all()
+            assert (np.diff(d.value_hi / d.value_lo) >= -1e-12).all()

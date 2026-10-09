@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -227,19 +228,22 @@ def _range_table(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _forecast(metro_df: pd.DataFrame) -> model.ForecastResult:
+    mortgage = cached_fred("MORTGAGE30US", _data_dir_key())
+    supply = cached_supply(_data_dir_key())
+    as_of_key = f"{metro_df['date'].max()}|supply={supply is not None}"
+    return cached_forecast(as_of_key, metro_df, mortgage, supply)
+
+
 def render_forecast() -> None:
     st.header("ML forecast")
     metro_df = _safe_load_metro()
     if metro_df is None:
         st.stop()
         return
-    mortgage = cached_fred("MORTGAGE30US", _data_dir_key())
-
-    supply = cached_supply(_data_dir_key())
-    if supply is None:
+    if cached_supply(_data_dir_key()) is None:
         st.warning("Zillow listings data unavailable; forecast runs without supply features.")
-    as_of_key = f"{metro_df['date'].max()}|supply={supply is not None}"
-    result = cached_forecast(as_of_key, metro_df, mortgage, supply)
+    result = _forecast(metro_df)
 
     st.subheader("How well has the model done? (backtest)")
     m = result.metrics
@@ -359,9 +363,7 @@ def render_findings() -> None:
         hide_index=True,
     )
 
-    supply = cached_supply(_data_dir_key())
-    as_of_key = f"{metro_df['date'].max()}|supply={supply is not None}"
-    result = cached_forecast(as_of_key, metro_df, mortgage, supply)
+    result = _forecast(metro_df)
     preds = result.predictions[result.predictions["region"] != "United States"]
 
     st.subheader("Top 15 predicted gainers (next 12 months)")
@@ -456,11 +458,11 @@ def render_market_profiles():
     st.warning(DISCLAIMER)
 
 
-def _render_arm(res: dict, loan_type: str) -> None:
+def _render_arm(res: dict, loan_type: str) -> dict[str, pd.DataFrame]:
     st.subheader("Adjustable-rate (SOFR ARM) comparison")
     if loan_type != "conventional":
         st.info("ARM comparison shown for conventional loans only.")
-        return
+        return {}
     s = cached_fred("SOFR30DAYAVG", _data_dir_key())
     s = s.dropna() if s is not None else None
     if s is None or s.empty:
@@ -495,6 +497,66 @@ def _render_arm(res: dict, loan_type: str) -> None:
     fig.update_layout(xaxis_title="Month", yaxis_title="Monthly P&I ($)", legend=dict(orientation="h"))
     st.plotly_chart(fig, use_container_width=True)
     st.caption("ARM initial rates are approximations (no public ARM rate survey since 2022); payments after reset depend on the future index.")
+    return {f"{p} ARM (index flat)": sc["Index flat"] for p, sc in all_sc.items()}
+
+
+def _render_equity(metro_df, region, price, schedules) -> None:
+    st.subheader("Equity projection")
+    if metro_df is None:
+        st.info("Equity projection needs Zillow history (unavailable).")
+        return
+    if region is None:
+        region = st.selectbox("Appreciation series", ["United States"] + sorted(metro_df.loc[metro_df["region_type"] != "country", "region"].unique()))
+    c1, c2 = st.columns(2)
+    with c1:
+        loan = st.selectbox("Loan for projection", list(schedules))
+    with c2:
+        sell = st.number_input("Selling costs (% of sale price)", 0.0, 15.0, finance.SELL_COST_PCT, 0.5)
+    hist = metro_df[metro_df["region"] == region].sort_values("date")
+    try:
+        mu, sd5 = finance.appreciation_params(hist["value"])
+    except ValueError:
+        st.caption(f"{region} has under {finance.MIN_HISTORY_MONTHS} months of history; using United States.")
+        region = "United States"
+        hist = metro_df[metro_df["region"] == region].sort_values("date")
+        mu, sd5 = finance.appreciation_params(hist["value"])
+    year1, result = None, None
+    try:
+        result = _forecast(metro_df)
+        row = result.predictions[result.predictions["region"] == region]
+        if not row.empty:
+            r = row.iloc[0]
+            year1 = (float(r["lo_12m"]), float(r["pred_12m"]), float(r["hi_12m"]))
+    except Exception:
+        pass
+    if year1 is None:
+        st.caption(f"ML forecast unavailable for {region}; year 1 uses the historical trend.")
+    d = finance.equity_projection(price, schedules[loan], mu, sd5, year1, sell)
+
+    def cell(r, c):
+        return f"${r[c]:,.0f} (${r[c + '_lo']:,.0f}–${r[c + '_hi']:,.0f})"
+    rows = d[d["year"].isin(finance.PROJECTION_YEARS)]
+    st.dataframe(pd.DataFrame({
+        "Home value": [cell(r, "value") for _, r in rows.iterrows()],
+        "Remaining balance": [f"${b:,.0f}" for b in rows["balance"]],
+        "Equity": [cell(r, "equity") for _, r in rows.iterrows()],
+        "Net equity if sold": [cell(r, "net") for _, r in rows.iterrows()],
+    }, index=[f"Year {y}" for y in rows["year"]]), use_container_width=True)
+    fig = go.Figure()
+    fig.add_scatter(x=d["year"], y=d["equity_lo"], mode="lines", line=dict(width=0), showlegend=False)
+    fig.add_scatter(x=d["year"], y=d["equity_hi"], mode="lines", line=dict(width=0), fill="tonexty",
+                    fillcolor="rgba(31,119,180,0.2)", name="Equity 80% range")
+    fig.add_scatter(x=d["year"], y=d["equity"], mode="lines", name="Equity")
+    fig.add_scatter(x=d["year"], y=d["net"], mode="lines", name="Net equity if sold", line=dict(dash="dash"))
+    fig.update_layout(xaxis_title="Year", yaxis_title="Equity ($)", legend=dict(orientation="h"))
+    st.plotly_chart(fig, use_container_width=True)
+    st.warning("Long-horizon projections are highly uncertain: years 2+ extrapolate this market's past appreciation. "
+               "Not a prediction and not financial advice.")
+    y1 = (f"Year 1 is the ML blend with its 80% range (as of {result.as_of:%b %Y})." if year1 is not None
+          else "Year 1 uses the historical trend.")
+    st.caption(f"{y1} Years 2+ use {region}'s average growth since {hist['date'].min():%Y} ({np.exp(mu) - 1:.1%}/yr), "
+               "with an 80% range from its historical 5-year returns that widens with time. "
+               "Values are nominal, with no maintenance, taxes or improvements.")
 
 
 def render_financing() -> None:
@@ -587,7 +649,7 @@ def render_financing() -> None:
             else:
                 st.write(msg)
 
-    _render_arm(res, loan_type)
+    arm = _render_arm(res, loan_type)
 
     term = st.selectbox("Amortization chart term", finance.TERMS, format_func=lambda t: f"{t}-year")
     sch = res[term]["schedule"].assign(year=lambda d: (d["month"] - 1) // 12 + 1)
@@ -601,6 +663,9 @@ def render_financing() -> None:
         yaxis2=dict(title="Balance ($)", overlaying="y", side="right"), legend=dict(orientation="h"),
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    _render_equity(metro_df, metro if use_metro else None, price,
+                   {f"{t}-year fixed": res[t]["schedule"] for t in finance.TERMS} | arm)
 
     with st.expander("Sources & assumptions"):
         st.markdown(
@@ -620,6 +685,9 @@ def render_financing() -> None:
             "- **ARM margin:** 2.75 default (ARRC range 2.75-3; Freddie Mac allows 1.00-3.00).\n"
             "- **ARM rounding:** new rate = index + margin rounded to the nearest 0.125 (unverified convention).\n"
             "- **ARM initial rate:** approximation, adjusted 30y fixed rate minus 0.50 (5/6) or 0.25 (10/6); not sourced.\n"
+            "- **Equity projection:** year 1 = served ML blend with its 80% range (historical trend if unavailable); years 2+ = region's "
+            "average log growth since 2000 with an 80% range of 1.2816 x sd of historical 5-year returns x sqrt(years/5). Nominal dollars. "
+            "Selling costs default to ~6% (rule of thumb). ARMs assume the index stays flat.\n"
             "- **Not modeled:** county loan limits, points, HOA, flood insurance, ARM APR/MI, index paths; MI and FHA/VA adjustments are approximations."
         )
     _footer_disclaimer()

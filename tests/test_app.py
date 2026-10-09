@@ -59,3 +59,10 @@ def test_financing_fred_down(tmp_path, monkeypatch):
     assert not at.exception
     assert any("unavailable" in w.value for w in at.warning)
     assert len(at.number_input) >= 2
+
+
+def test_financing_equity_projection():
+    at = _run_page("Financing estimator")
+    assert not at.exception
+    assert "Equity projection" in [s.value for s in at.subheader]
+    assert any("highly uncertain" in w.value for w in at.warning)

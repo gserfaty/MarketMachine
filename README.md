@@ -32,7 +32,7 @@ the app shows a clear error/warning instead of crashing.
 3. **ML forecast** — backtest scorecard vs. baselines, served blend forecast (national 12-month call, per-metro predictions).
 4. **Findings** — top gainers, top/bottom predicted movers, most valuable metros.
 5. **Market Profile** — single-metro profile, comparison, and similar markets.
-6. **Financing estimator** — 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison.
+6. **Financing estimator** — 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison and equity projection.
 
 ## Local development
 
@@ -100,6 +100,10 @@ APR is the rate at which the present value of P&I plus MI equals the loan less l
 ARMs (conventional only): 5/6 and 10/6 indexed to 30-day Average SOFR, 6-month resets, caps 2/1/5 (5/6) and 5/1/5 (10/6) per the
 ARRC model terms, rate floored at the margin (default 2.75) and rounded to 0.125 (unverified). The initial rate is an approximation
 (adjusted 30y fixed minus 0.50 / 0.25). Scenarios hold the index constant (flat, +2 pp, -1 pp, caps worst case).
+Equity projection: year 1 is the ML blend's 80% range for the metro (historical trend if unavailable); years 2+ compound the
+region's average log growth (mu) with an 80% range of Z80 x sd5 x sqrt(h/5), where sd5 is the spread of its historical 5-year
+returns. Needs 120 months of history, else United States is used. Selling costs default to ~6%; values are nominal. Highly
+uncertain, not advice.
 Limits: an estimate, not a loan quote; insurance data is from 2022 and likely below current premiums; LLPA and PMI tables are
 approximate; no county loan limits, points, HOA or flood insurance.
 
