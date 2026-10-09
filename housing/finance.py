@@ -1,6 +1,7 @@
 """Pure mortgage math and reference tables. Estimates only, not loan quotes."""
 from __future__ import annotations
 
+import math
 from bisect import bisect_left
 
 import numpy as np
@@ -189,3 +190,54 @@ def estimate(price: float, down_pct: float, loan_type: str, band: str, state: st
 
 def dti(piti: float, debts: float, income: float) -> tuple[float, float]:
     return piti / income * 100, (piti + debts) / income * 100
+
+
+# --- Adjustable-rate (SOFR ARM) math -------------------------------------------------------------------------
+# Index: 30-day Average SOFR (NY Fed), required by both GSEs for new SOFR ARMs (Freddie Mac SOFR ARMs Fact Sheet, April 2025).
+# Caps (initial/periodic/lifetime) and 6-month resets: ARRC SOFR-indexed ARM white paper (2019); 5/6 = 2/1/5, 10/6 = 5/1/5.
+# Floor = margin: Fannie Mae Selling Guide B2-1.4-02 (effective 2025-12-10).
+ARM_RESET_MONTHS = 6
+ARM_PLANS = {"5/6": {"fixed_months": 60, "caps": (2.0, 1.0, 5.0)},
+             "10/6": {"fixed_months": 120, "caps": (5.0, 1.0, 5.0)}}
+ARM_MARGIN = 2.75  # ARRC: likely 2.75-3; Freddie allows 1.00-3.00
+ARM_INITIAL_DISCOUNT = {"5/6": 0.50, "10/6": 0.25}  # approximation: pp below adjusted 30y fixed, not sourced
+ARM_SCENARIOS = {"Index flat": 0.0, "Index +2 pp": 2.0, "Index −1 pp": -1.0, "Caps worst case": 99.0}
+
+
+def round_eighth(x: float) -> float:
+    """Nearest 0.125, halves up (unverified note convention; round() would use banker's rounding)."""
+    return math.floor(x * 8 + 0.5) / 8
+
+
+def arm_rates(initial_rate: float, index: float, margin: float, fixed_months: int,
+              caps: tuple[float, float, float], n_months: int = 360) -> list[float]:
+    """One rate per segment: [initial, reset 1, reset 2, ...]. Index is held constant (ponytail: no index path)."""
+    rates = [initial_rate]
+    prev = initial_rate
+    for k in range(math.ceil((n_months - fixed_months) / ARM_RESET_MONTHS)):
+        fully = round_eighth(index + margin)
+        cap = caps[0] if k == 0 else caps[1]
+        r = min(max(fully, prev - cap), prev + cap)
+        r = max(min(r, initial_rate + caps[2]), margin)
+        rates.append(r)
+        prev = r
+    return rates
+
+
+def arm_schedule(principal: float, initial_rate: float, index: float, margin: float, fixed_months: int,
+                 caps: tuple[float, float, float], n_months: int = 360) -> pd.DataFrame:
+    rates = arm_rates(initial_rate, index, margin, fixed_months, caps, n_months)
+    parts, bal, offset = [], principal, 0
+    for i, rate in enumerate(rates):
+        seg = fixed_months if i == 0 else min(ARM_RESET_MONTHS, n_months - offset)
+        s = amortization_schedule(bal, rate, n_months - offset).iloc[:seg].copy()
+        s["month"] += offset
+        s["rate"] = rate
+        parts.append(s)
+        bal, offset = s["balance"].iloc[-1], offset + seg
+    return pd.concat(parts, ignore_index=True)
+
+
+def arm_scenarios(principal: float, initial_rate: float, sofr: float, margin: float, plan: str) -> dict[str, pd.DataFrame]:
+    return {name: arm_schedule(principal, initial_rate, sofr + shift, margin, **ARM_PLANS[plan])
+            for name, shift in ARM_SCENARIOS.items()}

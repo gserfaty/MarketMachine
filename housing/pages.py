@@ -456,6 +456,47 @@ def render_market_profiles():
     st.warning(DISCLAIMER)
 
 
+def _render_arm(res: dict, loan_type: str) -> None:
+    st.subheader("Adjustable-rate (SOFR ARM) comparison")
+    if loan_type != "conventional":
+        st.info("ARM comparison shown for conventional loans only.")
+        return
+    s = cached_fred("SOFR30DAYAVG", _data_dir_key())
+    s = s.dropna() if s is not None else None
+    if s is None or s.empty:
+        st.warning("SOFR index (FRED) unavailable — enter index manually.")
+        sofr = st.number_input("SOFR 30-day average (%)", 0.0, 15.0, 4.0, 0.05)
+    else:
+        sofr = float(s.iloc[-1])
+        st.caption(f"30-day average SOFR, {s.index[-1]:%b %Y} avg (NY Fed via FRED): {sofr:.2f}%")
+    with st.expander("ARM assumptions"):
+        margin = st.number_input("ARM margin (pp)", 1.0, 3.0, finance.ARM_MARGIN, 0.125)
+    fixed30 = res[30]["schedule"]
+    rows = {"30-year fixed": [f"{res[30]['rate']:.3f}%", f"${fixed30['payment'].iloc[0]:,.0f}", "-", "-",
+                              f"${fixed30['payment'].max():,.0f}", f"{res[30]['rate']:.3f}%",
+                              f"${res[30]['total_interest']:,.0f}"]}
+    all_sc = {}
+    for plan, cfg in finance.ARM_PLANS.items():
+        init = res[30]["rate"] - finance.ARM_INITIAL_DISCOUNT[plan]
+        sc = finance.arm_scenarios(res[30]["loan"], init, sofr, margin, plan)
+        all_sc[plan], fm = sc, cfg["fixed_months"]
+        for name, d in sc.items():
+            rows[f"{plan} - {name}"] = [
+                f"{init:.3f}%", f"${d['payment'].iloc[0]:,.0f}", f"{d['rate'].iloc[fm]:.3f}%",
+                f"${d['payment'].iloc[fm]:,.0f}", f"${d['payment'].max():,.0f}", f"{d['rate'].max():.3f}%",
+                f"${d['interest'].sum():,.0f}"]
+    st.dataframe(pd.DataFrame(rows, index=["Initial rate", "Initial P&I", "Rate after first reset", "P&I after first reset",
+                                           "Max P&I", "Max rate", "Total interest"]).T, use_container_width=True)
+    plan = st.radio("ARM chart", list(finance.ARM_PLANS), horizontal=True)
+    fig = go.Figure()
+    for name, d in all_sc[plan].items():
+        fig.add_scatter(x=d["month"], y=d["payment"], name=name, mode="lines")
+    fig.add_scatter(x=fixed30["month"], y=fixed30["payment"], name="30-year fixed", mode="lines", line=dict(dash="dash"))
+    fig.update_layout(xaxis_title="Month", yaxis_title="Monthly P&I ($)", legend=dict(orientation="h"))
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption("ARM initial rates are approximations (no public ARM rate survey since 2022); payments after reset depend on the future index.")
+
+
 def render_financing() -> None:
     st.header("Financing estimator")
     st.warning(
@@ -546,6 +587,8 @@ def render_financing() -> None:
             else:
                 st.write(msg)
 
+    _render_arm(res, loan_type)
+
     term = st.selectbox("Amortization chart term", finance.TERMS, format_func=lambda t: f"{t}-year")
     sch = res[term]["schedule"].assign(year=lambda d: (d["month"] - 1) // 12 + 1)
     yearly = sch.groupby("year").agg(principal=("principal", "sum"), interest=("interest", "sum"), balance=("balance", "last"))
@@ -571,6 +614,12 @@ def render_financing() -> None:
             "- **VA funding fee:** first use, purchase, VA.gov effective 2023-04-07; financed; no MI.\n"
             "- **FHA/VA rate:** conventional base minus 0.25 plus a small credit adder (rule of thumb).\n"
             "- **APR:** rate at which the present value of payments (P&I plus MI) equals the loan less lender fees.\n"
-            "- **Not modeled:** county loan limits, points, HOA, flood insurance, ARMs; MI and FHA/VA adjustments are approximations."
+            "- **ARM index:** 30-day Average SOFR (FRED `SOFR30DAYAVG`); required by both GSEs for new SOFR ARMs (Freddie Mac SOFR ARMs Fact Sheet, April 2025).\n"
+            "- **ARM caps:** ARRC SOFR-indexed ARM white paper (2019): 5/6 = 2/1/5, 10/6 = 5/1/5 (initial/periodic/lifetime), 6-month resets.\n"
+            "- **ARM floor:** rate never falls below the margin (Fannie Mae Selling Guide B2-1.4-02, effective 2025-12-10).\n"
+            "- **ARM margin:** 2.75 default (ARRC range 2.75-3; Freddie Mac allows 1.00-3.00).\n"
+            "- **ARM rounding:** new rate = index + margin rounded to the nearest 0.125 (unverified convention).\n"
+            "- **ARM initial rate:** approximation, adjusted 30y fixed rate minus 0.50 (5/6) or 0.25 (10/6); not sourced.\n"
+            "- **Not modeled:** county loan limits, points, HOA, flood insurance, ARM APR/MI, index paths; MI and FHA/VA adjustments are approximations."
         )
     _footer_disclaimer()
