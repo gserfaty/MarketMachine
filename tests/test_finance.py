@@ -102,3 +102,45 @@ def test_estimate():
 
 def test_dti():
     assert f.dti(2000, 500, 8000) == (25.0, 31.25)
+
+
+def test_arm_fixed_period():
+    s = f.arm_schedule(300000, 6.0, 3.8, 2.75, 60, (2, 1, 5))
+    assert (s["rate"].iloc[:60] == 6.0).all()
+    assert s["payment"].iloc[:60].to_numpy() == pytest.approx(f.monthly_payment(300000, 6, 360), abs=0.01)
+
+
+def test_arm_flat_index():
+    s = f.arm_schedule(300000, 6.0, 3.8, 2.75, 60, (2, 1, 5))
+    assert f.round_eighth(6.55) == 6.5
+    assert (s["rate"].iloc[60:] == 6.5).all()
+    bal60 = f.amortization_schedule(300000, 6, 360)["balance"].iloc[59]
+    assert s["payment"].iloc[60] == pytest.approx(f.monthly_payment(bal60, 6.5, 300), abs=0.01)
+    assert s["interest"].sum() == pytest.approx(s["payment"].sum() - 300000, abs=0.01)
+
+
+def test_arm_caps_up_5_6():
+    assert f.arm_rates(5.0, 10.0, 2.75, 60, (2, 1, 5))[:6] == [5.0, 7.0, 8.0, 9.0, 10.0, 10.0]
+
+
+def test_arm_caps_10_6():
+    r = f.arm_rates(5.0, 10.0, 2.75, 120, (5, 1, 5))
+    assert r[:3] == [5.0, 10.0, 10.0]
+    assert len(r) == 1 + 240 // 6
+
+
+def test_arm_floor_and_down_caps():
+    assert f.arm_rates(7.0, 0.0, 2.75, 60, (2, 1, 5))[:6] == [7.0, 5.0, 4.0, 3.0, 2.75, 2.75]
+
+
+def test_arm_balance_zero():
+    for p in f.ARM_PLANS:
+        for s in f.arm_scenarios(400000, 6.9, 3.8, 2.75, p).values():
+            assert len(s) == 360
+            assert abs(s["balance"].iloc[-1]) < 0.01
+            assert s["principal"].sum() == pytest.approx(400000, abs=0.01)
+
+
+def test_arm_worst_case():
+    s = f.arm_scenarios(400000, 6.9, 3.8, 2.75, "5/6")["Caps worst case"]
+    assert s["rate"].max() == pytest.approx(6.9 + 5)

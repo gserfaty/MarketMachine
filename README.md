@@ -15,6 +15,9 @@ All free, public, and require no API key:
 - Zillow share of listings with a price cut (metro, from 2018).
 - [FRED `MORTGAGE30US`](https://fred.stlouisfed.org/series/MORTGAGE30US) — weekly 30-year fixed mortgage rate.
 - [FRED `MORTGAGE15US`](https://fred.stlouisfed.org/series/MORTGAGE15US) — weekly 15-year fixed mortgage rate.
+- [FRED `SOFR30DAYAVG`](https://fred.stlouisfed.org/series/SOFR30DAYAVG) — 30-day average SOFR (ARM index). ARM terms:
+  [ARRC white paper](https://www.newyorkfed.org/medialibrary/Microsites/arrc/files/2019/ARRC-SOFR-indexed-ARM-Whitepaper.pdf),
+  [Freddie Mac SOFR ARMs fact sheet](https://sf.freddiemac.com/docs/pdf/fact-sheet/sofr_arms_fact_sheet.pdf), Fannie Mae Selling Guide B2-1.4-02.
 - Hardcoded reference tables (sources and as-of dates in `housing/finance.py` and the page): FHFA conforming limit,
   Tax Foundation property tax rates, NAIC/III 2022 insurance premiums, approximate Fannie Mae LLPA, HUD FHA MIP, VA funding fee.
 - [FRED `CSUSHPINSA`](https://fred.stlouisfed.org/series/CSUSHPINSA) — Case-Shiller US National Home Price Index.
@@ -29,7 +32,7 @@ the app shows a clear error/warning instead of crashing.
 3. **ML forecast** — backtest scorecard vs. baselines, served blend forecast (national 12-month call, per-metro predictions).
 4. **Findings** — top gainers, top/bottom predicted movers, most valuable metros.
 5. **Market Profile** — single-metro profile, comparison, and similar markets.
-6. **Financing estimator** — 30/20/15/10-year loan comparison and amortization chart.
+6. **Financing estimator** — 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison.
 
 ## Local development
 
@@ -94,6 +97,9 @@ extrapolated. For conventional loans over 15 years, an approximate Fannie Mae LL
 per point relative to the PMMS reference borrower (740-759, 80% LTV). FHA/VA use a rule-of-thumb discount. Mortgage insurance:
 illustrative PMI that drops at 78% of price, FHA upfront and annual MIP per HUD ML 2023-05, VA funding fee (financed, no MI).
 APR is the rate at which the present value of P&I plus MI equals the loan less lender fees.
+ARMs (conventional only): 5/6 and 10/6 indexed to 30-day Average SOFR, 6-month resets, caps 2/1/5 (5/6) and 5/1/5 (10/6) per the
+ARRC model terms, rate floored at the margin (default 2.75) and rounded to 0.125 (unverified). The initial rate is an approximation
+(adjusted 30y fixed minus 0.50 / 0.25). Scenarios hold the index constant (flat, +2 pp, -1 pp, caps worst case).
 Limits: an estimate, not a loan quote; insurance data is from 2022 and likely below current premiums; LLPA and PMI tables are
 approximate; no county loan limits, points, HOA or flood insurance.
 

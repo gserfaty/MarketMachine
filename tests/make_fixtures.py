@@ -121,6 +121,12 @@ def build_mortgage15() -> pd.DataFrame:
     return pd.DataFrame({"observation_date": weeks.strftime("%Y-%m-%d"), "MORTGAGE15US": values.round(2)})
 
 
+def build_sofr() -> pd.DataFrame:
+    days = pd.bdate_range("2025-09-01", "2026-09-30")
+    values = np.linspace(4.3, 3.8, len(days)).round(5)
+    return pd.DataFrame({"observation_date": days.strftime("%Y-%m-%d"), "SOFR30DAYAVG": values})
+
+
 def build_case_shiller(rng: np.random.Generator) -> pd.DataFrame:
     months = pd.date_range("2000-01-01", "2026-06-01", freq="MS")
     n = len(months)
@@ -168,6 +174,7 @@ def main() -> None:
     build_mortgage(rng).to_csv(os.path.join(FIXTURES_DIR, "MORTGAGE30US.csv"), index=False)
     build_case_shiller(rng).to_csv(os.path.join(FIXTURES_DIR, "CSUSHPINSA.csv"), index=False)
     build_mortgage15().to_csv(os.path.join(FIXTURES_DIR, "MORTGAGE15US.csv"), index=False)
+    build_sofr().to_csv(os.path.join(FIXTURES_DIR, "SOFR30DAYAVG.csv"), index=False)
 
     rng = np.random.default_rng(1)
     build_inventory(rng).to_csv(os.path.join(FIXTURES_DIR, "inventory_metro.csv"), index=False)

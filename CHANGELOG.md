@@ -5,6 +5,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Step 7
+- Added: 5/6 and 10/6 SOFR ARMs on the Financing estimator (conventional only) with four constant-index scenarios
+  (flat, +2 pp, -1 pp, caps worst case): P&I after first reset, max P&I, total interest, and a payment chart vs the 30y fixed.
+- Terms: index = 30-day Average SOFR (new FRED series `SOFR30DAYAVG`); caps 2/1/5 for 5/6 and 5/1/5 for 10/6 (not 2/1/5), 6-month
+  resets, per the ARRC 2019 white paper; floor = margin; margin default 2.75; rate rounded to 0.125 (unverified).
+- Initial rate is an approximation: adjusted 30y fixed minus 0.50 (5/6) or 0.25 (10/6).
+
 ### Step 6
 - Added: "Financing estimator" page comparing 30/20/15/10-year fixed loans (rate, APR, P&I, tax, insurance, PMI/MIP, PITI,
   total interest) with an amortization chart, plus an optional DTI check. Math lives in pure `housing/finance.py`.
