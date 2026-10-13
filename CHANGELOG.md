@@ -5,6 +5,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### UI redesign (in progress, branch feature/ui-redesign)
+- Phase 1: `JOURNEY.md` — job story, market → metro → money journey, sidebar IA (Market / Metro / Money), metro persistence (session + `?metro=`), and page specs for all 6 pages with answer-first headlines and data-down states.
+
 ### Repository
 - Repo is now public. `main` requires a pull request approved by the owner (@gserfaty) via `.github/CODEOWNERS`; see `CONTRIBUTING.md`.
 
