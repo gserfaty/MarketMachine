@@ -107,6 +107,10 @@ uncertain, not advice.
 Limits: an estimate, not a loan quote; insurance data is from 2022 and likely below current premiums; LLPA and PMI tables are
 approximate; no county loan limits, points, HOA or flood insurance.
 
+## Contributing
+
+Pull requests welcome. `main` is protected: every change needs a PR approved by @gserfaty. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Deploy to Streamlit Community Cloud
 
 1. Push this repo to `gserfaty/michiganmen` on GitHub (`app.py` at the repo root).

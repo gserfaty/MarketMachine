@@ -5,6 +5,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Repository
+- Repo is now public. `main` requires a pull request approved by the owner (@gserfaty) via `.github/CODEOWNERS`; see `CONTRIBUTING.md`.
+
 ### Step 8
 - Added: equity projection on the Financing estimator (home value, remaining balance, equity, net equity if sold; years 1/5/10/30
   table plus a yearly chart) for the selected fixed or ARM (index flat) loan.
