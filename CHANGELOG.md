@@ -10,6 +10,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 - Phase 2: `DESIGN.md` locked — "Open House": brand red #c74248 on white (white-on-red 4.88:1), Newsreader headlines over Public Sans body, slate-blue down / green up (never red), airy spacing, all text pairs WCAG AA.
 - Phase 3: Streamlit design system in `DESIGN.md ## Components` — theme-first mapping to `.streamlit/config.toml` (fonts, colors, radius, borders), a minimal CSS layer only for what the theme can't do (Roofline, button states, focus rings, picker list), component tokens, and a contrast ledger (all interactive pairs ≥3:1).
 - Phase 4: final copy in `JOURNEY.md` — plain-language headlines, jargon swaps (typical miss, ranking skill, range hit rate, combined forecast), cause-and-fix error copy, "Heads up:" for data-down, disclaimers on every forecast/financing page.
+- Phase 5: chart and table spec in `DESIGN.md ## Data surfaces` — one Plotly template from tokens, no brand red in data, colorblind-checked series palette, up/down always ▲/▼ + sign (green / slate blue), symmetric diverging map with per-state labels, ≤4 series per chart, dual-axis charts retired, numeric tables via `st.column_config`.
 
 ### Repository
 - Repo is now public. `main` requires a pull request approved by the owner (@gserfaty) via `.github/CODEOWNERS`; see `CONTRIBUTING.md`.

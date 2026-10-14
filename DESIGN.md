@@ -359,3 +359,192 @@ Ratios were computed with the WCAG 2.x formula from the locked tokens. `--border
 
 ### Governance
 Owner: Gabriel (design DNA and Components); Lucas contributes through PR (CODEOWNERS already requires owner review on `main`). Change rules: new tokens go in the alias tier first, a component token only if one component needs it; a breaking rename bumps a note in `CHANGELOG.md`; a Streamlit upgrade requires rechecking the selector list above.
+
+## Data surfaces
+**Added:** Phase 5 (append-only; locked tokens and `## Components` unchanged). **Doctrine:** data-viz (Tufte 1983 data-ink; Knaflic 2015 one preattentive attribute; Cairo 2019 truthful encoding; Cleveland and McGill 1984 position over area). **Scope:** Plotly charts and `st.dataframe` tables on all six pages. No new dependencies: one registered Plotly template plus `st.column_config`. Redfin's own charts are a thin dark line on white with light horizontal gridlines and a hover readout; this spec follows that calm.
+
+### Viz tokens (alias tier; every one resolves to a locked token except the three categorical hues)
+```css
+:root {
+  /* text and structure: all resolve to locked tokens */
+  --viz-text: var(--text);                  /* legend, hover text, annotations: 13.30:1 */
+  --viz-text-muted: var(--text-secondary);  /* tick labels, axis titles, source note: 5.89:1 */
+  --viz-bg: var(--background);              /* paper and plot area, the --background token (#fdfcfc) */
+  --viz-grid: var(--neutral-4);             /* horizontal gridlines, 1px, decorative */
+  --viz-axis: var(--neutral-7);             /* x axis line, 1px */
+  --viz-zero: var(--neutral-9);             /* zero baseline when the data crosses or touches 0: 3.45:1 */
+  --viz-hover-border: var(--neutral-9);     /* hover box border: 3.45:1 */
+  /* direction (the only place data is green or slate blue) */
+  --viz-up: var(--positive);                /* #35742f, 5.56:1 */
+  --viz-down: var(--negative);              /* #41629f, 5.91:1 */
+  --viz-flat: var(--neutral-9);             /* zero or n/a: fill or line only, never text (3.45:1) */
+  /* series (levels and comparisons, never direction) */
+  --viz-focus: var(--neutral-12);           /* the one highlighted series: ink, 13.30:1 */
+  --viz-context: var(--neutral-9);          /* every other series: grey, 3.45:1 */
+  --viz-cat-2: #007a87;                     /* teal, 4.96:1 */
+  --viz-cat-3: #b7791f;                     /* amber, 3.56:1 */
+  --viz-cat-4: #7a5cb8;                     /* violet, 5.06:1 */
+  /* bands */
+  --viz-band: rgb(49 45 44 / 0.12);         /* --neutral-12 at 12%: reads as #e5e3e3 on white */
+}
+```
+**Tier note:** the `--viz-*` names are the alias tier; global neutrals are referenced only here, once, to define them, and chart code and the build read `--viz-*` only. Categorical data hues are not a "second accent" (Never list): they never mark action or brand, and the owner confirms that ruling here (Governance: Gabriel).
+
+Brand red (`--accent-*`) appears in no chart, table or legend. The "highlight" in data is ink, not red: the reader's eye goes to the darkest, thickest line (Knaflic 2015), and red stays reserved for action. `--viz-cat-2..4` are the only hex values in this section. They are hand-picked (palette.mjs makes ramps, not categorical sets) and checked below. Teal was retuned from #0f7b6c to #007a87 after review: the first teal fell to 8.3 against grey under protan.
+
+### Plotly template (register once, name `michiganmen`, set as default; Streamlit calls pass `theme=None`)
+Streamlit's `st.plotly_chart` default `theme="streamlit"` overwrites the template colors and fonts, so every call must pass `theme=None` (or the build wraps it in one `show(fig)` helper). `use_container_width=True` stays.
+| Property | Value | Token |
+|----------|-------|-------|
+| `layout.font.family` | Public Sans, then the `--font-body` fallbacks | `--font-body` |
+| `layout.font.size` / `color` | 14 / `--viz-text` | `--text-sm` |
+| `paper_bgcolor`, `plot_bgcolor` | `--viz-bg` | `--background` |
+| Title | None inside the figure. The page's `st.subheader` is the chart title, which states the takeaway (Phase 4 copy); no Plotly title and no chart-in-chart serif | n/a |
+| `xaxis.tickfont` / `yaxis.tickfont` | Public Sans 12, `--viz-text-muted`; Public Sans figures; Plotly cannot set `font-variant-numeric`, so number columns are right-aligned by tick position and fixed decimals | `--text-xs` |
+| `xaxis.title.font`, `yaxis.title.font` | 14, `--viz-text-muted`; titles carry units ("Typical value ($)", "12-month change (%)") | `--text-sm` |
+| `xaxis` | `showgrid=False`, `showline=True`, `linecolor=--viz-axis`, `ticks=""`, `zeroline=False` | `--viz-axis` |
+| `yaxis` | `showgrid=True`, `gridcolor=--viz-grid`, `gridwidth=1`, `showline=False`, `ticks=""`, `zeroline=False` (a zero line is drawn explicitly when 0 is in range, see Truthful encoding) | `--viz-grid` |
+| Number format | `yaxis.tickformat`: `$,.0f` for dollars, `+.1f` with `ticksuffix="%"` for changes (sign always shown). **True minus:** d3 formats emit ASCII "-", so the build replaces it with U+2212 in tick text via `tickformat=",.1f"` plus a custom `ticktext` for changes, and writes data-label and hover text through a small `fmt_pct(v)` helper that returns "▲ +4.2%" / "▼ −1.8%" (U+2212). The same helper builds table cells that are display strings, `.2f` with `ticksuffix="%"` for rates. Large dollars use `$,.2s` ticks only when 7+ digits | n/a |
+| `legend` | Horizontal, above the plot, left aligned (`y=1.08`, `x=0`), 14px `--viz-text`, no border or fill. With 2 or fewer series the legend is replaced by a direct end-of-line label (Tufte: label the data) | `--text-sm` |
+| `hoverlabel` | `bgcolor=--viz-bg`, `bordercolor=--viz-hover-border`, font Public Sans 14 `--viz-text`; `hovermode="x unified"` on time series | `--viz-hover-border` |
+| `margin` | `l=48, r=24, t=32, b=40` px (airy); `height` 360 on content charts, 280 on secondary | `--space-*` |
+| `colorway` | `[--viz-focus, --viz-cat-2, --viz-cat-3, --viz-cat-4]` | `--viz-*` |
+| Lines | width 2.5 for the focus series, 1.5 for context series; no markers except the last point; `hovertemplate` shows the label, value and date | n/a |
+| Motion | `transition` off; no animation | `--c-motion` rule |
+| `modebar` | Hidden by default (`config={"displayModeBar": False}`); the `staticPlot` option is not used because hover is the detail-on-demand layer | n/a |
+
+Streamlit-native charts (`st.line_chart`, `st.bar_chart`) read `[theme] chartCategoricalColors = [--viz-focus, --viz-cat-2, --viz-cat-3, --viz-cat-4]`, `chartSequentialColors` (neutral ramp below) and `chartDivergingColors` (diverging ramp below), set in `.streamlit/config.toml` from this table (the `chart*Colors` row Phase 3 left open; key names confirmed in `streamlit/config.py` 1.64.0). Because the two Market profile charts need a highlight-plus-grey encoding that `st.line_chart` cannot express, the build moves them to Plotly so the app has one chart renderer.
+
+### Series palette and the many-series rule
+- **Cap: one highlighted series, at most three comparison series.** The selected metro (or the one series being explained) is `--viz-focus`; the comparison metro or "United States" is `--viz-cat-2` when it is a deliberate 2-way compare (Market profile) and `--viz-context` grey when it is background context (Regional explorer history, Overview). **Hard cap: at most 4 named series per chart.** More than 4 compared items become small multiples (one panel each, shared axes) or a table; the build never draws 5 or more lines in one panel, so no run of identical grey lines exists.
+- **Co-occurrence rules (they bound which pairs the check must cover):**
+  1. Categorical hues (`--viz-cat-2..4`) and direction hues (`--viz-up`, `--viz-down`) never share a chart. Level charts use ink, grey and categorical; change charts use ink, grey, up, down.
+  2. Teal never shares a chart with grey context lines unless the two also differ in dash pattern (grey is dashed) and are direct-labeled. With the retuned teal the pair is above the floor in every mode anyway; the rule is kept as redundancy.
+  3. Violet and amber appear only in charts with 3 or 4 compared series; ink and grey are always available.
+- **Colorblind check** (Machado et al. 2009 matrices, severity 1.0; CIE76 distance in CIELAB; floor 10, 20 or more clearly distinct). Every pair that can still share a chart under the rules above:
+| Pair (can co-occur) | Normal | Protan | Deutan | Tritan | Min | Pass |
+|---------------------|-------:|-------:|-------:|-------:|----:|------|
+| ink / teal | 40.8 | 33.0 | 32.3 | 44.4 | 32.3 | yes |
+| ink / amber | 67.0 | 64.3 | 66.2 | 53.3 | 53.3 | yes |
+| ink / violet | 61.7 | 55.4 | 53.3 | 30.4 | 30.4 | yes |
+| teal / amber | 81.5 | 67.3 | 74.2 | 71.8 | 67.3 | yes |
+| teal / violet | 63.4 | 35.6 | 26.5 | 33.7 | 26.5 | yes |
+| amber / violet | 101.1 | 102.7 | 100.1 | 45.1 | 45.1 | yes |
+| ink / grey | 38.2 | 37.6 | 38.3 | 38.4 | 37.6 | yes |
+| teal / grey | 35.5 | 14.9 | 24.7 | 39.6 | 14.9 | yes |
+| amber / grey | 53.6 | 54.3 | 51.7 | 33.3 | 33.3 | yes |
+| violet / grey | 55.5 | 49.5 | 49.1 | 17.0 | 17.0 | yes |
+| up / down | 80.3 | 73.3 | 67.6 | 12.9 | 12.9 | yes, plus redundancy |
+| up / ink | 53.5 | 45.2 | 36.0 | 36.3 | 36.0 | yes |
+| down / ink | 44.8 | 44.3 | 45.7 | 37.4 | 37.4 | yes |
+| up / grey | 51.6 | 38.0 | 29.5 | 35.1 | 29.5 | yes |
+| down / grey | 42.1 | 39.1 | 45.3 | 37.1 | 37.1 | yes |
+  All 15 co-occurring pairs are at least 12.9 (floor 10). Excluded by rule 1, so not required (for the record): violet / down 7.9 (deutan), teal / up 10.4 (tritan), teal / down 10.3 (tritan; recomputed with the retuned teal #007a87). Green vs slate blue is only 12.9 under tritan and the two are near-equal in lightness, which is why direction never relies on hue (WCAG 1.4.1).
+- **Non-text contrast** (3:1 vs `--background`, WCAG 1.4.11): ink 13.30, teal 4.96, amber 3.56, violet 5.06, grey 3.45, up 5.56, down 5.91. All pass. Exception, listed honestly: choropleth fills for 0% (`--neutral-5`, 1.32:1) and no data (`--neutral-3`, 1.11:1) are below 3:1 as fills. They are fills inside bordered shapes, so contrast is carried by the 1px border (state edge `--viz-flat`, 3.45:1, on the no-data and 0% fills) and the visible text label, not by the fill (WCAG 1.4.11 applies to the boundary and the text, not to a fill that carries no sole meaning).
+- **Redundant encoding for series (Knaflic: color is never the only channel):** focus solid, cat-2 solid with a circle marker on its last point, cat-3 dashed, cat-4 dotted, grey context dashed; every series is named by a direct end label or the legend. **Text color:** every label, legend entry and annotation uses `--viz-text` or `--viz-text-muted` only; series color applies to the line or mark, never to text (amber is 3.56:1 and would fail AA as text).
+- **Colors never carry direction on level charts.** A home-value line is ink even when it fell. Green and slate blue appear only on changes (percent, delta, rank-IC sign), which is where "up/down" is the data.
+
+### Up/down encoding (never red, never color alone)
+- **Pairing:** green `--viz-up` always pairs with "▲" and an explicit "+"; slate blue `--viz-down` always pairs with "▼" and a true minus "−". Zero or n/a is drawn with `--viz-flat` as a fill or line only; its text ("0.0%", "–", "n/a") is always `--viz-text-muted` (5.89:1) on the page background, and `--viz-text` or `--background` on a map fill (per the map label rule), never `--viz-flat` (3.45:1 fails text AA). The glyph and sign are in text (hover, data labels, table cells), so they survive grayscale and color-blind viewing. Tritan green-vs-blue is weak (12.9) and that is exactly why direction never depends on hue (WCAG 1.4.1). Wherever text renders a change (labels, hover, KPI, table cells), the rule is the signed number plus ▲/▼ prefix: "▲ +4.2%", "▼ −1.8%".
+- **Bar charts of change** (Explorer "Top 20", Findings): bars grow from a visible zero line (`--viz-zero`, 1px) so direction is also position (Cleveland and McGill 1984: position on a common baseline is the most accurate channel). Up bars `--viz-up`, down bars `--viz-down`. Each bar has an outside data label in `--viz-text`, `--text-xs` Public Sans, like "▲ +4.2%" or "▼ −1.8%". The label sits at the bar end, so the sign reads without the legend.
+- **Negative-only dataset** (every metro down; a 12-month predicted-decline list): all bars are `--viz-down` with ▼ and −, extend away from the zero line in the down direction (left from the zero line on the horizontal Top 20 bars, downward on vertical bars), and the axis keeps 0 in range. No autoscale that hides the zero baseline and no flipped axis that makes declines look like gains. The headline sentence (Phase 4) says "all down".
+- **Positive-only** mirrors this. **Mixed:** both colors, one zero line, bars sorted by value.
+- **Choropleth** (State mode, `px.choropleth`): never hue-only.
+  - **Change metrics, symmetric scale (a decline can never take the up color):** diverging, `zmid=0`, `zmin=-M`, `zmax=+M`, with `M = max(|p5|, |p95|)` of the metric (values clipped to the range). So 0 is always the exact center, and any value below 0 is always on the `--viz-down` side. **All-negative data:** the scale is still symmetric, so every state sits on the down half (light to full slate blue by size) and none is green; the colorbar still shows the full range with "+M" at the top, and the headline says "all down". Positive-only is the mirror. **Colorscale (stepped, classed; locked ramp tokens only, chosen so a label color always reaches 4.5:1):** `[[0,"--blue-11"],[0.2,"--blue-11"],[0.2,"--blue-3"],[0.5,"--neutral-5"],[0.8,"--green-3"],[0.8,"--green-11"],[1,"--green-11"]]` (hex in the build: #41629f, #e9f1ff, #e3dcdc, #e0f9dd, #35742f). So |change| of at least 0.6 M reads as the strong class and smaller moves as light tints; a plain gradient would pass through mid-tones where neither ink nor white reaches 4.5:1. Every state has a 1px `--background` border. Colorbar ticks signed ("−4%", "0%", "+4%"), title "12-month change".
+  - **0% and no-data fills:** 0% = `--neutral-5` center. No data = `--neutral-3` (#f3efef) with a 1px `--viz-flat` outline and a "No data" legend swatch. Their fills are below 3:1 (1.32 and 1.11); see the Non-text contrast note: border plus label carry it. Labels on them use `--viz-text` (rule below).
+  - **Direction in text, every state:** each state carries a small label with abbreviation and signed value ("TX ▲ +4.2%", "NY ▼ −1.8%") from a `go.Scattergeo` text layer at state centroids (text size `--text-xs`, 12px minimum; **label color is chosen per state from `--viz-text` or `--background`, whichever has higher contrast on that state's fill, and `--viz-text-muted` is never used on map fills**; tiny states (RI, DE, DC, and so on) get leader-free labels offset into the margin or are covered by the table). Hover repeats it. **Companion:** the sorted signed table (state, 12-month change, same ▲/▼ prefixed strings) sits beside the map at desktop width and below it on narrow screens, so every state is reachable by keyboard, screen reader and print.
+  - **Value metric ($):** stepped sequential ramp `[[0,"--neutral-5"],[0.4,"--neutral-8"],[0.4,"--neutral-11"],[1,"--neutral-12"]]` (#e3dcdc, #b4a7a7, #696160, #312d2c), same borders and the same every-state labels ("TX $450k"), colorbar ticks in "$". The step at 0.4 skips the mid-tones where neither label color reaches 4.5:1.
+  - **Map label contrast (11 evenly spaced stops per ramp, chosen label color, WCAG 2.x; all at least 4.5:1):**
+| Stop t | Change fill | Label | Ratio | Value fill | Label | Ratio |
+|-------:|-------------|-------|------:|------------|-------|------:|
+| 0.0 | #41629f | white | 5.91 | #e3dcdc | ink | 10.07 |
+| 0.1 | #41629f | white | 5.91 | #d7cfcf | ink | 8.89 |
+| 0.2 | #41629f | white | 5.91 | #ccc2c2 | ink | 7.82 |
+| 0.3 | #e7eaf3 | ink | 11.32 | #c0b4b4 | ink | 6.76 |
+| 0.4 | #e5e3e8 | ink | 10.69 | #b4a7a7 | ink | 5.85 |
+| 0.5 (0%) | #e3dcdc | ink | 10.07 | #605857 | white | 6.77 |
+| 0.6 | #e2e6dc | ink | 10.75 | #56504f | white | 7.72 |
+| 0.7 | #e1efdd | ink | 11.41 | #4d4746 | white | 8.90 |
+| 0.8 | #e0f9dd | ink | 12.17 | #443e3d | white | 10.24 |
+| 0.9 | #35742f | white | 5.56 | #3a3635 | white | 11.66 |
+| 1.0 | #35742f | white | 5.56 | #312d2c | white | 13.30 |
+  No-data fill #f3efef with ink: 11.93:1. Class boundaries (change 0.2 and 0.8, value 0.4): a state at the boundary takes the lower class: white on #41629f 5.91, ink on #e0f9dd 12.17, ink on #b4a7a7 5.85; just above, white on #35742f 5.56 and white on #696160 5.89. Minimum across all stops: 5.56. "White" is `--background`, "ink" is `--viz-text`.
+  - No red anywhere on the map.
+- **Histogram** of predicted changes: a single neutral color (`--viz-context`) with a 0 reference line labeled "0% (no change)". Coloring bins by sign is redundant with position and adds a hue encoding, so it is left out.
+
+### Range bands (forecast and equity)
+- **One construction, everywhere:** history is a solid `--viz-focus` line; the projection continues as the same color with `dash="dash"`; the 80% range is a filled band `--viz-band` (ink at 12%) with no outline. Dashed = projected, band = uncertainty (two separate cues; Cairo 2019: show the uncertainty, don't hide it). A thin vertical divider (`--viz-axis`, 1px) with a small label "Today" separates history from projection.
+- **Label:** the legend entry and the hover both say "80% range" with the two end values; the same wording as the page headline. Band label `--text-xs` `--viz-text-muted`.
+- **Equity chart:** "Equity" focus line, "Net equity if sold" `--viz-cat-3` dashed, band for the Equity 80% range. No third hue; the band stays ink-tinted so it can never read as a "good/bad" zone. Contrast of `--viz-text-muted` labels on the band: 4.72:1 (AA).
+- **Year 1 vs years 2+:** after year 1 the band is the model's range; the wider extrapolated years keep the same band plus the existing in-page caveat (copy is Phase 4).
+- **Forecast with direction:** the band can cross 0. The zero line is drawn then, and the endpoint label reads "▼ −2.1%" or "▲ +1.3%" in `--viz-text` (10.65:1 on the 80% band, which composites to #e5e3e3; 13.30:1 on the page). Direction color (`--viz-down` / `--viz-up`) goes on the end marker and the line segment only, never on the text. The arrow and sign carry direction in the label.
+
+### Truthful encoding rules (Cairo 2019, Tufte 1983)
+- Bars and areas start at 0. Lines may use a non-zero baseline, and then the axis title says so and the y range is not clipped to exaggerate (pad 5%).
+- **Dual axis is retired.** The Overview "YoY change vs. mortgage rate" chart (two y axes) and the Financing amortization chart (stacked bars plus a balance line on a second axis) are replaced: Overview becomes two stacked small multiples that share the x axis (home value YoY above, 30-year rate below, each with its own labeled axis, 220px each; small multiples, Tufte 1983). Amortization becomes the stacked principal and interest bars only, with "Remaining balance" moved to a one-line KPI or a second small chart below. Where a second axis is kept (not recommended), both axis titles are colored with their series and carry units.
+- No 3D, no gradients, no drop shadows, no chart borders, no background fills, no rounded bars. Pie and donut charts are not used.
+- Every chart has an as-of date line beneath it (`st.caption`, `--text-xs`, `--viz-text-muted`: "Zillow, through Sep 2026").
+- Accessible names: every chart is preceded by the subheading (the takeaway), and the build adds a one-sentence `st.caption` summary for screen readers where the takeaway isn't in the subheading. The data table equivalent is available in an expander "View as table" on the two history charts.
+
+### Table spec (`st.dataframe` with `st.column_config`; no new dependencies)
+- **Rows:** airy, no zebra striping. Streamlit's table does not expose row height as a theme key; keep the default row height (35px) and rely on `hide_index=True`, `use_container_width=True`, and `[theme] dataframeBorderColor` (`--border-subtle`) and `dataframeHeaderBackgroundColor` (`--surface`) set in config.toml. Header text weight 600. Only horizontal hairlines (the default). Height: let it size to content up to 10 rows (`height="auto"`), then scroll at 8 visible rows on long tables (per-metro predictions).
+- **Numbers are numbers, not strings.** Today pages pre-format values to strings (`f"${v:,.0f}"`, `f"{v:,.1f}%"`), which sorts alphabetically ("$9" above "$100,000") and left-aligns them. Pass the raw numeric column and format with `column_config`; numeric columns right-align and keep tabular figures, and sort correctly.
+| Column kind | `column_config` | Alignment and format |
+|-------------|-----------------|----------------------|
+| Metro / region name | `TextColumn("Metro", pinned=True)` | left, first column, `--text` 600 weight is not available per cell; use pinned only |
+| State | `TextColumn("State", width="small")` | left |
+| Home value ($) | `NumberColumn("Typical value", format="dollar")` (renders `$1,234`; set `format="$%d"` if comma grouping is missing in 1.64.0) | right |
+| Change (decimal fraction → percent) | Multiply by 100 in the data layer (kept numeric) where the column only needs to sort and align: `NumberColumn("1-year change", format="%+.1f%%")`. Where direction must be explicit in the cell (Findings, Explorer ranked tables, state table), use a display string from `fmt_pct` with the ▲/▼ prefix ("▲ +4.2%", "▼ −1.8%"), paired with a hidden numeric column for sorting | right; always signed, and the ▲/▼ prefix is in the string wherever the cell is a formatted string. This makes the table rule match the locked arrow-plus-sign rule |
+| 80% range | Two numeric columns "Low" and "High" with `format="%+.1f%%"`, or one text column "Forecast (80% range)" built as `+1.3% (0.0% to +3.6%)` when it is display only (this column is not sorted by value) | right |
+| Rank / count | `NumberColumn(format="%d")` | right |
+| Score (rank IC, coverage) | `NumberColumn(format="%.2f")`; coverage as `%.0f%%` | right |
+| Direction at a glance (optional, change columns) | `st.column_config.ProgressColumn` is not used (a bar is a second encoding of the same number). `LineChartColumn` is not used on the long tables | n/a |
+- **Direction color in tables:** `st.dataframe` cannot color a cell by sign without a pandas `Styler`, which is slower and ignores `column_config` formatting for some types. Keep tables neutral in color; the explicit sign in the number carries direction. Where a sign-colored table is wanted (Findings top 15), use `df.style.map(lambda v: "color: var(--positive)" ...)` only with resolved token values (`#35742f`, `#41629f`, from the token table) and keep the "+" and "−" in the text; this is optional and adds no AA risk (5.56:1 and 5.91:1).
+- **Compare table** (Market profile): a transposed metric-by-market table of formatted strings is acceptable here only because rows mix units (dollars and percent); keep the strings but right-align by using `column_config.TextColumn(alignment="right")` if available, otherwise render it as `st.metric` pairs. The percent strings must carry a sign.
+- **Empty and n/a:** missing numbers are `None` (the table shows blank); the page adds "n/a" semantics through `NumberColumn(..., help="n/a means no data for that period")` rather than the string "n/a" in a numeric column, which breaks sorting and alignment.
+- **Frozen first column** (`pinned=True` on the metro name) on any table with 5 or more columns. Column headers are sentence case, plain words, units in the header or format ("Typical value", "1-year change"), never snake_case (`chg_1y`, `pred_12m`, `rank_ic`).
+- **Selection:** where Findings offers "Use this metro" (JOURNEY.md), use `on_select="rerun"` with `selection_mode="single-row"`; the selected-row highlight is Streamlit's. The chosen row's name is echoed in text in the readout, so selection is not color alone.
+
+### Per-page chart and table list
+| Page | Surface today | Recommended | Change |
+|------|---------------|-------------|--------|
+| **Market overview** | `px.line` US value since 2000 | Line, focus ink, y in `$,.0f`, forecast block continues dashed with the 80% range band (JOURNEY block 3) | Template; add band when forecast is available |
+| | Dual-axis `go.Scatter` YoY vs mortgage rate | Two stacked small multiples sharing x: YoY % (line, signed ticks, zero line) above; 30-yr rate % (line, `--viz-cat-2` teal, labeled) below | Retire the dual axis (Cairo). Which series is "answer": YoY, so it goes first |
+| | `px.line(case_shiller)` | Line, ink, as-of caption; hidden if series is missing | Template only |
+| **Findings** | 5 `st.dataframe` tables with preformatted strings | Same tables inside tabs (JOURNEY block 5), numeric `column_config`, signed percent, "Low" and "High" 80% range columns; a horizontal bar chart of the top 15 predicted gainers (sorted, ▲ labels, up color) is optional and sits above the table only if the page needs a visual | Numeric columns; no new analytics |
+| **Regional explorer** | Ranked table (strings) | Numeric table, pinned region, signed change columns | `column_config` |
+| | `px.bar` Top 20 | Horizontal bars (names are long; reading labels left to right), sorted, zero line, ▲/▼ data labels, up/down colors by sign | Switch to `orientation="h"`; sign-colored; cap 20 |
+| | `px.choropleth` | Diverging scale for change, sequential neutral for value, signed colorbar | Per Up/down encoding |
+| | Region history (metro vs United States) | Line chart: selected region ink 2.5px, United States `--viz-context` grey 1.5px dashed, direct end labels, no legend | Highlight plus grey rule |
+| **Market profile** | `st.line_chart` history | Plotly line, ink, same template | Replace native chart (one renderer) |
+| | `st.line_chart` pivot of two markets | Plotly 2-line: selected ink solid, comparison `--viz-cat-2` teal solid, end labels (a 2-way compare, deliberate) | Replace; end labels replace legend |
+| | Compare table, Similar markets table | Compare: strings with explicit sign; Similar: numeric `column_config`, pinned region | `column_config` |
+| **ML forecast** | Two backtest tables, per-metro table (strings), `px.histogram`, rank-IC `px.line` | Metro history with 80% range band (new, JOURNEY block 3; reuse the Overview band construction). Rank-IC by year: lines for `model` (ink), `blend` (teal), `naive_momentum` (grey dashed), y zero line (rank IC can be negative; negative values are drawn below zero in the same colors, no direction color on a skill score). Histogram neutral with the 0 line. Backtest and per-year tables go in the "How we tested this" expander with numeric formats (`%.2f`) | Add band chart; rank IC on shared template; demote tables |
+| **Financing** | ARM P&I lines (3 scenarios + 30-yr fixed dashed) | Lines: ARM scenarios `--viz-focus` / `--viz-cat-2` / `--viz-cat-3` (distinct dash also); 30-year fixed `--viz-context` grey dashed; direct end labels with payment "$" | Template; dash plus labels for redundancy |
+| | Amortization stacked bars + balance line on y2 | Stacked bars only: Principal `--viz-cat-2` teal, Interest `--viz-context` grey (interest is the cost, grey is the quiet part; principal is progress). Remaining balance as its own small line chart underneath | Retire the second axis |
+| | Equity range band + 2 lines | Per Range bands; fill via `--viz-band`, Net equity `--viz-cat-3` dashed | Replace hard-coded `rgba(31,119,180,0.2)` blue with `--viz-band` |
+| | Projection table (strings with ranges) | Keep display strings (range is a text cell, rows mix value and range), right-aligned where available | Sign and "$" formatting only |
+
+### Chart text and gridline contrast (DW-5.2)
+| Element | Token (value) | On | Ratio | Needs | Result |
+|---------|---------------|----|------:|------:|--------|
+| Legend, hover, data labels | `--viz-text` (#312d2c) | `--background` | 13.30 | 4.5 | PASS |
+| Tick labels, axis titles, captions | `--viz-text-muted` (#696160) | `--background` | 5.89 | 4.5 | PASS |
+| Band labels | `--viz-text-muted` | `--viz-band` over white (#e5e3e3) | 4.72 | 4.5 | PASS |
+| Hover box border | `--neutral-9` | `--background` | 3.45 | 3 | PASS |
+| Zero line | `--neutral-9` | `--background` | 3.45 | 3 | PASS |
+| Focus / context / teal / amber / violet series | see Series palette | `--background` | 13.30 / 3.45 / 4.96 / 3.56 / 5.06 | 3 | PASS |
+| Up / down in text (KPI deltas, table cells set with `--positive` / `--negative`) | `--positive` / `--negative` | `--background` | 5.56 / 5.91 | 4.5 | PASS |
+| Forecast and equity endpoint labels | `--viz-text` | 80% band (#e5e3e3) | 10.65 | 4.5 | PASS |
+| Choropleth state labels (ink or `--background`, chosen per fill) | see map label table | each fill, 11 stops per ramp + no-data | min 5.56 | 4.5 | PASS |
+| Gridlines | `--neutral-4` | `--background` | 1.20 | none | Decorative: every value is readable from the axis ticks and the hover, so the grid conveys nothing the text doesn't (WCAG 1.4.11 exempts it). They are never the only boundary of anything |
+| X axis line | `--neutral-7` | `--background` | 1.72 | none | Decorative; ticks carry the meaning |
+Ratios from the WCAG 2.x formula on the locked tokens (`--background` is #fdfcfc); the categorical hexes and CVD distances were computed with the same formula and Machado et al. (2009) matrices. Series and axis text are both Public Sans (a single family, no third font).
+
+### Never (charts and tables)
+- Brand red, or any red, in a series, bar, band, map or table cell.
+- Direction by hue alone: no ▲/▼ and no sign means the build is wrong.
+- A second y axis, 3D, gradients, pies, or a non-zero baseline on bars.
+- More than 4 named series in one chart (use small multiples or a table), or a run of identical grey lines.
+- Preformatted number strings in sortable numeric columns.
+- A Plotly call without `theme=None` (the Streamlit theme overrides this template).
