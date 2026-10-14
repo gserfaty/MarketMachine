@@ -179,3 +179,9 @@ Summary: DESIGN.md locked as "Open House" — red #c74248 accent on true white, 
 - [x] REVIEW: fail->pass (4 attempts)
 - [x] Committed
 Summary: DESIGN.md ## Components maps tokens to Streamlit 1.64 theme keys first (fonts via theme URL form, borderColor, radius) and a minimal CSS layer for Roofline, button states, catch-all :focus-visible ring and the react-aria picker list; st.navigation with Market/Metro/Money sections; metric deltas use green/violet/gray (never normal/inverse). Pixel checks pending in build: primary text color, slider :has() rule, aria-selected option, double focus ring on selectbox.
+
+### Phase 4: Words (Gate: Standard)
+- [x] BUILD: complete
+- [x] REVIEW: PASS
+- [x] Committed
+Summary: JOURNEY.md Copy blocks per page + ## Voice & tone with shared strings (D1/D2/D3 disclaimers, data-down, loading); Copy blocks are authoritative over older spec fields. Minor follow-ups: unify the 12-month-change label, sign format in overview headline, table column headers, verify D2 'nothing stored' claim at build.
