@@ -5,7 +5,7 @@
 - Entry stage: Discover (no DESIGN.md or JOURNEY.md exist)
 - **Status:** in-progress
 - **Started:** 2026-10-13
-- **Current Phase:** 2
+- **Current Phase:** 3
 - Seed: `.design-foundations/research/2026-10-13-michiganmen-ui.md`
 
 ## Context
@@ -167,3 +167,9 @@ Journey first (the market → metro → money flow and per-page headline answers
 - [x] REVIEW: fail->pass (2 attempts)
 - [x] Committed
 Summary: JOURNEY.md specifies the market → metro → money journey, Market/Metro/Money sidebar order, metro persistence via session + ?metro=, and 6 answer-first page specs with data-down states; Lucas sign-off pending on Market profile presentation changes.
+
+### Phase 2: Design DNA (Gate: Full)
+- [x] BUILD: 3 candidates; user locked "Open House"
+- [x] REVIEW: PASS
+- [x] Committed
+Summary: DESIGN.md locked as "Open House" — red #c74248 accent on true white, Newsreader display + Public Sans body, slate-blue negative / green positive, errors distinguished by form (✕ + 'Error:'), data-down uses amber warning; all text pairs AA.
