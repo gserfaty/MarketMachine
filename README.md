@@ -27,12 +27,14 @@ the app shows a clear error/warning instead of crashing.
 
 ## Pages
 
-1. **Market overview** — KPIs (US typical value, YoY change, mortgage rate, Case-Shiller YoY) and trend charts.
-2. **Regional explorer** — filter/sort metros or states, bar chart of top movers, state choropleth, per-region history.
-3. **ML forecast** — backtest scorecard vs. baselines, served blend forecast (national 12-month call, per-metro predictions).
-4. **Findings** — top gainers, top/bottom predicted movers, most valuable metros.
-5. **Market Profile** — single-metro profile, comparison, and similar markets.
-6. **Financing estimator** — 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison and equity projection.
+Navigation is grouped Market / Metro / Money, and the chosen metro carries across pages (also in the `?metro=` URL parameter).
+
+1. **Market overview** — one-sentence US headline with forecast, KPIs (typical value, 12-month change, mortgage rate, Case-Shiller) and trend charts.
+2. **Findings** — top predicted gainers and laggards, best past performers, most valuable metros.
+3. **Regional explorer** — filter/sort metros or states, bar chart of top movers, state map, per-region history.
+4. **Market profile** — single-metro profile, comparison, and similar markets.
+5. **ML forecast** — a metro's 12-month forecast with its 80% range, how reliable the model has been, and all-metro predictions.
+6. **Financing estimator** — monthly payment, 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison, and equity projection.
 
 ## Local development
 
