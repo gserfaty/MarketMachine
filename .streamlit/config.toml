@@ -1,9 +1,51 @@
 [theme]
-primaryColor = "#2E86AB"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F5F7FA"
-textColor = "#1A1A1A"
-font = "sans serif"
+base = "light"
+primaryColor = "#c74248"
+backgroundColor = "#fdfcfc"
+secondaryBackgroundColor = "#faf8f8"
+textColor = "#312d2c"
+linkColor = "#974847"
+linkUnderline = true
+font = 'Public Sans:https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600&display=swap, system-ui, -apple-system, "Segoe UI", sans-serif'
+headingFont = 'Newsreader:https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap, Georgia, "Times New Roman", serif'
+headingFontSizes = ["2.25rem", "1.5rem", "1.25rem", "1.25rem", "1.25rem", "1.25rem"]
+headingFontWeights = [600, 600, 600, 600, 600, 600]
+baseFontSize = 16
+baseFontWeight = 400
+metricValueFontSize = "1.5rem"
+metricValueFontWeight = 600
+baseRadius = "6px"
+buttonRadius = "6px"
+borderColor = "#948584"
+showWidgetBorder = true
+showSidebarBorder = true
+dataframeBorderColor = "#d9d0cf"
+dataframeHeaderBackgroundColor = "#faf8f8"
+redColor = "#974843"
+redBackgroundColor = "#ffebe9"
+redTextColor = "#974843"
+yellowColor = "#76602f"
+yellowBackgroundColor = "#f9f0dd"
+yellowTextColor = "#76602f"
+blueColor = "#3d6886"
+blueBackgroundColor = "#e3f3ff"
+blueTextColor = "#3d6886"
+greenColor = "#35742f"
+greenBackgroundColor = "#e0f9dd"
+greenTextColor = "#35742f"
+violetColor = "#41629f"
+violetBackgroundColor = "#e9f1ff"
+violetTextColor = "#41629f"
+grayColor = "#696160"
+grayTextColor = "#696160"
+chartCategoricalColors = ["#312d2c", "#007a87", "#b7791f", "#7a5cb8"]
+chartSequentialColors = ["#f3efef", "#ece6e6", "#e3dcdc", "#d9d0cf", "#cbc1c0", "#b4a7a7", "#948584", "#817473", "#696160", "#312d2c"]
+chartDivergingColors = ["#41629f", "#6e87b5", "#9cb0d0", "#c6d3e8", "#e9f1ff", "#e0f9dd", "#b9d9b4", "#8bb985", "#5f9a58", "#35742f"]
+
+[theme.sidebar]
+backgroundColor = "#faf8f8"
+secondaryBackgroundColor = "#fdfcfc"
+headingFont = 'Public Sans:https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600&display=swap, system-ui, sans-serif'
 
 [server]
 headless = true
