@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- No DESIGN.md found — wireframe mode: greyscale defaults. Run /design-for-ai to establish tokens. -->
+<title>ML forecast — Austin, TX</title>
+<style>
+:root{--background:#fff;--surface:#f5f5f5;--surface-hover:#ebebeb;--border-subtle:#e0e0e0;--border:#bdbdbd;--border-strong:#9e9e9e;--text-secondary:#616161;--text:#212121;--accent-solid:#424242;--accent-on-solid:#fff;--accent-text:#212121;--s1:8px;--s2:16px;--s3:24px;--s4:40px;--s5:64px}
+*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,sans-serif;color:var(--text);background:var(--background)}
+.flag{background:var(--surface-hover);border-bottom:1px dashed var(--border-strong);font-size:12px;padding:4px var(--s2);color:var(--text-secondary)}
+.app{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+nav{background:var(--surface);border-right:1px solid var(--border-subtle);padding:var(--s3) var(--s2)}
+nav .brand{font-weight:700;font-size:20px;margin:0 0 var(--s4) var(--s1)}
+nav ol{list-style:none;margin:0;padding:0}nav a{display:block;padding:10px var(--s2);min-height:44px;border-radius:6px;color:var(--text-secondary);text-decoration:none}
+nav a[aria-current]{background:var(--accent-solid);color:var(--accent-on-solid);font-weight:600}
+nav .ctx{margin-top:var(--s4);padding:var(--s2);border:1px dashed var(--border);border-radius:6px;font-size:13px;color:var(--text-secondary)}
+main{padding:var(--s5) var(--s5);max-width:1180px}
+.eyebrow{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);margin:0 0 var(--s1)}
+h1{font-size:34px;line-height:1.25;margin:0 0 var(--s1);max-width:30ch}h2{font-size:20px;margin:0 0 var(--s2)}
+.sub{color:var(--text-secondary);margin:0 0 var(--s4)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s3);margin-bottom:var(--s5)}
+.card{border:1px solid var(--border-subtle);border-radius:10px;padding:var(--s3)}
+.card .k{font-size:13px;color:var(--text-secondary)}.card .v{font-size:28px;font-weight:700;margin:4px 0}.card .d{font-size:13px;color:var(--text-secondary)}
+section{margin-bottom:var(--s5)}
+.chart{height:320px;border:1px dashed var(--border-strong);border-radius:10px;background:var(--surface);display:grid;place-items:center;color:var(--text-secondary)}
+.next{display:flex;gap:var(--s2);align-items:end;padding:var(--s3);border:1px solid var(--border);border-radius:10px}
+.next label{display:block;font-size:13px;color:var(--text-secondary);margin-bottom:4px}
+select,.btn{min-height:44px;font:inherit;border-radius:6px}select{min-width:320px;padding:0 var(--s2);border:1px solid var(--border);background:var(--background)}
+.btn{padding:0 var(--s3);border:0;background:var(--accent-solid);color:var(--accent-on-solid);font-weight:600}
+.score{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s3)}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px var(--s2);border-bottom:1px solid var(--border-subtle)}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.range{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--surface-hover);font-size:14px}
+footer{border-top:1px solid var(--border-subtle);padding-top:var(--s2);font-size:13px;color:var(--text-secondary)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style></head><body>
+<p class="flag">Wireframe — no DESIGN.md locked; greyscale defaults. Colour/type pending Phase 2.</p>
+<div class="app">
+<nav aria-label="Pages"><p class="brand">michiganmen</p><ol>
+<li><a href="market-overview.html">Market overview</a></li><li><a href="#">Regional explorer</a></li><li><a href="ml-forecast-austin.html" aria-current="page">ML forecast</a></li><li><a href="#">Findings</a></li><li><a href="#">Market Profile</a></li><li><a href="#">Financing estimator</a></li></ol>
+<div class="ctx">Selected metro<br><strong>Austin, TX <a href="market-overview.html" style="display:inline;padding:0;min-height:0">change</a></strong></div></nav>
+<main>
+<header><p class="eyebrow">ML forecast · Austin, TX (carried from Market overview)</p>
+<h1>Austin, TX home values: forecast −2.1% over the next 12 months (−5.4% to +1.0%)</h1>
+<p class="sub">80% range: in 8 of 10 past backtests the actual change landed inside a range this wide. [Placeholder figures.]</p></header>
+<section aria-labelledby="rel"><h2 id="rel">How reliable is this?</h2>
+<div class="score">
+<article class="card"><div class="k">Track record</div><div class="v">Fair</div><div class="d">Past 12-month calls were off by about 2.4 points on average.</div></article>
+<article class="card"><div class="k">Direction calls</div><div class="v">7 of 10</div><div class="d">Got up vs. down right in backtests.</div></article>
+<article class="card"><div class="k">vs. simple guess</div><div class="v">Better</div><div class="d">Beats "same as last year" baseline.</div></article>
+</div></section>
+<section><h2>Austin detail</h2><div class="chart">[Line chart: Austin typical home value history + 12-month forecast with 80% band]</div></section>
+<section><h2>What drives this forecast</h2>
+<table><thead><tr><th>Factor</th><th class="n">Latest</th><th>Effect</th></tr></thead><tbody>
+<tr><td>Recent 12-month price change</td><td class="n">▼ −3.0%</td><td>Pulls forecast down</td></tr>
+<tr><td>30-yr mortgage rate</td><td class="n">7.28%</td><td>Pulls forecast down</td></tr>
+<tr><td>Inventory trend</td><td class="n">▲ +18%</td><td>Pulls forecast down</td></tr></tbody></table></section>
+<section><h2>Next</h2><p><a class="btn" style="display:inline-flex;align-items:center;text-decoration:none" href="#">Estimate financing in Austin →</a></p></section>
+<footer>Forecasts are statistical estimates, not financial advice. Data: Zillow Research, FRED.</footer>
+</main></div></body></html>

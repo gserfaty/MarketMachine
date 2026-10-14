@@ -1,0 +1,35 @@
+{
+  "detector": "detect.mjs",
+  "version": 1,
+  "attribution": "Rule subset ported from Impeccable (pbakaus/impeccable), Apache-2.0, with modifications — see file header. Catalog: references/visual/ai-tells.md.",
+  "status": "ran",
+  "sources": [
+    "market-overview.html",
+    "ml-forecast-austin.html"
+  ],
+  "rules": 16,
+  "findings": [
+    {
+      "source": "market-overview.html",
+      "rule": "hero-eyebrow-chip",
+      "category": "layout",
+      "severity": "high",
+      "evidence": "eyebrow \"United States · Zillow ZHVI, updated mon\" above <h1> \"US home values: up 1.2% over the past year; foreca\"",
+      "line": 41
+    },
+    {
+      "source": "ml-forecast-austin.html",
+      "rule": "hero-eyebrow-chip",
+      "category": "layout",
+      "severity": "high",
+      "evidence": "eyebrow \"ML forecast · Austin, TX (carried from M\" above <h1> \"Austin, TX home values: forecast −2.1% over the ne\"",
+      "line": 41
+    }
+  ],
+  "counts": {
+    "total": 2,
+    "byRule": {
+      "hero-eyebrow-chip": 2
+    }
+  }
+}
