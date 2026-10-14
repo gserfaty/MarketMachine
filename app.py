@@ -1,9 +1,9 @@
-"""michiganmen — US housing market analytics and ML forecast (Streamlit app)."""
+"""MarketMachine — US housing market analytics and ML forecast (Streamlit app)."""
 import streamlit as st
 
 from housing import pages, ui
 
-st.set_page_config(page_title="michiganmen — US Housing", layout="wide")
+st.set_page_config(page_title="MarketMachine — US Housing", layout="wide")
 
 NAV = {
     "overview": st.Page(pages.render_overview, title="Market overview", url_path="overview", default=True),

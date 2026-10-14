@@ -36,7 +36,7 @@ def test_parse_fred_handles_dot_and_resamples_monthly():
 
 
 def test_source_uses_offline_dir(monkeypatch):
-    monkeypatch.setenv("MICHIGANMEN_DATA_DIR", "/tmp/does-not-matter")
+    monkeypatch.setenv("MARKETMACHINE_DATA_DIR", "/tmp/does-not-matter")
     path = data.source("zhvi_metro")
     assert path == "/tmp/does-not-matter/zhvi_metro.csv"
 

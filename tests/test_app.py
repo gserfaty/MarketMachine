@@ -38,7 +38,7 @@ def test_page_has_disclaimer(page_label):
 
 
 def test_overview_data_down_warns_with_retry(monkeypatch):
-    monkeypatch.setenv("MICHIGANMEN_DATA_DIR", "/tmp/michiganmen-nonexistent-dir-xyz")
+    monkeypatch.setenv("MARKETMACHINE_DATA_DIR", "/tmp/marketmachine-nonexistent-dir-xyz")
     at = AppTest.from_file(APP_PATH, default_timeout=60)
     at.run()
     assert not at.exception
@@ -75,7 +75,7 @@ def test_forecast_page_scorecard():
 
 def test_financing_fred_down(tmp_path, monkeypatch):
     shutil.copy(os.path.join(FIXTURES, "zhvi_metro.csv"), tmp_path / "zhvi_metro.csv")
-    monkeypatch.setenv("MICHIGANMEN_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("MARKETMACHINE_DATA_DIR", str(tmp_path))
     at = _run_page("financing")
     assert not at.exception
     assert any("unavailable" in w.value for w in at.warning)

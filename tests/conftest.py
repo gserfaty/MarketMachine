@@ -9,7 +9,7 @@ FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
 @pytest.fixture(autouse=True)
 def _offline_fixtures(monkeypatch):
     """Point all data loaders at local fixtures and forbid any network access."""
-    monkeypatch.setenv("MICHIGANMEN_DATA_DIR", FIXTURES_DIR)
+    monkeypatch.setenv("MARKETMACHINE_DATA_DIR", FIXTURES_DIR)
 
     def _blocked(*args, **kwargs):
         raise RuntimeError("Network access is disabled in tests.")

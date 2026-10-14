@@ -276,7 +276,7 @@ Supported keys were read from `streamlit/config.py` 1.64.0: `base`, `primaryColo
 ### Component specs
 Each lists structure, tokens, states. Interactive elements cite non-text contrast (WCAG 1.4.11, 3:1) and visible focus (WCAG 2.4.7); ratios are measured from the locked tokens.
 
-**1. Brand header** (sidebar top; organism). `.mm-brand` link to Market overview. Wordmark "michiganmen" in `--c-brand-font` at `--c-brand-size`, weight 600, `--text`; one caption line below (`--text-xs`, `--text-secondary`). Padding `--c-sidebar-pad`. No Roofline here (Roofline appears once, on the headline). States: hover underlines the wordmark; focus uses the shared ring. Citation: Jakob's law (2000): brand top-left links home.
+**1. Brand header** (sidebar top; organism). `.mm-brand` link to Market overview. Wordmark "MarketMachine" in `--c-brand-font` at `--c-brand-size`, weight 600, `--text`; one caption line below (`--text-xs`, `--text-secondary`). Padding `--c-sidebar-pad`. No Roofline here (Roofline appears once, on the headline). States: hover underlines the wordmark; focus uses the shared ring. Citation: Jakob's law (2000): brand top-left links home.
 
 **2. Headline-answer block** (organism, first element under the page title). `.mm-answer`:
 - Roofline: `::before`, 40 by 10px box filled `--c-roofline-color`, clipped to a 4px chevron band (peak 6px above the ends): `clip-path: polygon(0 100%, 50% 0, 100% 100%, 100% 140%, 50% 40%, 0 140%)`. Margin below `--c-roofline-gap`. It is decorative (`aria-hidden`; no text alternative needed). Once per page.
@@ -392,7 +392,7 @@ Owner: Gabriel (design DNA and Components); Lucas contributes through PR (CODEOW
 
 Brand red (`--accent-*`) appears in no chart, table or legend. The "highlight" in data is ink, not red: the reader's eye goes to the darkest, thickest line (Knaflic 2015), and red stays reserved for action. `--viz-cat-2..4` are the only hex values in this section. They are hand-picked (palette.mjs makes ramps, not categorical sets) and checked below. Teal was retuned from #0f7b6c to #007a87 after review: the first teal fell to 8.3 against grey under protan.
 
-### Plotly template (register once, name `michiganmen`, set as default; Streamlit calls pass `theme=None`)
+### Plotly template (register once, name `marketmachine`, set as default; Streamlit calls pass `theme=None`)
 Streamlit's `st.plotly_chart` default `theme="streamlit"` overwrites the template colors and fonts, so every call must pass `theme=None` (or the build wraps it in one `show(fig)` helper). `use_container_width=True` stays.
 | Property | Value | Token |
 |----------|-------|-------|

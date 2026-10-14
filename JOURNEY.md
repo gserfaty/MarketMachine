@@ -1,6 +1,6 @@
 # JOURNEY.md
 
-The structural and temporal spec for michiganmen. For visual tokens, see DESIGN.md (Phase 2, not yet written). Phase 4 copy blocks (per page, plus `## Voice & tone`) are the final wording and supersede draft strings elsewhere in this file. Chart encoding is Phase 5. Specs describe the target UI; "Today" notes mark what the code does now (`app.py`, `housing/pages.py`).
+The structural and temporal spec for MarketMachine. For visual tokens, see DESIGN.md (Phase 2, not yet written). Phase 4 copy blocks (per page, plus `## Voice & tone`) are the final wording and supersede draft strings elsewhere in this file. Chart encoding is Phase 5. Specs describe the target UI; "Today" notes mark what the code does now (`app.py`, `housing/pages.py`).
 
 ## Job
 
@@ -20,7 +20,7 @@ The structural and temporal spec for michiganmen. For visual tokens, see DESIGN.
 
 ## Journey
 
-**Actor:** home buyer / market watcher using michiganmen on a laptop (>=1280px).
+**Actor:** home buyer / market watcher using MarketMachine on a laptop (>=1280px).
 **Scenario:** understand the market, choose a metro, check its forecast, estimate financing.
 **Scope:** current app, future-state UI. Mobile out of scope.
 
@@ -234,7 +234,7 @@ Owner: collaborator (Lucas). The analytics logic (metrics, compare, KNN similar 
 - D2 (financing notice): "This is an estimate, not a loan quote or offer, and not financial advice. Nothing you enter is stored, and we collect no personal data beyond a credit band."
 - D3 (equity projection): "Long-horizon projections are highly uncertain: years 2 and later extend this market's past growth. Not a prediction and not financial advice."
 - Zillow down (warning, "Heads up:"): "Heads up: we can't reach Zillow's home-value data right now. Check your connection, or try again in a few minutes." Button "Try again". Pickers: "Metro list unavailable". The `{e}` exception text is never shown.
-- Sidebar: brand "michiganmen"; tagline "US housing market analytics and forecasts"; selected metro block: label "Selected metro", empty "No metro selected", action "Choose a metro" / "Change"; footer D1.
+- Sidebar: brand "MarketMachine"; tagline "US housing market analytics and forecasts"; selected metro block: label "Selected metro", empty "No metro selected", action "Choose a metro" / "Change"; footer D1.
 - Loading (no trailing ellipsis): "Loading home-value data"; "Loading mortgage rates"; "Loading listings data"; "Training the forecast model (first load takes a minute)".
 - Unknown metro in URL: "We couldn't find '{value}'. Choose a metro."
 - Metro-list-down pickers: placeholder "Metro list unavailable".

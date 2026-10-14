@@ -1,4 +1,4 @@
-# michiganmen
+# MarketMachine
 
 A Streamlit web app that analyzes the US housing market with historical and current public
 data and uses machine learning to forecast market direction, find appreciating areas, and rank
@@ -115,7 +115,7 @@ Pull requests welcome. `main` is protected: every change needs a PR approved by 
 
 ## Deploy to Streamlit Community Cloud
 
-1. Push this repo to `gserfaty/michiganmen` on GitHub (`app.py` at the repo root).
+1. Push this repo to `gserfaty/MarketMachine` on GitHub (`app.py` at the repo root).
 2. Go to [share.streamlit.io](https://share.streamlit.io) → **New app**.
-3. Select the `gserfaty/michiganmen` repo, branch `main`, main file `app.py`, Python 3.11.
+3. Select the `gserfaty/MarketMachine` repo, branch `main`, main file `app.py`, Python 3.11.
 4. Deploy. No secrets or API keys are required.
