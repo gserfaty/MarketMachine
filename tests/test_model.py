@@ -97,7 +97,7 @@ def test_score_backtest_known_values():
 def mortgage_result():
     from conftest import FIXTURES_DIR
     with pytest.MonkeyPatch.context() as mp:  # autouse offline fixture is function-scoped
-        mp.setenv("MICHIGANMEN_DATA_DIR", FIXTURES_DIR)
+        mp.setenv("MARKETMACHINE_DATA_DIR", FIXTURES_DIR)
         long_df, mortgage = _load()
         return model.train_and_evaluate(long_df, mortgage, supply=data.load_supply())
 

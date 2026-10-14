@@ -32,9 +32,9 @@ CENTER = {
 
 
 def _data_dir_key() -> str | None:
-    # Included in cache keys below so that a changed MICHIGANMEN_DATA_DIR (e.g.
+    # Included in cache keys below so that a changed MARKETMACHINE_DATA_DIR (e.g.
     # between test runs, or offline vs. online) correctly invalidates the cache.
-    return os.environ.get("MICHIGANMEN_DATA_DIR")
+    return os.environ.get("MARKETMACHINE_DATA_DIR")
 
 
 @st.cache_data(ttl=86400, show_spinner="Loading home-value data")

@@ -185,7 +185,7 @@ def metro_picker(regions: list[str] | None, key: str, label: str = "Metro", plac
 
 def sidebar(regions: list[str] | None) -> None:
     sb = st.sidebar
-    sb.markdown('<div class="mm-brand">michiganmen<small>US housing market analytics and forecasts</small></div>',
+    sb.markdown('<div class="mm-brand">MarketMachine<small>US housing market analytics and forecasts</small></div>',
                 unsafe_allow_html=True)
     metro = st.session_state.get("metro")
     sb.markdown(f'<div class="mm-readout"><small>Selected metro</small>{html.escape(metro) if metro else "No metro selected"}</div>',
@@ -213,8 +213,8 @@ def _template() -> go.layout.Template:
     ))
 
 
-pio.templates["michiganmen"] = _template()
-pio.templates.default = "michiganmen"
+pio.templates["marketmachine"] = _template()
+pio.templates.default = "marketmachine"
 
 
 def show(fig: go.Figure, height: int | None = None) -> None:

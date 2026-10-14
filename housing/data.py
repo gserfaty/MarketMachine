@@ -2,7 +2,7 @@
 
 No Streamlit import here — this module must be importable and testable without
 a Streamlit runtime and without network access (see tests/conftest.py, which
-blocks sockets and points MICHIGANMEN_DATA_DIR at local fixtures).
+blocks sockets and points MARKETMACHINE_DATA_DIR at local fixtures).
 """
 from __future__ import annotations
 
@@ -64,8 +64,8 @@ STATE_ABBR: dict[str, str] = {
 
 
 def source(name: str) -> str:
-    """Return the URL for `name`, or a local fixture path if MICHIGANMEN_DATA_DIR is set."""
-    data_dir = os.environ.get("MICHIGANMEN_DATA_DIR")
+    """Return the URL for `name`, or a local fixture path if MARKETMACHINE_DATA_DIR is set."""
+    data_dir = os.environ.get("MARKETMACHINE_DATA_DIR")
     if data_dir:
         return os.path.join(data_dir, _OFFLINE_FILENAMES[name])
     return URLS[name]

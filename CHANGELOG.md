@@ -5,6 +5,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Renamed
+- Project renamed from michiganmen to **MarketMachine** (GitHub repo `gserfaty/MarketMachine`; the old URL redirects). The offline-fixtures env var is now `MARKETMACHINE_DATA_DIR` and the Plotly template is `marketmachine`.
+
 ### UI redesign (in progress, branch feature/ui-redesign)
 - Phase 1: `JOURNEY.md` — job story, market → metro → money journey, sidebar IA (Market / Metro / Money), metro persistence (session + `?metro=`), and page specs for all 6 pages with answer-first headlines and data-down states.
 - Phase 2: `DESIGN.md` locked — "Open House": brand red #c74248 on white (white-on-red 4.88:1), Newsreader headlines over Public Sans body, slate-blue down / green up (never red), airy spacing, all text pairs WCAG AA.
