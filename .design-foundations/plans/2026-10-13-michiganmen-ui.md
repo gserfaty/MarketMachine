@@ -5,7 +5,7 @@
 - Entry stage: Discover (no DESIGN.md or JOURNEY.md exist)
 - **Status:** in-progress
 - **Started:** 2026-10-13
-- **Current Phase:** 4
+- **Current Phase:** done (design); app implementation next
 - Seed: `.design-foundations/research/2026-10-13-michiganmen-ui.md`
 
 ## Context
@@ -185,3 +185,9 @@ Summary: DESIGN.md ## Components maps tokens to Streamlit 1.64 theme keys first 
 - [x] REVIEW: PASS
 - [x] Committed
 Summary: JOURNEY.md Copy blocks per page + ## Voice & tone with shared strings (D1/D2/D3 disclaimers, data-down, loading); Copy blocks are authoritative over older spec fields. Minor follow-ups: unify the 12-month-change label, sign format in overview headline, table column headers, verify D2 'nothing stored' claim at build.
+
+### Phase 5: Charts & tables (Gate: Standard)
+- [x] BUILD: complete
+- [x] REVIEW: fail->pass (4 attempts)
+- [x] Committed
+Summary: DESIGN.md ## Data surfaces specifies the michiganmen Plotly template (theme=None), --viz-* tokens, CVD-checked palette with co-occurrence rules, classed symmetric choropleth with auto-contrast state labels, 80% range bands, ≤4 series, and st.column_config tables. Minor follow-ups: equity amber with 2 series, amber/grey dash overlap, NumberColumn ASCII hyphen.
