@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 ### UI redesign (in progress, branch feature/ui-redesign)
 - Phase 1: `JOURNEY.md` — job story, market → metro → money journey, sidebar IA (Market / Metro / Money), metro persistence (session + `?metro=`), and page specs for all 6 pages with answer-first headlines and data-down states.
 - Phase 2: `DESIGN.md` locked — "Open House": brand red #c74248 on white (white-on-red 4.88:1), Newsreader headlines over Public Sans body, slate-blue down / green up (never red), airy spacing, all text pairs WCAG AA.
+- Phase 3: Streamlit design system in `DESIGN.md ## Components` — theme-first mapping to `.streamlit/config.toml` (fonts, colors, radius, borders), a minimal CSS layer only for what the theme can't do (Roofline, button states, focus rings, picker list), component tokens, and a contrast ledger (all interactive pairs ≥3:1).
 
 ### Repository
 - Repo is now public. `main` requires a pull request approved by the owner (@gserfaty) via `.github/CODEOWNERS`; see `CONTRIBUTING.md`.
