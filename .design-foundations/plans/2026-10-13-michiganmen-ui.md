@@ -3,9 +3,10 @@
 - Date: 2026-10-13
 - Track: Standard
 - Entry stage: Discover (no DESIGN.md or JOURNEY.md exist)
-- **Status:** in-progress
+- **Status:** complete
+- **Completed:** 2026-10-14
 - **Started:** 2026-10-13
-- **Current Phase:** done (design); app implementation next
+- **Current Phase:** complete
 - Seed: `.design-foundations/research/2026-10-13-michiganmen-ui.md`
 
 ## Context
@@ -191,3 +192,9 @@ Summary: JOURNEY.md Copy blocks per page + ## Voice & tone with shared strings (
 - [x] REVIEW: fail->pass (4 attempts)
 - [x] Committed
 Summary: DESIGN.md ## Data surfaces specifies the michiganmen Plotly template (theme=None), --viz-* tokens, CVD-checked palette with co-occurrence rules, classed symmetric choropleth with auto-contrast state labels, 80% range bands, ≤4 series, and st.column_config tables. Minor follow-ups: equity amber with 2 series, amber/grey dash overlap, NumberColumn ASCII hyphen.
+
+### App implementation (developer + design-review)
+- [x] BUILD: theme + ui.py + pages rewritten (developer agent)
+- [x] REVIEW: fail->pass (2 attempts, live app at 1280x800)
+- [x] Committed
+Summary: Redesign applied to the Streamlit app; 68 tests pass. Accepted for follow-up: headline-sentence deltas lack ▲/▼ (Major), uneven KPI card heights, Explorer/Findings delta caption outside card, chart legend spacing and x-axis to 2030, 'from Market overview' caption when metro came from URL, Findings disclaimer placement, alert bar color per kind, anchor-link glow. Lucas sign-off pending on Market profile presentation changes.
