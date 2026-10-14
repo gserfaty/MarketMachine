@@ -156,3 +156,206 @@ Override pairs (WCAG 2.x, same formula): `--on-accent` on `--accent-solid` 4.88 
 
 ## Open questions
 - Dark scheme: out of scope (red and white pin). Phase 3 sets the Streamlit base theme to light.
+
+## Components
+**Added:** Phase 3 (append-only; the locked tokens above are unchanged). **Streamlit:** 1.64.0 (`.venv`). **Scope:** tables and charts are Phase 5; final copy is Phase 4. Component specs below use alias and component tokens only (no hex). The one place hex values appear is the generated `.streamlit/config.toml`, a copy of the token block, which the build phase writes from the table in "Theme and CSS mapping".
+
+### Token tiers (Frost atomic design 2013; W3C DTCG tiers, stable Oct 2025)
+| Tier | What it holds | Where it lives |
+|------|---------------|----------------|
+| Global | Raw palette ramps from `palette.mjs` (`--neutral-*`, `--accent-*`) | Locked blocks above; never referenced by components |
+| Alias | Role tokens (the type scale, font families and `--space-*` steps count as role aliases, so components may reference them): `--font-display`, `--font-body`, `--text-xs` to `--text-4xl`, `--leading-body`, `--leading-display`, `--background`, `--surface`, `--surface-hover`, `--surface-active`, `--text`, `--text-secondary`, `--accent-solid`, `--accent-solid-hover`, `--accent-bg-subtle`, `--accent-text`, `--on-accent`, `--focus-ring`, `--control-border`, `--border-subtle`, `--positive`, `--positive-bg`, `--negative`, `--negative-bg`, `--error-*`, `--warning-*`, `--info-*`, `--success-*`, radius/shadow/space | Locked blocks above; components reference these (no new layer) |
+| Component | Per-component values that alias to the tier above. Prefix `--c-` | The `:root` block below, in the injected CSS layer |
+
+```css
+:root {
+  /* spacing and radius (values as stated in Space, shape, depth above) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-6: 24px; --space-8: 32px; --space-12: 48px; --space-16: 64px;
+  --radius-sm: 6px; --radius-md: 10px; --radius-pill: 999px;
+  /* buttons */
+  --c-btn-primary-bg: var(--accent-solid);        --c-btn-primary-bg-hover: var(--accent-solid-hover);
+  --c-btn-primary-fg: var(--on-accent);
+  --c-btn-secondary-bg: var(--background);        --c-btn-secondary-bg-hover: var(--surface-hover);
+  --c-btn-secondary-fg: var(--text);              --c-btn-secondary-border: var(--control-border);
+  --c-btn-primary-bg-pressed: var(--accent-solid-hover); --c-btn-primary-bg-disabled: var(--surface-active);
+  --c-btn-primary-fg-disabled: var(--text-secondary);
+  --c-btn-secondary-bg-pressed: var(--surface-active); --c-btn-secondary-border-pressed: var(--text-secondary);
+  --c-btn-secondary-border-disabled: var(--border-subtle); --c-btn-secondary-fg-disabled: var(--text-secondary);
+  --c-btn-radius: var(--radius-sm);               --c-btn-min-h: var(--c-input-min-h);
+  --c-btn-link-fg: var(--accent-text);            --c-btn-link-min-h: 2rem;
+  /* focus (one ring for every interactive element) */
+  --c-focus-outline: 2px solid var(--focus-ring); --c-focus-offset: 2px;
+  /* inputs and the metro picker */
+  --c-input-bg: var(--background);                --c-input-border: var(--control-border);
+  --c-input-min-h: 2.5rem;
+  --c-menu-bg: var(--background);                 --c-menu-border: var(--control-border);
+  --c-menu-option-hover-bg: var(--surface-hover); --c-menu-option-highlight-bg: var(--surface-active);
+  --c-menu-option-selected-bg: var(--accent-bg-subtle); --c-menu-option-fg: var(--text);
+  --c-input-radius: var(--radius-sm);             --c-input-fg: var(--text);
+  --c-input-placeholder: var(--text-secondary);
+  /* sidebar */
+  --c-sidebar-bg: var(--surface);                 --c-sidebar-pad: var(--space-6);
+  --c-nav-fg: var(--text);                        --c-nav-fg-hover-bg: var(--surface-hover);
+  --c-nav-active-bg: var(--accent-bg-subtle);     --c-nav-active-fg: var(--accent-text);
+  --c-nav-active-bar: var(--accent-solid);
+  --c-tab-fg: var(--text-secondary);              --c-tab-selected-fg: var(--accent-text);
+  --c-tab-selected-bar: var(--accent-solid);      --c-tab-hover-bg: var(--surface-hover);        --c-nav-radius: var(--radius-pill);
+  --c-nav-item-min-h: var(--c-input-min-h);                     --c-nav-bar: var(--c-state-bar);                     --c-nav-group-fg: var(--text-secondary);
+  /* brand header, headline answer */
+  --c-brand-font: var(--font-display);            --c-brand-size: var(--text-xl);
+  --c-roofline-color: var(--accent-solid);        --c-roofline-gap: var(--space-3);
+  --c-answer-font: var(--font-display);           --c-answer-size: var(--text-3xl);
+  --c-answer-leading: var(--leading-display);     --c-answer-fg: var(--text);
+  --c-answer-sub-fg: var(--text-secondary);       --c-answer-gap-below: var(--space-8);
+  /* KPI card */
+  --c-kpi-bg: var(--background);                  --c-kpi-border: var(--border-subtle);
+  --c-kpi-radius: var(--radius-md);               --c-kpi-pad: var(--space-6);
+  --c-kpi-gap: var(--space-4);                    --c-kpi-label-fg: var(--text-secondary);
+  --c-kpi-value-size: var(--text-2xl);            --c-kpi-up: var(--positive);
+  --c-kpi-down: var(--negative);
+  /* callouts */
+  --c-callout-radius: var(--radius-md);           --c-callout-pad: var(--space-4);
+  --c-disclaimer-bg: var(--surface);              --c-disclaimer-border: var(--border-subtle);
+  --c-disclaimer-fg: var(--text-secondary);       --c-disclaimer-size: var(--text-sm);
+  --c-state-bar: 4px;                             --c-motion: 150ms;
+}
+```
+Component tokens are the only layer the CSS rules read. Restyling a component means editing its `--c-*` line, not the alias tier.
+
+### Theme and CSS mapping (theme keys first; CSS only for what the theme cannot express)
+Supported keys were read from `streamlit/config.py` 1.64.0: `base`, `primaryColor`, `backgroundColor`, `secondaryBackgroundColor`, `textColor`, `{red,orange,yellow,blue,green,violet,gray}{Color,BackgroundColor,TextColor}`, `linkColor`, `linkUnderline`, `codeTextColor`, `codeBackgroundColor`, `font`, `fontFaces`, `baseFontSize`, `baseFontWeight`, `metricValueFontSize`, `metricValueFontWeight`, `headingFont`, `headingFontSizes`, `headingFontWeights`, `codeFont*`, `baseRadius`, `buttonRadius`, `borderColor`, `dataframeBorderColor`, `dataframeHeaderBackgroundColor`, `showWidgetBorder`, `showSidebarBorder`, `chart*Colors`. A `[theme.sidebar]` table overrides any of them for the sidebar (headingFontSizes and headingFontWeights are not inherited by it).
+
+**A. Goes in `.streamlit/config.toml`** (no CSS needed):
+| Theme key | Token | Notes |
+|-----------|-------|-------|
+| `base` | light | Light scheme only (DESIGN.md pin) |
+| `primaryColor` | `--accent-solid` | Primary button fill, selected states. Text and states are set explicitly in the CSS layer (rows below) |
+| `backgroundColor` | `--background` | |
+| `secondaryBackgroundColor` | `--surface` | Also the default sidebar fill |
+| `textColor` | `--text` | |
+| `linkColor` | `--accent-text` | Without it links default to blue; `linkUnderline = true` (links must not rely on color alone) |
+| `font` | Public Sans (`<name>:<Google Fonts css url>` form) then the `--font-body` fallbacks | Replaces the DESIGN.md `@import`; no CSS font loading needed |
+| `headingFont` | Newsreader (same URL form) then the `--font-display` fallbacks | Streamlit headings only. Sidebar table sets `headingFont` to Public Sans |
+| `headingFontSizes` | h1 `--text-3xl`, h2 `--text-xl`, h3-h6 `--text-lg` | Every heading size is at least 20px, so the serif never drops to body size (Never list). Authors use h1-h3 only |
+| `headingFontWeights` | 600 (display weights are 500 and 600) | |
+| `baseFontSize` / `baseFontWeight` | `--text-base` (16) / 400 | |
+| `metricValueFontSize` / `metricValueFontWeight` | `--text-2xl` / 600 | KPI value |
+| `baseRadius` / `buttonRadius` | `--radius-sm` | |
+| `borderColor` + `showWidgetBorder = true` | `--control-border` | Gives every input a 3:1 boundary. Cards and expanders use the derived light border (decorative hairline), so they need no CSS |
+| `showSidebarBorder` | true | Hairline between sidebar and page |
+| `redColor` family | `--error-text` text, `--error-bg` fill | Native `st.error` only. Red here is the error family, never the brand; the brand red is `primaryColor`. `delta_color="normal"` (red = down) is banned |
+| `yellowColor` family | `--warning-text`, `--warning-bg` | Native `st.warning` (data source down) |
+| `blueColor` family | `--info-text`, `--info-bg` | Native `st.info` |
+| `greenColor` family | `--positive` text, `--positive-bg` fill | Positive delta (`delta_color="green"`) and `st.success`; `--success-*` and `--positive` are the same hue, 0.4 apart in contrast |
+| `violetColor` family | `--negative` text, `--negative-bg` fill | Negative delta (`delta_color="violet"`). Violet is the slot used for the slate-blue "down" so it cannot collide with info |
+| `grayColor` family | `--text-secondary` | Zero or n/a delta (`delta_color="gray"`) |
+| `[theme.sidebar] backgroundColor` | `--surface` | |
+| `[theme.sidebar] secondaryBackgroundColor` | `--background` | Sidebar inputs fill white; their border (`--control-border` on `--surface`) holds 3.3:1 |
+| `chart*Colors` | Phase 5 | Out of scope here |
+
+**B. Needs the injected CSS layer** (one `<style>` block via `st.markdown(..., unsafe_allow_html=True)`, written once in the app shell; the `--c-*` block above plus rules for these only):
+| Need | Why the theme cannot do it | Hook |
+|------|----------------------------|------|
+| Page max width and gutters (`--space-12` between sections, ~1120px) | No theme key | `[data-testid="stMainBlockContainer"]` |
+| Roofline, headline-answer block, brand header, disclaimer callout, readout | Not Streamlit widgets | Our own classes: `.mm-brand`, `.mm-answer`, `.mm-answer__sub`, `.mm-disclaimer`, `.mm-readout`, `.mm-state` |
+| KPI card chrome: surface, radius, padding | `st.metric(border=True)` gives the border only | `[data-testid="stMetric"]` (`stMetricLabel`, `stMetricValue`, `stMetricDelta`) |
+| Nav active item (bar + subtle fill), pill radius, hover | Theme has no nav styling | `[data-testid="stSidebarNavLink"]` and `[aria-current="page"]` |
+| 4px left bar on native alerts | Theme colors alerts, no border side | `[data-testid="stAlertContainer"]` |
+| Visible focus ring in `--focus-ring` | Streamlit's default ring is a translucent primary tint | `:focus-visible` on `[data-testid^="stBaseButton-"]`, `[data-testid="stSidebarNavLink"]`, `[data-testid="stTab"]`, `[data-testid="stExpander"] summary`, `[data-testid="stSelectbox"] :focus-visible`, `[data-testid="stMultiSelect"] :focus-visible`, `input`, plus the catch-all `[data-testid="stAppViewContainer"] :focus-visible` |
+| Primary button hover, pressed, disabled, and on-fill text (Streamlit derives its own tint from `primaryColor` and picks its own text color, so these are set explicitly) | Theme sets the resting fill only | `[data-testid="stBaseButton-primary"]`: `background` `var(--c-btn-primary-bg)`, `color` `var(--c-btn-primary-fg)`; `:hover` `var(--c-btn-primary-bg-hover)`; `:active` `var(--c-btn-primary-bg-pressed)`; `:disabled` `var(--c-btn-primary-bg-disabled)` with `var(--c-btn-primary-fg-disabled)` |
+| Secondary pressed and disabled | Per-kind states | `[data-testid="stBaseButton-secondary"]:active` fill `var(--c-btn-secondary-bg-pressed)`, border `var(--c-btn-secondary-border-pressed)`; `:disabled` per the button table |
+| Tabs (`st.tabs`) selected and hover | Theme only colors the selected tab with the primary tint | `[data-testid="stTab"]` (a `role="tab"` button; `aria-selected="true"` when active) |
+| Secondary button border as `--control-border`, tertiary ("Change") min height | Per-kind styling | `[data-testid="stBaseButton-secondary"]`, `[data-testid="stBaseButton-tertiary"]` |
+| Metro picker open list (`st.selectbox`/`st.multiselect` dropdown): list fill and border, option hover, keyboard highlight, selected | Theme colors the list by its own derived tints | `[data-testid="stSelectboxVirtualDropdown"]` background `var(--c-menu-bg)`, border `var(--c-menu-border)`, radius `var(--c-input-radius)`; `[role="option"][data-hovered]` `var(--c-menu-option-hover-bg)`; `[role="option"][data-focused]` `var(--c-menu-option-highlight-bg)` plus `var(--c-focus-outline)` inset; `[role="option"][aria-selected="true"]` `var(--c-menu-option-selected-bg)`, weight 600; text `var(--c-menu-option-fg)` throughout |
+| Reduced motion | No theme key | `@media (prefers-reduced-motion: reduce)` |
+
+**Selectors checked in the 1.64.0 frontend bundle** (present as `data-testid` values): `stApp`, `stMain`, `stMainBlockContainer`, `stHeader`, `stSidebar`, `stSidebarContent`, `stSidebarUserContent`, `stSidebarNav`, `stSidebarNavItems`, `stSidebarNavLinkContainer`, `stSidebarNavLink` (sets `aria-current="page"` on the active page), `stMetric`, `stMetricLabel`, `stMetricValue`, `stMetricDelta`, `stAlertContainer` (`role="alert"` for error and warning), `stAlertContent*`, `stSelectbox`, `stBaseButton-<kind>` (kind = primary, secondary, tertiary), `stExpander` (its header is a `<summary>` element), `stTab`, `stTabs`, `stTabPanel`, `stVerticalBlock`. Selectbox dropdown: `stSelectboxVirtualDropdown` is a testid; options carry `role="option"` and `data-hovered` / `data-focused` attributes with an inner `data-item-hl` element (read from the bundle); the selected option's `aria-selected="true"` is the react-aria convention and is not visible in the bundle (confirm in the build screenshot). No BaseWeb hooks are used. The nav group captions have no testid, so they are left to the theme.
+**Degrade rule:** every CSS rule stands alone. If a testid disappears, only that rule is lost and the theme still renders a light, red-and-white page. Our `.mm-*` components do not depend on Streamlit internals at all. Pin `streamlit` in `requirements.txt` and re-check this table on upgrade.
+
+### Component specs
+Each lists structure, tokens, states. Interactive elements cite non-text contrast (WCAG 1.4.11, 3:1) and visible focus (WCAG 2.4.7); ratios are measured from the locked tokens.
+
+**1. Brand header** (sidebar top; organism). `.mm-brand` link to Market overview. Wordmark "michiganmen" in `--c-brand-font` at `--c-brand-size`, weight 600, `--text`; one caption line below (`--text-xs`, `--text-secondary`). Padding `--c-sidebar-pad`. No Roofline here (Roofline appears once, on the headline). States: hover underlines the wordmark; focus uses the shared ring. Citation: Jakob's law (2000): brand top-left links home.
+
+**2. Headline-answer block** (organism, first element under the page title). `.mm-answer`:
+- Roofline: `::before`, 40 by 10px box filled `--c-roofline-color`, clipped to a 4px chevron band (peak 6px above the ends): `clip-path: polygon(0 100%, 50% 0, 100% 100%, 100% 140%, 50% 40%, 0 140%)`. Margin below `--c-roofline-gap`. It is decorative (`aria-hidden`; no text alternative needed). Once per page.
+- Sentence: `<h1>` in `--c-answer-font`, `--c-answer-size`, `--c-answer-leading`, weight 500, `--c-answer-fg`. Max 2 lines at 1120px; the numbers in the sentence carry no color (red is never a data color; a delta in the sentence uses ▲/▼ plus `--positive`/`--negative` text only).
+- Sub-line (80% range, data month): `--text-sm`, `--c-answer-sub-fg`, Public Sans.
+- Space below: `--c-answer-gap-below`. Disclaimer callout sits directly under it on forecast and financing pages.
+- States: loading shows a text skeleton line, not an empty block; forecast unavailable drops the forecast clause (copy in Phase 4).
+- Contrast: `--text` on `--background` 13.30:1; `--text-secondary` 5.89:1; Roofline fill vs `--background` 4.77:1.
+
+**3. KPI card row** (molecule of atoms). `st.columns(n)` with n <= 4, each `st.metric(..., border=True)` (Gestalt proximity and common region; Cowan ~4). Card: `--c-kpi-bg`, 1px `--c-kpi-border` (the theme's derived hairline), `--c-kpi-radius`, padding `--c-kpi-pad`, column gap `--c-kpi-gap`; no shadow stacked on the border. Label `--text-sm` in `--c-kpi-label-fg`; value Public Sans 600 at `--c-kpi-value-size`, tabular-nums; delta line carries ▲/▼ and a sign from Streamlit's arrow plus the text, colored `--c-kpi-up` (`delta_color="green"`) or `--c-kpi-down` (`delta_color="violet"`), gray for zero. Never `"normal"` or `"inverse"`. Missing value shows "n/a" in `--text-secondary`. Cards are not interactive, so they have no hover or focus state. A caption under the card (for example the Case-Shiller note) is `--text-xs`, `--text-secondary`.
+
+**4. Metro picker** (molecule: label + selectbox + optional CTA). `st.selectbox(..., index=None, placeholder=...)` bound to the shared metro state (JOURNEY.md flow). Field: fill `--c-input-bg`, 1px `--c-input-border`, radius `--c-input-radius`, text `--c-input-fg`, placeholder `--c-input-placeholder`; min height `--c-input-min-h`. Open list (hook in the CSS table): fill `--c-menu-bg`, 1px `--c-menu-border`; option hover `--c-menu-option-hover-bg`; keyboard-highlighted option `--c-menu-option-highlight-bg` with the shared ring drawn inset (distinct from hover); selected option `--c-menu-option-selected-bg` with weight 600 (not color alone); option text `--c-menu-option-fg`. Focus: the shared ring. Disabled ("Metro list unavailable"): `--text-secondary` text on `--surface`; disabled controls are exempt from contrast (WCAG 1.4.11) but must read as unavailable through the label text. Contrast: `--control-border` on `--background` 3.45:1, on `--surface` 3.34:1.
+- **Sidebar "Selected metro" readout** (`.mm-readout`): label "Selected metro" (`--text-xs`, `--text-secondary`), name in `--text-base` weight 600 `--text` (or "No metro selected" in `--text-secondary`), then a tertiary "Change" button (link style, `--c-btn-link-fg`, min height `--c-btn-link-min-h`, so the target is at least 24px, WCAG 2.5.8; Fitts 1954). The readout renders from state, not from the widget. "Change" reveals the sidebar picker in place. Underline the button text so it is not signaled by color alone.
+
+**5. Sidebar nav** (organism). Use `st.navigation` with sections `Market` (Market overview, Findings), `Metro` (Regional explorer, Market profile), `Money` (ML forecast, Financing estimator): 6 items under the Hick cap, group captions are not options, and Streamlit renders `<a aria-current="page">` natively (accessibility for free, Nielsen #1 visibility of status). This replaces the current `st.sidebar.radio`.
+- Item: min height `--c-nav-item-min-h`, radius `--c-nav-radius`, label `--text-base` in `--c-nav-fg`, sentence case.
+- Hover: fill `--c-nav-fg-hover-bg`.
+- Active (`aria-current="page"`): fill `--c-nav-active-bg`, text `--c-nav-active-fg` weight 600, plus a leading bar of width `--c-nav-bar` in `--c-nav-active-bar`. The bar and the weight carry the state because the fill alone is 1.1:1 against the sidebar (Norman signifiers: never color alone). Bar vs `--surface` 4.61:1.
+- Group caption: `--text-xs`, weight 600, `--c-nav-group-fg`, uppercase tracking via theme default.
+- Focus: the shared ring (outline on the pill, not clipped by the sidebar scroll area).
+- Contrast: `--accent-text` on `--accent-bg-subtle` 5.50:1; `--text` on `--surface-hover` 11.93:1.
+- Order below the nav: Selected metro readout, then the one-line disclaimer (`--text-xs`, `--text-secondary`).
+
+**6. Disclaimer callout** (molecule, `.mm-disclaimer`, `role="note"`). Neutral, not a status color: fill `--c-disclaimer-bg`, 1px `--c-disclaimer-border`, radius `--c-callout-radius`, padding `--c-callout-pad`, text `--c-disclaimer-size` in `--c-disclaimer-fg`, with the leading words in `--text` weight 600. Text is exactly "Forecasts are statistical estimates, not financial advice." (Financing appends its "not a loan quote or offer" sentence, Phase 4 wording.) Appears under the headline on forecast and financing pages and in each page footer. Not dismissible. Contrast: `--text-secondary` on `--surface` 5.70:1.
+
+**7. State callouts: info, warning, error, success** (molecule, `.mm-state` or native `st.info/warning/error/success` themed by the color families above). Shape: fill `--info-bg` / `--warning-bg` / `--error-bg` / `--success-bg`, `--c-state-bar` left border in the matching `-text` token, radius `--c-callout-radius`, padding `--c-callout-pad`, body `--text`, an icon plus a lead word in the matching `-text` token weight 600.
+| State | Used for | Lead / icon | Text on its fill |
+|-------|----------|-------------|------------------|
+| Info | Neutral notes ("Using your price, Austin growth") | "Note:" with an info icon | `--info-text` 5.26:1 |
+| Warning | Data source down, degraded results (Zillow/FRED/supply) | "Heads up:" with a warning icon | `--warning-text` 5.32:1 |
+| Error | Real failures only (training failed, invalid input) | "Error:" or "Couldn't ..." with a ✕ icon | `--error-text` 5.51:1 |
+| Success | Rare confirmations | "Done:" with a check icon | `--success-text` 5.05:1 |
+- "Data source down" is a warning, never an error (DESIGN.md Usage rules). It carries the "Try again" secondary button (Zillow-down standard in JOURNEY.md). `st.error` is never the brand red container: it differs by form (left bar, ✕, "Error:"). Native alerts set `role="alert"` for error and warning, so assistive tech announces them (Nielsen #9 recognize and recover).
+- Interactive content inside a state (the Try again button) follows the button spec.
+
+**8. Buttons** (atom). All use `--c-btn-radius`, min height `--c-btn-min-h`, label `--text-base` weight 600, `--c-motion` ease-out on state change.
+| Kind | Resting | Hover | Pressed / active | Disabled | Contrast |
+|------|---------|-------|------------------|----------|----------|
+| Primary (`type="primary"`) | fill `--c-btn-primary-bg`, text `--c-btn-primary-fg` (`--on-accent`, set explicitly) | fill `--c-btn-primary-bg-hover` | fill `--c-btn-primary-bg-pressed` | fill `--c-btn-primary-bg-disabled`, text `--c-btn-primary-fg-disabled` | Text 4.88:1 resting, 6.30:1 hover and pressed; fills vs `--background` 4.77:1 resting, 6.15:1 hover and pressed; disabled text 4.89:1 on its fill (disabled is exempt but still readable) |
+| Secondary (default) | fill `--c-btn-secondary-bg`, 1px `--c-btn-secondary-border`, text `--c-btn-secondary-fg` | fill `--c-btn-secondary-bg-hover` | fill `--c-btn-secondary-bg-pressed`, border `--c-btn-secondary-border-pressed` (darker, because `--control-border` on the pressed fill is only 2.86:1) | text `--c-btn-secondary-fg-disabled`, border `--c-btn-secondary-border-disabled` | Border vs `--background` 3.45:1, vs hover fill 3.09:1; pressed border vs pressed fill 4.89:1 |
+| Tertiary ("Change", links as buttons) | no fill, text `--c-btn-link-fg` underlined, min height `--c-btn-link-min-h` | fill `--surface-hover` | fill `--surface-active` | text `--text-secondary` | `--accent-text` on `--background` 6.15:1, on `--surface` 5.95:1 |
+One primary button per page region (the CTA: "See this metro's forecast"). Primary is brand and action only; it is never used for "danger" (Nielsen #4 consistency; red is the brand, so destructive cues, if ever needed, use the error form, not the primary).
+
+**8b. Tabs** (molecule, `st.tabs`; used for the Findings 1-yr and 5-yr gainers). Tab: min height `--c-nav-item-min-h`, label `--text-base` in `--c-tab-fg`; hover fill `--c-tab-hover-bg`. Selected (`aria-selected="true"`): label `--c-tab-selected-fg` weight 600 plus an underline bar of width `--c-state-bar` in `--c-tab-selected-bar`, so the state is not color alone. Focus: the shared ring. Contrast: `--accent-text` on `--background` 6.15:1; bar vs `--background` 4.77:1; `--text-secondary` on `--surface-hover` 5.29:1.
+
+**8c. Expander header** (atom, `st.expander`, used for Filters and methodology). The header is the `<summary>` inside `stExpander`: label `--text-base` weight 600 in `--text`, chevron in `--text-secondary`, min height `--c-btn-link-min-h`; hover fill `--surface-hover`. Focus: the shared ring, drawn on the summary. The panel border is the theme's derived hairline.
+
+**9. Focus states** (cross-cutting). One catch-all rule covers every focusable element: `[data-testid="stAppViewContainer"] :focus-visible` (this includes the sidebar, which is inside it) gets the ring below, so new widgets are covered by default. Named as covered: slider thumb, checkbox, radio, toggle (renders as a `stCheckbox`), multiselect, text and number inputs, selectbox, buttons, nav links, tabs, expander headers. Specific hooks stay only where Streamlit suppresses or overrides its outline (buttons, selectbox wrapper, input wrapper, slider thumb). Every focusable element shows `outline: var(--c-focus-outline); outline-offset: var(--c-focus-offset);` on `:focus-visible` (keyboard only; mouse clicks show no ring). Specific hooks: `[data-testid^="stBaseButton-"]`, `[data-testid="stSlider"] div:has(> input[type="range"]:focus-visible)` (the visible thumb; the real control is a visually hidden range input), `[data-testid="stSelectbox"] :focus-visible`, `[data-testid="stMultiSelect"] :focus-visible`, and `input`. `stSlider`, `stCheckbox`, `stRadio` and `stMultiSelect` were found in the 1.64.0 bundle. In 1.64.0 the slider, selectbox and multiselect are built on react-aria, not BaseWeb (no `data-baseweb` attributes exist in the bundle), and the slider thumb has no `role="slider"` hook; the `:has()` thumb rule must be confirmed in the build screenshot, and the catch-all rule is the fallback. The 2px offset leaves a white gap, so the ring stays visible on top of a filled primary button. Contrast of `--focus-ring`: vs `--background` 4.77:1, vs `--surface` 4.61:1, vs `--accent-bg-subtle` (active nav) 4.26:1, vs `--surface-hover` 4.28:1; all pass 3:1 (WCAG 1.4.11) and the ring is 2px thick (WCAG 2.4.13 target). Nothing may clip it (WCAG 2.4.11): sidebar content keeps `--space-2` inner padding so the ring is not cut by the scroll container. Motion: under `prefers-reduced-motion: reduce` all `--c-motion` transitions are removed.
+
+### Interactive contrast ledger (DW-3.2)
+| Element | Pair | Ratio | Needs | Result |
+|---------|------|-------|-------|--------|
+| Input and picker border | `--control-border` / `--background` | 3.45 | 3 | PASS |
+| Sidebar input border | `--control-border` / `--surface` | 3.34 | 3 | PASS |
+| Secondary button border on hover | `--control-border` / `--surface-hover` | 3.09 | 3 | PASS |
+| Secondary button border, pressed | `--c-btn-secondary-border-pressed` (`--text-secondary`) / `--surface-active` | 4.89 | 3 | PASS |
+| Secondary button border, pressed, outer edge | same border / `--background` | 5.89 | 3 | PASS |
+| Primary hover and pressed fill | `--accent-solid-hover` / `--background` | 6.15 | 3 | PASS |
+| Primary hover and pressed text | `--on-accent` / `--accent-solid-hover` | 6.30 | 4.5 | PASS |
+| Primary disabled text (readability, exempt) | `--text-secondary` / `--surface-active` | 4.89 | 4.5 | PASS |
+| Focus ring on pressed fill | `--focus-ring` / `--surface-active` | 3.96 | 3 | PASS |
+| Selected tab label | `--accent-text` / `--background` | 6.15 | 4.5 | PASS |
+| Selected tab bar | `--accent-solid` / `--background` | 4.77 | 3 | PASS |
+| Picker list border | `--c-menu-border` (`--control-border`) / `--background` | 3.45 | 3 | PASS |
+| Picker option text, hover | `--text` / `--surface-hover` | 11.93 | 4.5 | PASS |
+| Picker option text, keyboard-highlighted | `--text` / `--surface-active` | 11.04 | 4.5 | PASS |
+| Picker option text, selected | `--text` / `--accent-bg-subtle` | 11.88 | 4.5 | PASS |
+| Picker highlight ring | `--focus-ring` / `--surface-active` | 3.96 | 3 | PASS |
+| Picker selected ring | `--focus-ring` / `--accent-bg-subtle` | 4.26 | 3 | PASS |
+| Slider thumb and filled track | `--accent-solid` / `--background` | 4.77 | 3 | PASS |
+| Slider unfilled track, checkbox and radio outline | `--control-border` / `--background` | 3.45 | 3 | PASS |
+| Slider thumb focus ring | `--focus-ring` / `--background` | 4.77 | 3 | PASS |
+| Primary button fill | `--accent-solid` / `--background` | 4.77 | 3 | PASS |
+| Primary button text | `--on-accent` / `--accent-solid` | 4.88 | 4.5 | PASS |
+| Nav active bar | `--accent-solid` / `--surface` | 4.61 | 3 | PASS |
+| Nav active text | `--accent-text` / `--accent-bg-subtle` | 5.50 | 4.5 | PASS |
+| Focus ring (5 surfaces) | `--focus-ring` / background, surface, hover, active nav | 4.26 to 4.77 | 3 | PASS |
+| Tertiary link text | `--accent-text` / `--background` | 6.15 | 4.5 | PASS |
+Ratios were computed with the WCAG 2.x formula from the locked tokens. `--border-subtle` and `--border-strong` are decorative and are never the only boundary of a control.
+
+### Governance
+Owner: Gabriel (design DNA and Components); Lucas contributes through PR (CODEOWNERS already requires owner review on `main`). Change rules: new tokens go in the alias tier first, a component token only if one component needs it; a breaking rename bumps a note in `CHANGELOG.md`; a Streamlit upgrade requires rechecking the selector list above.

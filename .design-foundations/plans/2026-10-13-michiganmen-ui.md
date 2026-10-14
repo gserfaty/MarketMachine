@@ -5,7 +5,7 @@
 - Entry stage: Discover (no DESIGN.md or JOURNEY.md exist)
 - **Status:** in-progress
 - **Started:** 2026-10-13
-- **Current Phase:** 3
+- **Current Phase:** 4
 - Seed: `.design-foundations/research/2026-10-13-michiganmen-ui.md`
 
 ## Context
@@ -173,3 +173,9 @@ Summary: JOURNEY.md specifies the market → metro → money journey, Market/Met
 - [x] REVIEW: PASS
 - [x] Committed
 Summary: DESIGN.md locked as "Open House" — red #c74248 accent on true white, Newsreader display + Public Sans body, slate-blue negative / green positive, errors distinguished by form (✕ + 'Error:'), data-down uses amber warning; all text pairs AA.
+
+### Phase 3: Streamlit design system (Gate: Standard)
+- [x] BUILD: complete
+- [x] REVIEW: fail->pass (4 attempts)
+- [x] Committed
+Summary: DESIGN.md ## Components maps tokens to Streamlit 1.64 theme keys first (fonts via theme URL form, borderColor, radius) and a minimal CSS layer for Roofline, button states, catch-all :focus-visible ring and the react-aria picker list; st.navigation with Market/Metro/Money sections; metric deltas use green/violet/gray (never normal/inverse). Pixel checks pending in build: primary text color, slider :has() rule, aria-selected option, double focus ring on selectbox.
