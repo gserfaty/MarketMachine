@@ -5,6 +5,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Forecast horizons (2026-10-21)
+- ML forecast page has a 3 / 12 / 24 month selector (default 12). 3m and 24m are trained lazily and cached per horizon; other pages stay on 12m.
+- Interval gap = 1 + ceil(h/12) (3 years at 24m, so no leakage); the naive trend baseline is scaled by h/12.
+- Real-data quarterly backtest 2010+, mortgage unavailable (FRED was down), supply data on:
+
+| Horizon | Blend MAE (pp) | Bias (pp) | Rank IC | Coverage80 | Interval gap |
+|---|---|---|---|---|---|
+| 3 months | 0.93 | -0.06 | 0.61 | 0.80 | 2 yrs |
+| 12 months | 3.79 | -0.62 | 0.47 | 0.75 | 2 yrs |
+| 24 months | 9.17 | -1.78 | 0.39 | 0.63 | 3 yrs |
+
 ### Refactor (2026-10-21)
 - `housing/pages.py` split into `housing/shared.py` and six file-based pages in `housing/pages/`; no behavior change; tests use `AppTest.switch_page` instead of the private `_page_hash`.
 

@@ -236,14 +236,14 @@ def signed_axis(fig: go.Figure, lo: float, hi: float, axis: str = "y", **kw) -> 
     getattr(fig, f"update_{axis}axes")(tickvals=vals, ticktext=text, **kw)
 
 
-def history_band(hist: pd.Series, pred: float | None, lo: float | None, hi: float | None, name: str) -> go.Figure:
-    """Solid history, dashed projection 12 months out, 80% range band. hist is date-indexed values; pred/lo/hi fractions."""
+def history_band(hist: pd.Series, pred: float | None, lo: float | None, hi: float | None, name: str, months: int = 12) -> go.Figure:
+    """Solid history, dashed projection `months` out, 80% range band. hist is date-indexed values; pred/lo/hi fractions."""
     fig = go.Figure(go.Scatter(x=hist.index, y=hist.values, name=name, line=dict(color=INK, width=2.5),
                                hovertemplate="%{y:$,.0f}"))
     ys = [float(hist.min()), float(hist.max())]
     if pred is not None and pd.notna(pred):
         x0, v0 = hist.index[-1], float(hist.iloc[-1])
-        x1 = x0 + pd.DateOffset(months=12)
+        x1 = x0 + pd.DateOffset(months=months)
         ys += [v0 * (1 + lo), v0 * (1 + hi)]
         # ponytail: thin grey outline on the band so its legend swatch is visible; DESIGN.md says no outline
         fig.add_trace(go.Scatter(x=[x0, x1, x1, x0], y=[v0, v0 * (1 + lo), v0 * (1 + hi), v0], fill="toself", mode="lines",
