@@ -57,8 +57,8 @@ def cached_supply(data_dir: str | None = None) -> pd.DataFrame | None:
 
 
 @st.cache_resource(show_spinner="Training the forecast model (first load takes a minute)")
-def cached_forecast(as_of_key: str, _long_df: pd.DataFrame, _mortgage, _supply) -> model.ForecastResult:
-    return model.train_and_evaluate(_long_df, _mortgage, supply=_supply)
+def cached_forecast(as_of_key: str, _long_df: pd.DataFrame, _mortgage, _supply, horizon: int = 12) -> model.ForecastResult:
+    return model.train_and_evaluate(_long_df, _mortgage, supply=_supply, horizon=horizon)
 
 
 def _safe_load_metro() -> pd.DataFrame | None:
@@ -102,9 +102,9 @@ def _mon(ts) -> str:
     return f"{ts:%b %Y}"
 
 
-def _try_forecast(metro_df: pd.DataFrame) -> model.ForecastResult | None:
+def _try_forecast(metro_df: pd.DataFrame, horizon: int = 12) -> model.ForecastResult | None:
     try:
-        return _forecast(metro_df)
+        return _forecast(metro_df, horizon)
     except Exception:  # noqa: BLE001
         return None
 
@@ -158,11 +158,11 @@ def _range_table(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def _forecast(metro_df: pd.DataFrame) -> model.ForecastResult:
+def _forecast(metro_df: pd.DataFrame, horizon: int = 12) -> model.ForecastResult:
     mortgage = cached_fred("MORTGAGE30US", _data_dir_key())
     supply = cached_supply(_data_dir_key())
     as_of_key = f"{metro_df['date'].max()}|supply={supply is not None}"
-    return cached_forecast(as_of_key, metro_df, mortgage, supply)
+    return cached_forecast(as_of_key, metro_df, mortgage, supply, horizon)
 
 
 def _forecast_failed() -> None:

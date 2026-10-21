@@ -1,6 +1,7 @@
 """ML forecasting: feature engineering, rolling-origin backtest, model fit.
 
-The served forecast (`pred_12m`, `national_pred`) is the equal-weight blend of model and naive momentum.
+The served forecast (`pred_12m`, `national_pred`) is the equal-weight blend of model and naive momentum;
+it holds the cumulative change over the trained `horizon` months (3, 12 or 24), despite the column name.
 The model fit uses exponential recency weights with a 3-year half-life.
 
 Supply features (inventory YoY, price-cut share) start in 2018 and may be NaN; HGB handles NaN natively.
@@ -12,6 +13,8 @@ No Streamlit import here.
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+import math
 
 import numpy as np
 import pandas as pd
@@ -124,7 +127,7 @@ def split_for_year(
 class ForecastResult:
     metrics: pd.DataFrame
     backtest: pd.DataFrame
-    predictions: pd.DataFrame  # pred_12m is the served blend
+    predictions: pd.DataFrame  # pred_12m is the served blend (cumulative change over `horizon` months)
     national_pred: float
     as_of: pd.Timestamp
     feature_importance: pd.Series | None = None
@@ -179,8 +182,9 @@ def z_quantiles(preds: pd.DataFrame) -> tuple[float, float]:
     return float(lo), float(hi)
 
 
-def add_intervals(preds: pd.DataFrame, gap: int = 2) -> pd.DataFrame:
-    """Add lo/hi; year Y uses only residuals from years <= Y-gap (Y-1 outcomes are not yet known)."""
+def add_intervals(preds: pd.DataFrame, horizon: int = 12) -> pd.DataFrame:
+    """Add lo/hi; year Y uses only residuals from years <= Y-gap, gap = 1 + ceil(horizon/12) (later outcomes are not yet known)."""
+    gap = 1 + math.ceil(horizon / 12)
     out = preds.copy()
     out["lo"] = np.nan
     out["hi"] = np.nan
@@ -211,7 +215,7 @@ def rolling_backtest(
         cols = [c for c in feature_cols if train[c].notna().any()]
         m = _fit_model(train, cols, test["date"].min())
         model_col = np.exp(m.predict(test[cols])) - 1.0
-        naive_col = np.exp(test["r12"].to_numpy()) - 1.0
+        naive_col = np.exp(test["r12"].to_numpy() * horizon / 12) - 1.0
         out.append(pd.DataFrame({
             "region": test["region"].to_numpy(),
             "date": test["date"].to_numpy(),
@@ -285,7 +289,7 @@ def train_and_evaluate(
     combined = feat.join(target.rename("y"), how="inner").reset_index()
 
     feature_cols = _active_feature_cols(combined)
-    raw = add_intervals(rolling_backtest(combined, feature_cols, horizon))
+    raw = add_intervals(rolling_backtest(combined, feature_cols, horizon), horizon)
     backtest = score_backtest(raw, PREDICTORS)
     zlo, zhi = z_quantiles(raw)
     metrics = summarize_backtest(backtest)
@@ -299,7 +303,7 @@ def train_and_evaluate(
     )
     latest_pred_log = full_model.predict(latest_feat[feature_cols])
     latest_pred_simple = np.exp(latest_pred_log) - 1.0
-    naive_latest = np.exp(latest_feat["r12"].to_numpy()) - 1.0
+    naive_latest = np.exp(latest_feat["r12"].to_numpy() * horizon / 12) - 1.0
     served = blend(latest_pred_simple, naive_latest)
 
     scale = interval_scale(latest_feat["vol12"].to_numpy())

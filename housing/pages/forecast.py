@@ -1,6 +1,8 @@
 """ML forecast page."""
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -13,9 +15,11 @@ from housing.shared import _data_dir_key, cached_fred, cached_supply, _safe_load
 def render_forecast() -> None:
     st.header("ML forecast")
     st.caption("Where prices may be headed, and how far to trust it.")
+    label = st.radio("Forecast horizon", ["3 months", "12 months", "24 months"], index=1, horizontal=True, key="forecast_horizon")
+    h = int(label.split()[0])
     metro_df = _need(_safe_load_metro(), "forecast", ui.ZILLOW_DOWN + " The national forecast needs the same data.")
     supply = cached_supply(_data_dir_key())
-    result = _try_forecast(metro_df)
+    result = _try_forecast(metro_df, h)
     if result is None:
         _forecast_failed()
         _footer_disclaimer()
@@ -28,12 +32,14 @@ def render_forecast() -> None:
     if len(row):
         r = row.iloc[0]
         pred, lo, hi, region = r["pred_12m"], r["lo_12m"], r["hi_12m"], metro
-        text = f"{_short(metro)} home values: forecast {signed(pred)} over the next 12 months (80% range {signed(lo)} to {signed(hi)})."
+        text = f"{_short(metro)} home values: forecast {signed(pred)} over the next {label} (80% range {signed(lo)} to {signed(hi)})."
     else:
         pred, (lo, hi), region = result.national_pred, result.national_interval, "United States"
-        text = (f"US home values: forecast {signed(pred)} over the next 12 months (80% range {signed(lo)} to {signed(hi)})."
+        text = (f"US home values: forecast {signed(pred)} over the next {label} (80% range {signed(lo)} to {signed(hi)})."
                 + ("" if metro else " Choose a metro for its forecast."))
     ui.headline(text, f"80% range: in past tests, the actual change landed inside a range this wide {bl['coverage80']:.0%} of the time.")
+    if h == 24:
+        st.caption("24-month forecasts are the total (cumulative) change over two years, not a yearly rate.")
     ui.disclaimer()
     if len(row):
         st.caption(f"Using {metro} (from Market overview).")
@@ -59,7 +65,7 @@ def render_forecast() -> None:
 
     hist = metro_df[metro_df["region"] == region].sort_values("date").set_index("date")["value"]
     st.subheader(f"{_short(region)} price history and forecast" if region != "United States" else "US price history and forecast")
-    ui.show(ui.history_band(hist, pred, lo, hi, name=_short(region)))
+    ui.show(ui.history_band(hist, pred, lo, hi, name=_short(region), months=h))
     st.caption(f"Zillow, through {_mon(hist.index.max())}. Dashed line and shaded area: forecast and its 80% range.")
 
     st.subheader("What goes into this forecast")
@@ -85,7 +91,7 @@ def render_forecast() -> None:
     fig = go.Figure(go.Histogram(x=result.predictions["pred_12m"] * 100, nbinsx=30, marker_color=GREY))
     fig.add_vline(x=0, line_width=1, line_color=INK, annotation_text="0% (no change)", annotation_font=dict(size=12, color="#696160"))
     px_ = result.predictions["pred_12m"] * 100
-    ui.signed_axis(fig, float(px_.min()), float(px_.max()), axis="x", title="Predicted 12-month change")
+    ui.signed_axis(fig, float(px_.min()), float(px_.max()), axis="x", title=f"Predicted {h}-month change")
     fig.update_yaxes(title="Metros")
     show(fig, 280)
     search = st.text_input("Search metros")
@@ -95,24 +101,24 @@ def render_forecast() -> None:
     _table(_range_table(preds), ["region", "state", "value", "pred"], height=320)
 
     with st.expander("How we tested this"):
-        _backtest_detail(result)
+        _backtest_detail(result, h)
 
     with st.expander("How the forecast works"):
         st.write(
-            "A gradient-boosted tree model is trained on point-in-time price-momentum, "
-            "volatility, and macro features to predict each metro's 12-month log return. "
+            f"A gradient-boosted tree model is trained on point-in-time price-momentum, "
+            f"volatility, and macro features to predict each metro's {h}-month log return. "
             "It is evaluated with a yearly rolling-origin backtest (2010 onward): each year is "
-            "predicted by a model trained only on rows whose 12-month outcome was already known "
+            f"predicted by a model trained only on rows whose {h}-month outcome was already known "
             "at the start of that year, and compared with a naive momentum baseline and a "
             "zero-change baseline. Backtest fits use quarterly origins only, for speed. The served forecast is the equal-weight "
-            "average of the model and the trailing-12-month momentum, in simple-return space, and it "
+            "average of the model and the trailing-12-month momentum scaled to the horizon, in simple-return space, and it "
             "is scored in the same backtest."
         )
 
     _footer_disclaimer()
 
 
-def _backtest_detail(result: model.ForecastResult) -> None:
+def _backtest_detail(result: model.ForecastResult, h: int) -> None:
     m = result.metrics
     names = {"model": "ML model", "blend": "Combined forecast", "naive_momentum": "Recent trend", "zero": "No change"}
     disp = m.copy()
@@ -152,7 +158,7 @@ def _backtest_detail(result: model.ForecastResult) -> None:
         f"- The model leans {tone} by {abs(mo['bias']):.2f} points on average.\n"
         f"- Ranking skill (rank IC {mo['rank_ic']:.2f} model, {bl['rank_ic']:.2f} blend, {nv['rank_ic']:.2f} momentum): "
         "how well forecasts order metros from best to worst. 0 = random ordering, 1 = perfect; above ~0.3 is useful.\n"
-        f"- Top picks (top 10%) beat the average metro by {mo['top_decile_lift']:.2f} points a year "
+        f"- Top picks (top 10%) beat the average metro by {mo['top_decile_lift']:.2f} points over {h} months "
         f"(recent trend: {nv['top_decile_lift']:.2f}).\n"
         f"- Direction right {mo['direction_acc'] * 100:.0f}% of the time."
     )
@@ -167,7 +173,7 @@ def _backtest_detail(result: model.ForecastResult) -> None:
         "with a price cut (Zillow, from 2018)."
     )
     st.caption(
-        f"80% range: in the backtest (2012+, ranges built only from earlier years) the actual 12-month change "
+        f"80% range: in the backtest ({2010 + 1 + math.ceil(h / 12)}+, ranges built only from earlier years) the actual {h}-month change "
         f"fell inside it {bl['coverage80']:.0%} of the time; average width {bl['width80']:.1f} pp. "
         "Misses cluster in market-wide shocks (2020, 2022), when the range is too narrow for every metro at once."
     )

@@ -62,20 +62,21 @@ def test_build_target_basic():
     assert "United States" in y.index.get_level_values("region")
 
 
-def test_split_for_year_no_leakage():
+@pytest.mark.parametrize("horizon", [3, 12, 24])
+def test_split_for_year_no_leakage(horizon):
     long_df, mortgage = _load()
     feat = model.build_features(long_df, mortgage)
-    target = model.build_target(long_df, horizon=12)
+    target = model.build_target(long_df, horizon=horizon)
     combined = feat.join(target.rename("y"), how="inner").reset_index()
     seen = 0
     for year in range(2010, 2026):
-        train, test = model.split_for_year(combined, year)
+        train, test = model.split_for_year(combined, year, horizon)
         if test.empty:
             continue
         seen += 1
         assert (test["date"].dt.year == year).all()
-        assert train["date"].max() + pd.DateOffset(months=12) <= test["date"].min()
-    assert seen >= 10
+        assert train["date"].max() + pd.DateOffset(months=horizon) <= test["date"].min()
+    assert seen >= (8 if horizon == 24 else 10)
 
 
 def test_score_backtest_known_values():
@@ -148,6 +149,24 @@ def test_add_intervals_no_leakage():
     assert not np.allclose(alt.loc[alt.year == 2014, "lo"], base.loc[base.year == 2014, "lo"])
     alt = run(y2013=1, y2014=1)
     assert np.allclose(alt.loc[alt.year == 2014, "lo"], base.loc[base.year == 2014, "lo"])
+
+
+def test_add_intervals_gap_24m():
+    rng = np.random.default_rng(0)
+    rows = [(r, y, rng.normal(0.03, 0.02), rng.normal(0.03, 0.02)) for y in range(2010, 2017) for r in "abcde"]
+    df = pd.DataFrame(rows, columns=["region", "year", "blend", "actual"])
+    df["vol12"] = 0.01
+
+    def run(y2012=None):
+        d = df.copy()
+        if y2012 is not None:
+            d.loc[d.year == 2012, "actual"] = y2012
+        return model.add_intervals(d, horizon=24)
+
+    base, alt = run(), run([10, -10, 10, -10, 10])
+    assert base.loc[base.year < 2013, ["lo", "hi"]].isna().all().all()
+    assert np.allclose(alt.loc[alt.year == 2014, "lo"], base.loc[base.year == 2014, "lo"])
+    assert not np.allclose(alt.loc[alt.year == 2015, "lo"], base.loc[base.year == 2015, "lo"])
 
 
 def test_backtest_blend_is_average(mortgage_result):

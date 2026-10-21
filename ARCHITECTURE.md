@@ -18,7 +18,7 @@ download (`data.py`: Zillow CSVs, FRED) -> features / analysis (`analysis.py`, `
 ## Caching
 All in `housing/shared.py`, so every page shares the same caches:
 - `st.cache_data` (ttl 24h) for Zillow, FRED and supply loaders, keyed by the data directory.
-- `st.cache_resource` for the trained model, keyed by `as_of_key` (latest data date plus supply flag).
+- `st.cache_resource` for the trained model, keyed by `as_of_key` (latest data date plus supply flag) plus `horizon`. 12m is shared by all pages; 3m/24m are trained only when picked on the forecast page.
 
 ## Navigation
 `app.py` registers `st.Page("housing/pages/<name>.py", ...)` entries and runs `st.navigation`.
