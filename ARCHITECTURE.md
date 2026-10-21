@@ -8,7 +8,7 @@
 - `housing/finance.py` - mortgage, ARM and equity-projection math (no Streamlit).
 - `housing/ui.py` - theme, CSS, sidebar, shared widgets, disclaimer text.
 - `housing/shared.py` - cached loaders and helpers used by several pages.
-- `housing/pages/` - one script per page: overview, findings, explorer, profile, forecast, financing.
+- `housing/pages/` - one script per page: overview, findings, explorer, profile, forecast, financing, affordability.
   Streamlit runs these files; they are not imported. Each ends with a call to its render function.
 
 ## Data flow
@@ -17,7 +17,7 @@ download (`data.py`: Zillow CSVs, FRED) -> features / analysis (`analysis.py`, `
 
 ## Caching
 All in `housing/shared.py`, so every page shares the same caches:
-- `st.cache_data` (ttl 24h) for Zillow, FRED and supply loaders, keyed by the data directory.
+- `st.cache_data` (ttl 24h) for Zillow, FRED, supply and affordability (`cached_affordability`) loaders, keyed by the data directory.
 - `st.cache_resource` for the trained model, keyed by `as_of_key` (latest data date plus supply flag) plus `horizon`. 12m is shared by all pages; 3m/24m are trained only when picked on the forecast page.
 
 ## Navigation

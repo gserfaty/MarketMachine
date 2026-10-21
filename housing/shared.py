@@ -56,6 +56,14 @@ def cached_supply(data_dir: str | None = None) -> pd.DataFrame | None:
         return None
 
 
+@st.cache_data(ttl=86400, show_spinner="Loading affordability data")
+def cached_affordability(data_dir: str | None = None) -> pd.DataFrame | None:
+    try:
+        return data.load_affordability()
+    except Exception:
+        return None
+
+
 @st.cache_resource(show_spinner="Training the forecast model (first load takes a minute)")
 def cached_forecast(as_of_key: str, _long_df: pd.DataFrame, _mortgage, _supply, horizon: int = 12) -> model.ForecastResult:
     return model.train_and_evaluate(_long_df, _mortgage, supply=_supply, horizon=horizon)

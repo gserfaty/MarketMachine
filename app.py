@@ -12,6 +12,7 @@ NAV = {
     "profile": st.Page("housing/pages/profile.py", title="Market profile", url_path="profile"),
     "forecast": st.Page("housing/pages/forecast.py", title="ML forecast", url_path="forecast"),
     "financing": st.Page("housing/pages/financing.py", title="Financing estimator", url_path="financing"),
+    "affordability": st.Page("housing/pages/affordability.py", title="Affordability", url_path="affordability"),
 }
 
 
@@ -24,7 +25,7 @@ def main() -> None:
     pg = st.navigation({
         "Market": [NAV["overview"], NAV["findings"]],
         "Metro": [NAV["explorer"], NAV["profile"]],
-        "Money": [NAV["forecast"], NAV["financing"]],
+        "Money": [NAV["forecast"], NAV["financing"], NAV["affordability"]],
     })
     pg.run()
 

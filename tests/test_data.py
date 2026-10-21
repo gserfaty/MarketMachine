@@ -63,3 +63,11 @@ def test_to_wide_pivots_by_region():
     wide = data.to_wide(df)
     assert "United States" in wide.columns
     assert wide.index.is_monotonic_increasing
+
+
+def test_load_affordability_offline():
+    df = data.load_affordability()
+    assert list(df.columns) == ["region", "date", "z_payment", "z_income_needed", "z_share"]
+    assert df["region"].is_unique and "Boise City, ID" not in set(df["region"])
+    assert (df["date"] == pd.Timestamp("2026-08-31")).all()
+    assert (df[["z_payment", "z_income_needed", "z_share"]] > 0).all().all()

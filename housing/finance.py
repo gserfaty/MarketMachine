@@ -188,6 +188,21 @@ def estimate(price: float, down_pct: float, loan_type: str, band: str, state: st
     }
 
 
+AFFORD_SHARE = 0.30  # 30% rule: housing payment under 30% of gross income
+
+
+def affordability_table(metros: pd.DataFrame, income: float, down_pct: float, r_base: dict[int, float], debts: float = 0.0,
+                        loan_type: str = "conventional", band: str = "740-759") -> pd.DataFrame:
+    """Per metro (region, state, value): monthly PITI at the state's tax/insurance, share of income, affordable flag."""
+    if income <= 0:
+        raise ValueError("Enter an income above $0.")
+    out = metros[metros["state"].isin(PROPERTY_TAX_PCT)].copy()
+    out["payment"] = [estimate(v, down_pct, loan_type, band, st, 30, r_base)["piti"] for v, st in zip(out["value"], out["state"])]
+    out["share"] = out["payment"] * 12 / income
+    out["affordable"] = (out["share"] <= AFFORD_SHARE) & ((out["payment"] + debts) * 12 / income * 100 <= DTI_WARN)
+    return out.reset_index(drop=True)
+
+
 def dti(piti: float, debts: float, income: float) -> tuple[float, float]:
     return piti / income * 100, (piti + debts) / income * 100
 

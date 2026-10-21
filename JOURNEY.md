@@ -29,7 +29,7 @@ The structural and temporal spec for MarketMachine. For visual tokens, see DESIG
 | 1 Market | Market overview, Findings | Read the headline; scan leaders | "Is now a good time?" | Curious, mildly anxious | Answer in one sentence; "Next: pick a metro" |
 | 2 Metro | Regional explorer, Market profile | Find or compare metros; choose one | "Where should I look?" | Exploring (messy middle: explore <-> evaluate loop, Google 2020) | Pick once, carry everywhere |
 | 3 Forecast | ML forecast | Read the forecast and how reliable it is | "Can I trust this?" | Skeptical | Range and track record up front |
-| 4 Money | Financing estimator | Set price/down payment; read monthly payment and equity | "Can I afford it, will it grow?" | Decisive, wary of being sold to | Payment first; clear "not a quote" |
+| 4 Money | Financing estimator, Affordability | Set price/down payment; read monthly payment and equity | "Can I afford it, will it grow?" | Decisive, wary of being sold to | Payment first; clear "not a quote" |
 
 The path is not a funnel: users loop between metro and forecast/financing (switch metro, re-check). Return loop: re-check monthly when Zillow data refreshes.
 
@@ -39,7 +39,7 @@ The path is not a funnel: users loop between metro and forecast/financing (switc
 
 **Structure:** hub-and-spoke on a shared "selected metro" spine; flat global navigation (Rosenfeld/Morville: global nav + contextual nav). **Organization scheme:** task/stage (ambiguous scheme), ordered by the stated flow.
 
-**Sidebar (global nav): 6 options, at or below the Hick cap (Hick-Hyman 1952).** Non-interactive group captions are not options. Labels in sentence case.
+**Sidebar (global nav): 7 options, one above the earlier 6-item Hick target (Hick-Hyman 1952), justified because Money is the decision stage and Affordability links straight into Financing.** Non-interactive group captions are not options. Labels in sentence case.
 
 | # | Group caption | Label | Today's label / position |
 |---|---------------|-------|--------------------------|
@@ -49,6 +49,7 @@ The path is not a funnel: users loop between metro and forecast/financing (switc
 | 4 | Metro | Market profile | was 5, "Market Profile"; page header was "Market Profiles" |
 | 5 | Money | ML forecast | was 3 |
 | 6 | Money | Financing estimator | same label, was 6 |
+| 7 | Money | Affordability | new |
 
 Note: order differs from the approved wireframe mock (which kept today's order). Needs user confirmation; if rejected, fall back to today's order with no loss to the other specs.
 
@@ -244,3 +245,14 @@ Owner: collaborator (Lucas). The analytics logic (metrics, compare, KNN similar 
 - Page spec count: 6 (Market overview, Findings, Regional explorer, Market profile, ML forecast, Financing estimator); nav options: 6.
 - Max headline KPIs on any page: 4.
 - Open items for the user: Lucas (collaborator) signs off on the Market profile changes (shared-metro selector binding, headline, title, "n/a" formatting) before build; confirm sidebar reorder (IA); confirm that "What drives this forecast" attribution is dropped from scope; confirm Overview forecast clause is worth the first-load model training.
+
+### 7. Affordability
+- **Purpose:** "Where can I afford a home?" Ranks metros by the monthly payment compared with the user's income.
+- **Entry points:** sidebar (Money); carried metro is pinned in the table; a table row selection sets the shared metro.
+- **Headline:** "On $100,000/yr, N of M metros keep the payment under 30% of your income. Best value: <metro> (forecast +x%)." Sub: rate and down payment.
+- **KPIs (4):** Metros within 30%; Typical payment share; Best value; carried metro payment (or Lowest payment when no metro).
+- **Blocks:** inputs (income, down payment, debts); rate caption; headline with D2 and D1; KPIs; filters (only within 30%, states, sort); ranked table with Zillow context columns; sources expander; footer disclaimer.
+- **States:** Zillow down (standard warning + Try again); affordability files down (warning, all metros ranked, Zillow columns hidden); FRED down (warning plus manual 30-year rate); forecast down (info, column shows n/a); no metro (Lowest payment KPI); carried metro (rank sentence, "(your metro)" marker); invalid input ("Error: ... Change the value and the ranking will update."); no matches (info with how to clear filters).
+- **Exits:** "Estimate financing in <metro>" (primary) to Financing; row select sets the metro.
+- **Copy:** "Select a row to make it your metro."; "Only metros within 30%"; "Share of your income".
+
