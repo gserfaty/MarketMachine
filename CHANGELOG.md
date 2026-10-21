@@ -5,6 +5,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Refactor (2026-10-21)
+- `housing/pages.py` split into `housing/shared.py` and six file-based pages in `housing/pages/`; no behavior change; tests use `AppTest.switch_page` instead of the private `_page_hash`.
+
 ### Renamed
 - Project renamed from michiganmen to **MarketMachine** (GitHub repo `gserfaty/MarketMachine`; the old URL redirects). The offline-fixtures env var is now `MARKETMACHINE_DATA_DIR` and the Plotly template is `marketmachine`.
 
