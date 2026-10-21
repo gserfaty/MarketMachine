@@ -8,7 +8,7 @@ RegionID, SizeRank, RegionName ("Detroit, MI"), RegionType (`msa`; row 0 = Unite
 - **FRED is down today**: every `fredgraph.csv?id=...` (even MORTGAGE30US, which the app uses) returns HTTP 200 with a
   "Site Maintenance" HTML page (not CSV). The app must detect non-CSV bodies and fall back (check `data.py` handles
   this; a 200 + HTML will break `read_csv` naive parsing). All FRED candidates below are therefore UNVERIFIED today.
-- **BLS bulk now works**: `download.bls.gov` returns 200 when the User-Agent carries a contact email (403 without).
+- **BLS bulk**: returned 200 with a contact email in the User-Agent earlier, but on 2026-10-21 a project User-Agent (`MarketMachine/1.0 (+repo URL)`) got **403 Access Denied**; not used.
 - **Census API now needs a key** ("Missing Key" HTML even for `for=us:*`), so keyless ACS income is NOT available.
 - **Zillow publishes affordability by metro** (payment, income needed, payment-to-income share): best fit for the
   Affordability page, zero join cost.
@@ -48,6 +48,7 @@ Short-history (2018+) files (sale-to-list, above-list, heat, close time) will li
 ## Census Building Permits Survey, metro (keyless, bulk text)
 - `https://www2.census.gov/econ/bps/CBSA%20(beginning%20Jan%202024)/cbsa2608c.txt` (Aug 2026, monthly `c`; `y` = YTD) and
   `.../Metro%20(ending%202023)/ma2312c.txt`, `ma9912c.txt` (back to 1999 at least; `ma1990a.txt` annual exists). 0.17s each, CSV-ish, columns: survey date, CSA, CBSA code, name, then bldgs/units/value for 1-, 2-, 3-4-, 5+-unit.
+- Correction (2026-10-21): the 2024+ CBSA annual files (`cbsa2512y.txt`) leave out the largest metros (no rows for Detroit 19820, New York 35620, Los Angeles 31080, Chicago), so the join is not clean.
 - History 1990s -> now; latency ~1 month; two regimes (2023 vs 2024 CBSA delineations - codes shift, Detroit etc.).
 - Panel cost: one request per month (~300 for 2000-2026) or use Dec `y` files for 27 annual points. Practical only if
   cached to a committed parquet/CSV refreshed monthly, or limited to `y` files of the latest 5 years.
@@ -93,3 +94,26 @@ Also add Zillow `zhvf_growth` snapshots to a log as a free benchmark.
 4. Own calc: ZHVI x FRED MORTGAGE30US (rate slider what-if) divided by implied income (already in app data; supports rate scenarios).
 5. Census ACS median household income B19013 (needs a free key; api now says "Missing Key") - only as an optional check of the implied income.
 Not found keyless: official metro median income (BLS gives wages by QCEW at bls.gov/cew, untested; HUD blocked).
+
+## Results (2026-10-21 experiments)
+Pipeline identical to `model.train_and_evaluate` (`build_features`, candidate columns left-merged on region/date, `rolling_backtest` 2010+ quarterly origins, blend row). FRED was down, so `mortgage=None` for baseline and candidates; supply on.
+Keep bar: at 12m, blend MAE must improve by >= 0.02 pp (the reproduction tolerance) or rank IC by >= 0.005, |bias| must not get worse, and 3m/24m must not get worse by more than the same margins. A smaller gain is below what the evaluator can reproduce.
+
+Features:
+- `sales_yoy`: Zillow metro `sales_count_now` (sfrcondo, monthly, 301 metros, 2008+); 3-month rolling mean, log(s / s.shift(12)), inf to NaN.
+- `inc_yoy`: implied income = `afford_payment`*12 / `afford_share`, log YoY. `pti`: the `afford_share` level.
+- `fhfa_gap`: FHFA `hpi_at_metro.csv` (needs a browser User-Agent), joined on first city + first state (first MSAD if the MSA is missing): 376 of 894 Zillow metros, 97% of the top 300. Quarterly ffilled to monthly, lagged 2 months. Feature = FHFA 12m log growth minus ZHVI 12m log growth. `fhfa_r12` = FHFA 12m log growth alone.
+- Census BPS and BLS LAUS: not tested (see corrections above).
+
+Blend results (MAE and bias in pp):
+| Run | 3m MAE / bias / IC / cov80 | 12m MAE / bias / IC / cov80 | 24m MAE / bias / IC / cov80 | 12m 2019+ MAE |
+|---|---|---|---|---|
+| baseline (current model) | 0.933 / -0.063 / 0.609 / 0.797 | 3.787 / -0.618 / 0.474 / 0.753 | 9.171 / -1.780 / 0.387 / 0.631 | 4.489 |
+| + sales_yoy | 0.932 / -0.061 / 0.607 / 0.796 | 3.792 / -0.564 / 0.473 / 0.753 | 9.152 / -1.754 / 0.391 / 0.628 | 4.510 |
+| + inc_yoy | 0.934 / -0.062 / 0.608 / 0.797 | 3.793 / -0.604 / 0.473 / 0.752 | 9.170 / -1.716 / 0.389 / 0.630 | 4.501 |
+| + pti | 0.933 / -0.059 / 0.608 / 0.797 | 3.789 / -0.557 / 0.474 / 0.752 | 9.137 / -1.568 / 0.391 / 0.625 | 4.514 |
+| + sales_yoy + pti | 0.933 / -0.058 / 0.607 / 0.796 | 3.784 / -0.548 / 0.474 / 0.754 | 9.144 / -1.608 / 0.393 / 0.625 | 4.502 |
+| + fhfa_gap | 0.932 / -0.063 / 0.610 / 0.796 | 3.795 / -0.600 / 0.478 / 0.744 | 9.199 / -1.834 / 0.393 / 0.614 | 4.534 |
+| + fhfa_r12 | 0.932 / -0.062 / 0.609 / 0.797 | 3.800 / -0.583 / 0.478 / 0.744 | 9.243 / -1.780 / 0.392 / 0.610 | 4.548 |
+
+Verdict: none kept; no model change. sales+pti is the best combination (12m MAE -0.003, bias +0.07, IC flat, 2019+ MAE worse), noise-level. FHFA: 12m IC +0.004 but MAE and coverage worse and 24m worse on MAE, bias and coverage.

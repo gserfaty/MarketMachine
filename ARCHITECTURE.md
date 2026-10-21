@@ -14,6 +14,7 @@
 ## Data flow
 download (`data.py`: Zillow CSVs, FRED) -> features / analysis (`analysis.py`, `model.py` feature builder)
 -> model (`cached_forecast` trains once per data as-of date) -> pages render tables and charts.
+Candidate feature sources are evaluated offline with `model.rolling_backtest` before a loader is added (see `docs/RESEARCH.md` results).
 
 ## Caching
 All in `housing/shared.py`, so every page shares the same caches:
