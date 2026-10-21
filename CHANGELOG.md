@@ -5,6 +5,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Data experiments (2026-10-21)
+- No model change. New free metro features were tested with the real-data quarterly backtest (same pipeline as `train_and_evaluate`, 2010+, supply on). FRED was in maintenance, so `mortgage=None` for every run (baseline and candidates).
+- Keep bar: at 12m, blend MAE must improve by >= 0.02 pp (the reproduction tolerance) or rank IC by >= 0.005, |bias| must not get worse, and 3m/24m must not get worse by more than the same margins.
+- 12m blend MAE (pp): baseline 3.787; + sales_yoy 3.792; + inc_yoy 3.793; + pti 3.789; + sales_yoy + pti 3.784; + FHFA gap 3.795; + FHFA 12m growth 3.800.
+- 3m / 24m MAE: baseline 0.933 / 9.171; sales + pti 0.933 / 9.144; FHFA gap 0.932 / 9.199.
+- Rejected: sales_yoy, inc_yoy, pti (12m MAE worse, IC flat); sales + pti (best combo, but 0.003 MAE gain is noise, 2019+ MAE worse, two loaders; its bias gain of 0.07 is a lead for bias work); FHFA gap / 12m growth (IC +0.004 but MAE and coverage worse, 24m worse on MAE, bias and coverage); Census BPS permits (2024+ CBSA files omit the largest metros, join not clean); BLS LAUS (403 Access Denied with a project User-Agent).
+
 ### Affordability page (2026-10-21)
 - New Money page: enter income, down payment and other debts; every metro is ranked by estimated monthly payment (`finance.estimate`, PMMS rate, state tax and insurance) against the 30% rule.
 - Zillow context columns (payment, income needed, share, 20% down) from three new Zillow affordability files; `cached_affordability` caches them.

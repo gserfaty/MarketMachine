@@ -23,6 +23,8 @@ All free, public, and require no API key:
   Tax Foundation property tax rates, NAIC/III 2022 insurance premiums, approximate Fannie Mae LLPA, HUD FHA MIP, VA funding fee.
 - [FRED `CSUSHPINSA`](https://fred.stlouisfed.org/series/CSUSHPINSA) — Case-Shiller US National Home Price Index.
 
+Sources evaluated and rejected are listed in `docs/RESEARCH.md`.
+
 Data is downloaded at runtime and cached (`st.cache_data`, 24h TTL). If a source is unavailable,
 the app shows a clear error/warning instead of crashing.
 
@@ -116,6 +118,8 @@ vs ~4.2 momentum; the page shows live numbers. The backtest still shows a pessim
 
 **Baselines and predictors.** `blend`, `model`, `naive_momentum` (predict the trailing 12-month return) and `zero` (no change;
 rank IC and lift are n/a because it ranks nothing).
+
+**Features tried and not kept.** Zillow sales count, payment-to-income share, implied income and the FHFA HPI-vs-ZHVI gap were backtested as extra features (2026-10-21). None beat the current features by a meaningful margin (best 12m blend MAE change: 0.003 pp), so the model is unchanged. Details in `CHANGELOG.md` and `docs/RESEARCH.md`.
 
 Past backtest performance does not guarantee future results.
 
