@@ -11,13 +11,12 @@ FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 
 
 def _run_page(page: str, query: dict | None = None) -> AppTest:
-    """Run app.py, then switch to a st.navigation page by url_path (AppTest.switch_page only knows files)."""
+    """Run app.py, then switch to a page file registered with st.navigation."""
     at = AppTest.from_file(APP_PATH, default_timeout=120)
     if query:
         at.query_params.update(query)
     at.run()
-    at._page_hash = next(h for h, i in at._registered_pages.items() if i.get("url_pathname", "") == ("" if page == "overview" else page))
-    return at.run()
+    return at.switch_page(f"housing/pages/{page}.py").run()
 
 
 @pytest.mark.parametrize("page_label", PAGES)

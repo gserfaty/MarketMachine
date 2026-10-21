@@ -36,6 +36,20 @@ Navigation is grouped Market / Metro / Money, and the chosen metro carries acros
 5. **ML forecast** — a metro's 12-month forecast with its 80% range, how reliable the model has been, and all-metro predictions.
 6. **Financing estimator** — monthly payment, 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison, and equity projection.
 
+## Project structure
+
+```
+app.py              entry point: navigation and sidebar
+housing/
+  data.py analysis.py model.py finance.py   data loading, features, ML, mortgage math
+  ui.py             theme, shared widgets
+  shared.py         cached loaders and cross-page helpers
+  pages/            one Streamlit page script per page (overview, findings, explorer, profile, forecast, financing)
+tests/              offline pytest suite
+```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
+
 ## Local development
 
 ```bash
