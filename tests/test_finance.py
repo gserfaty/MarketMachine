@@ -193,3 +193,23 @@ def test_equity_range_ordering():
             for c in ("value", "equity", "net"):
                 assert (d[c + "_lo"] <= d[c] + 1e-9).all() and (d[c] <= d[c + "_hi"] + 1e-9).all()
             assert (np.diff(d.value_hi / d.value_lo) >= -1e-12).all()
+
+
+def test_affordability_table_share():
+    m = pd.DataFrame({"region": ["A", "B"], "state": ["IL", "TX"], "value": [200_000.0, 900_000.0]})
+    rb = f.base_rates(6.5, 5.8)
+    t = f.affordability_table(m, 100_000, 20.0, rb)
+    p = f.estimate(200_000, 20.0, "conventional", "740-759", "IL", 30, rb)["piti"]
+    assert t["payment"].iloc[0] == pytest.approx(p)
+    assert t["share"].iloc[0] == pytest.approx(p * 12 / 100_000)
+    assert list(t["affordable"]) == [True, False]
+    assert not f.affordability_table(m, 100_000, 20.0, rb, debts=3000)["affordable"].iloc[0]
+
+
+def test_affordability_table_errors():
+    m = pd.DataFrame({"region": ["A"], "state": ["IL"], "value": [200_000.0]})
+    rb = f.base_rates(6.5, 5.8)
+    with pytest.raises(ValueError):
+        f.affordability_table(m, 0, 20.0, rb)
+    with pytest.raises(ValueError):
+        f.affordability_table(m, 100_000, 1.0, rb)

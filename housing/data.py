@@ -28,6 +28,18 @@ URLS: dict[str, str] = {
     "price_cut_metro": (
         "https://files.zillowstatic.com/research/public_csvs/perc_listings_price_cut/Metro_perc_listings_price_cut_uc_sfrcondo_sm_month.csv"
     ),
+    "afford_payment": (
+        "https://files.zillowstatic.com/research/public_csvs/total_monthly_payment/"
+        "Metro_total_monthly_payment_downpayment_0.20_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+    ),
+    "afford_income": (
+        "https://files.zillowstatic.com/research/public_csvs/new_homeowner_income_needed/"
+        "Metro_new_homeowner_income_needed_downpayment_0.20_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+    ),
+    "afford_share": (
+        "https://files.zillowstatic.com/research/public_csvs/new_homeowner_affordability/"
+        "Metro_new_homeowner_affordability_downpayment_0.20_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+    ),
     "MORTGAGE30US": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US",
     "MORTGAGE15US": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE15US",
     "SOFR30DAYAVG": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR30DAYAVG",
@@ -40,6 +52,9 @@ _OFFLINE_FILENAMES: dict[str, str] = {
     "zhvi_state": "zhvi_state.csv",
     "inventory_metro": "inventory_metro.csv",
     "price_cut_metro": "price_cut_metro.csv",
+    "afford_payment": "afford_payment.csv",
+    "afford_income": "afford_income.csv",
+    "afford_share": "afford_share.csv",
     "MORTGAGE30US": "MORTGAGE30US.csv",
     "MORTGAGE15US": "MORTGAGE15US.csv",
     "SOFR30DAYAVG": "SOFR30DAYAVG.csv",
@@ -149,6 +164,15 @@ def load_supply() -> pd.DataFrame:
         df = parse_zhvi(io.BytesIO(_read_bytes(source(key))))
         parts.append(df[["region", "date", "value"]].rename(columns={"value": name}))
     return parts[0].merge(parts[1], on=["region", "date"], how="outer")
+
+
+def load_affordability() -> pd.DataFrame:
+    """Zillow affordability (20% down), latest month per region. Columns: region, date, z_payment, z_income_needed, z_share."""
+    out = None
+    for key, name in (("afford_payment", "z_payment"), ("afford_income", "z_income_needed"), ("afford_share", "z_share")):
+        df = parse_zhvi(io.BytesIO(_read_bytes(source(key))))[["region", "date", "value"]].rename(columns={"value": name})
+        out = df if out is None else out.merge(df, on=["region", "date"], how="outer")
+    return out.sort_values("date").groupby("region", as_index=False).last()[["region", "date", "z_payment", "z_income_needed", "z_share"]]
 
 
 def to_wide(long_df: pd.DataFrame) -> pd.DataFrame:

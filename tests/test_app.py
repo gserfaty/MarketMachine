@@ -5,7 +5,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 APP_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app.py")
-PAGES = ["overview", "findings", "explorer", "profile", "forecast", "financing"]
+PAGES = ["overview", "findings", "explorer", "profile", "forecast", "financing", "affordability"]
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 
@@ -86,3 +86,20 @@ def test_financing_equity_projection():
     assert not at.exception
     assert "Equity projection" in [s.value for s in at.subheader]
     assert any("highly uncertain" in w.value for w in at.warning)
+
+
+def test_affordability_carried_metro():
+    at = _run_page("affordability", {"metro": "Chicago, IL"})
+    assert not at.exception
+    assert any("Chicago, IL: $" in m.value or "Chicago, IL (your metro)" in m.value for m in at.markdown)
+    assert any(b.label == "Estimate financing in Chicago" for b in at.button)
+
+
+def test_affordability_fred_down(tmp_path, monkeypatch):
+    shutil.copy(os.path.join(FIXTURES, "zhvi_metro.csv"), tmp_path / "zhvi_metro.csv")
+    monkeypatch.setenv("MARKETMACHINE_DATA_DIR", str(tmp_path))
+    at = _run_page("affordability")
+    assert not at.exception
+    warnings = " ".join(w.value for w in at.warning)
+    assert "live mortgage rates are unavailable" in warnings and "affordability data is unavailable" in warnings
+    assert "not financial advice" in " ".join(m.value for m in at.markdown)

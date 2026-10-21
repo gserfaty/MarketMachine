@@ -5,6 +5,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Affordability page (2026-10-21)
+- New Money page: enter income, down payment and other debts; every metro is ranked by estimated monthly payment (`finance.estimate`, PMMS rate, state tax and insurance) against the 30% rule.
+- Zillow context columns (payment, income needed, share, 20% down) from three new Zillow affordability files; `cached_affordability` caches them.
+- Fallbacks: manual 30-year rate when FRED is down, all metros ranked when the Zillow files are down, forecast column n/a when the forecast fails.
+
 ### Forecast horizons (2026-10-21)
 - ML forecast page has a 3 / 12 / 24 month selector (default 12). 3m and 24m are trained lazily and cached per horizon; other pages stay on 12m.
 - Interval gap = 1 + ceil(h/12) (3 years at 24m, so no leakage); the naive trend baseline is scaled by h/12.

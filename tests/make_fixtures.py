@@ -165,6 +165,21 @@ def build_price_cut(rng: np.random.Generator) -> pd.DataFrame:
     return _supply_frame(rng, lambda r, n: r.uniform(0.05, 0.35, n).round(4))
 
 
+def build_affordability(rng: np.random.Generator, kind: str) -> pd.DataFrame:
+    # US + fixture metros except Boise City. Payment is seeded apart from `rng` so income = payment*12/0.30 matches.
+    labels = [d.strftime("%Y-%m-%d") for d in pd.date_range("2024-01-31", "2026-08-31", freq="ME")]
+    rows = [(1, 0, "United States", "country", np.nan)] + [
+        (rid, rank, name, "msa", state) for rid, rank, name, state, *_ in METROS if name != NAN_UNTIL_METRO
+    ]
+    out = []
+    for rid, rank, name, rt, st in rows:
+        pay = np.random.default_rng(rid).uniform(1000, 4000, len(labels)).round()
+        vals = {"payment": pay, "income": (pay * 12 / 0.30).round(), "share": rng.uniform(0.15, 0.60, len(labels)).round(4)}[kind]
+        out.append({"RegionID": rid, "SizeRank": rank, "RegionName": name, "RegionType": rt, "StateName": st,
+                    **dict(zip(labels, vals))})
+    return pd.DataFrame(out)
+
+
 def main() -> None:
     os.makedirs(FIXTURES_DIR, exist_ok=True)
     rng = np.random.default_rng(0)
@@ -179,6 +194,10 @@ def main() -> None:
     rng = np.random.default_rng(1)
     build_inventory(rng).to_csv(os.path.join(FIXTURES_DIR, "inventory_metro.csv"), index=False)
     build_price_cut(rng).to_csv(os.path.join(FIXTURES_DIR, "price_cut_metro.csv"), index=False)
+
+    rng = np.random.default_rng(2)
+    for kind in ("payment", "income", "share"):
+        build_affordability(rng, kind).to_csv(os.path.join(FIXTURES_DIR, f"afford_{kind}.csv"), index=False)
 
 
 if __name__ == "__main__":

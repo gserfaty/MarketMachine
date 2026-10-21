@@ -13,6 +13,7 @@ All free, public, and require no API key:
 - [Zillow Home Value Index (ZHVI)](https://www.zillow.com/research/data/) — metro and state, smoothed/seasonally adjusted, all-homes tier.
 - Zillow for-sale inventory (metro, from 2018) — count of listings; used as year-over-year change.
 - Zillow share of listings with a price cut (metro, from 2018).
+- Zillow affordability files (metro, 20% down): total monthly payment, income needed, and share of median income; used as context on the Affordability page.
 - [FRED `MORTGAGE30US`](https://fred.stlouisfed.org/series/MORTGAGE30US) — weekly 30-year fixed mortgage rate.
 - [FRED `MORTGAGE15US`](https://fred.stlouisfed.org/series/MORTGAGE15US) — weekly 15-year fixed mortgage rate.
 - [FRED `SOFR30DAYAVG`](https://fred.stlouisfed.org/series/SOFR30DAYAVG) — 30-day average SOFR (ARM index). ARM terms:
@@ -35,6 +36,7 @@ Navigation is grouped Market / Metro / Money, and the chosen metro carries acros
 4. **Market profile** — single-metro profile, comparison, and similar markets.
 5. **ML forecast** — a metro's 12-month forecast with its 80% range, how reliable the model has been, and all-metro predictions.
 6. **Financing estimator** — monthly payment, 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison, and equity projection.
+7. **Affordability** — ranks metros by the monthly payment against your income (30% rule), with Zillow context and the 12-month forecast.
 
 ## Project structure
 
@@ -44,7 +46,7 @@ housing/
   data.py analysis.py model.py finance.py   data loading, features, ML, mortgage math
   ui.py             theme, shared widgets
   housing/shared.py cached loaders and cross-page helpers
-  housing/pages/    one Streamlit page script per page (overview, findings, explorer, profile, forecast, financing)
+  housing/pages/    one Streamlit page script per page (overview, findings, explorer, profile, forecast, financing, affordability)
 tests/              offline pytest suite
 ```
 
