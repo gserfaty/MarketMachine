@@ -103,3 +103,21 @@ def test_affordability_fred_down(tmp_path, monkeypatch):
     warnings = " ".join(w.value for w in at.warning)
     assert "live mortgage rates are unavailable" in warnings and "affordability data is unavailable" in warnings
     assert "not financial advice" in " ".join(m.value for m in at.markdown)
+
+
+def test_forecast_vs_zillow():
+    at = _run_page("forecast")
+    assert not at.exception
+    md = " ".join(m.value for m in at.markdown)
+    assert "We vs Zillow" in md and "metros in the same direction" in md
+
+
+def test_forecast_zillow_down(tmp_path, monkeypatch):
+    for f in os.listdir(FIXTURES):
+        if f != "zillow_forecast.csv":
+            shutil.copy(os.path.join(FIXTURES, f), tmp_path / f)
+    monkeypatch.setenv("MARKETMACHINE_DATA_DIR", str(tmp_path))
+    at = _run_page("forecast")
+    assert not at.exception
+    assert any("Zillow's own forecast is unavailable" in c.value for c in at.caption)
+    assert "not financial advice" in " ".join(m.value for m in list(at.markdown) + list(at.caption)).lower()

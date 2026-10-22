@@ -56,6 +56,14 @@ def cached_supply(data_dir: str | None = None) -> pd.DataFrame | None:
         return None
 
 
+@st.cache_data(ttl=86400, show_spinner="Loading Zillow's forecast")
+def cached_zillow_forecast(data_dir: str | None = None) -> pd.DataFrame | None:
+    try:
+        return data.load_zillow_forecast()
+    except Exception:
+        return None
+
+
 @st.cache_data(ttl=86400, show_spinner="Loading affordability data")
 def cached_affordability(data_dir: str | None = None) -> pd.DataFrame | None:
     try:
@@ -144,6 +152,7 @@ def _num_cols() -> dict:
         "chg_1y": CC.TextColumn("Change, 1 year"), "chg_5y": CC.TextColumn("Change, 5 years"),
         "chg_10y": CC.TextColumn("Change, 10 years"),
         "pred": CC.TextColumn("Predicted change (80% range)"),
+        "zillow": CC.TextColumn("Zillow's forecast"),
     }
 
 

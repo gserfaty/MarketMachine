@@ -16,6 +16,7 @@ All free, public, and require no API key:
 - Zillow for-sale inventory (metro, from 2018) — count of listings; used as year-over-year change.
 - Zillow share of listings with a price cut (metro, from 2018).
 - Zillow affordability files (metro, 20% down): total monthly payment, income needed, and share of median income; used as context on the Affordability page.
+- Zillow Home Value Forecast (metro, 3 and 12 months) — shown next to ours for comparison only; not a model feature.
 - [FRED `MORTGAGE30US`](https://fred.stlouisfed.org/series/MORTGAGE30US) — weekly 30-year fixed mortgage rate.
 - [FRED `MSACSR`](https://fred.stlouisfed.org/series/MSACSR) — monthly months' supply of new houses; a forecast feature, lagged 1 month.
 - [FRED `MORTGAGE15US`](https://fred.stlouisfed.org/series/MORTGAGE15US) — weekly 15-year fixed mortgage rate.
@@ -122,6 +123,10 @@ and naive momentum (simple returns). Backtest average MAE is about 3.37 pp for t
 rank IC and lift are n/a because it ranks nothing).
 
 **Features tried and not kept.** Zillow sales count, payment-to-income share, implied income and the FHFA HPI-vs-ZHVI gap were backtested as extra features (2026-10-21). None beat the current features by a meaningful margin (best 12m blend MAE change: 0.003 pp), so the model was unchanged then. On 2026-10-22 national FRED candidates were added: months' supply (MSACSR) was kept (12m MAE 3.60 to 3.37); yield curve, unemployment, housing starts, permits, real mortgage rate and delinquency were not. Details in `CHANGELOG.md` and `docs/RESEARCH.md`.
+
+**Versus Zillow.** The forecast page compares our 3- and 12-month forecasts with Zillow's own. On 2026-10-22 at 12 months, 771 of 894 metros had the same direction as Zillow's, and the median difference was -0.1 points (ours minus Zillow). This compares forecasts only, not accuracy.
+
+**Snapshots.** `.github/workflows/zillow-snapshot.yml` saves Zillow's forecast CSV monthly (cron `0 14 20 * *`) to the `snapshots` branch, at `https://raw.githubusercontent.com/gserfaty/MarketMachine/snapshots/zillow_forecast/<BaseDate>.csv`. A track record comparing forecasts with outcomes comes later, once they come due.
 
 Past backtest performance does not guarantee future results.
 

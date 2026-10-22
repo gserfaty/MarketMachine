@@ -1,0 +1,47 @@
+name: zillow-snapshot
+
+on:
+  schedule:
+    - cron: "0 14 20 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: zillow-snapshot
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      URL: https://files.zillowstatic.com/research/public_csvs/zhvf_growth/Metro_zhvf_growth_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv
+    steps:
+      - name: Download Zillow forecast
+        run: curl -fsSL --retry 3 "$URL" -o "$RUNNER_TEMP/zf.csv"
+      - name: Save snapshot to the snapshots branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          BASE=$(python3 -c 'import csv,sys;print(next(csv.DictReader(open(sys.argv[1])))["BaseDate"])' "$RUNNER_TEMP/zf.csv")
+          [[ "$BASE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "bad BaseDate: $BASE"; exit 1; }
+          git init snap
+          cd snap
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          if git fetch --depth 1 origin snapshots; then
+            git checkout -b snapshots FETCH_HEAD
+          else
+            git checkout --orphan snapshots
+          fi
+          if [ -e "zillow_forecast/$BASE.csv" ]; then
+            echo "already saved"
+            exit 0
+          fi
+          mkdir -p zillow_forecast
+          cp "$RUNNER_TEMP/zf.csv" "zillow_forecast/$BASE.csv"
+          git add zillow_forecast
+          git -c 'user.name=github-actions[bot]' -c 'user.email=41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "Zillow forecast snapshot $BASE"
+          git push origin snapshots

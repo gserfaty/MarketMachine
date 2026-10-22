@@ -151,6 +151,7 @@ Mirrors: `alfred.stlouisfed.org/graph/fredgraph.csv` returns 404; no keyless mir
 - Units: percent growth vs the BaseDate ZHVI (e.g. NYC 0.3, 0.7, 2.8 means +2.8% over 12m). Range 12m: -4.2 to +7.4.
 - Rows: 895 = 894 `msa` + 1 `country` (United States). 895/895 match our ZHVI file on both RegionID and RegionName (join on RegionID).
 - Wayback: CDX lists 51 HTTP-200 captures of the sm_sa URL (with varying `?t=` params), 30 distinct content digests, 2022-09-04 to 2026-05-08, in 23 distinct months (2022-09..10, 2023-03..07, 2024-01..12 sporadic, 2025-02..12, 2026-01/04/05). Caveat: replay is unreliable. Fetching `.../web/<ts>id_/<url>` for the oldest and newest captures both returned a file with BaseDate 2023-05-31 (i.e. the same stale file), and `?t=` URLs returned empty, so snapshot contents were NOT verified as distinct. Note old 2022 captures also exist under the pre-`sm_sa` name `..._tier_0.33_0.67_month.csv` (4 captures, 2022-10 to 2023-05).
+- No free historical archive found beyond Wayback; logging from 2026-10.
 - Implication: a historical benchmark is possible only as roughly 20 sparse, irregular origins since 2022 (12m outcomes realized only for origins up to ~2025-09), and only if per-capture content checks pass. Cheaper and cleaner: start logging the live file monthly from now (as already suggested above).
 
 ### 3. GitHub protection (gserfaty/MarketMachine, main)
