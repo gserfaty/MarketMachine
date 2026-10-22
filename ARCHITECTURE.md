@@ -8,7 +8,7 @@
 - `housing/finance.py` - mortgage, ARM and equity-projection math (no Streamlit).
 - `housing/ui.py` - theme, CSS, sidebar, shared widgets, disclaimer text.
 - `housing/shared.py` - cached loaders and helpers used by several pages.
-- `housing/pages/` - one script per page: overview, findings, explorer, profile, forecast, financing, affordability.
+- `housing/pages/` - one script per page: overview, findings (hidden redirect to overview), explorer, profile, forecast, financing, affordability.
   Streamlit runs these files; they are not imported. Each ends with a call to its render function.
 
 ## Data flow
@@ -22,7 +22,7 @@ All in `housing/shared.py`, so every page shares the same caches:
 - `st.cache_resource` for the trained model, keyed by `as_of_key` (latest data date plus supply flag) plus `horizon`. 12m is shared by all pages; 3m/24m are trained only when picked on the forecast page.
 
 ## Navigation
-`app.py` registers `st.Page("housing/pages/<name>.py", ...)` entries and runs `st.navigation`.
+`app.py` registers `st.Page("housing/pages/<name>.py", ...)` entries and runs `st.navigation`. `findings` is registered with `visibility="hidden"` as an alias for old /findings links (6 visible items).
 The selected metro lives in session state and the `?metro=` query parameter. `st.session_state["_nav"]`
 holds the `st.Page` objects for `ui.nav_button`.
 

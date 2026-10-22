@@ -26,7 +26,7 @@ The structural and temporal spec for MarketMachine. For visual tokens, see DESIG
 
 | Phase | Page(s) | User action | Mindset | Emotion | Opportunity |
 |-------|---------|-------------|---------|---------|-------------|
-| 1 Market | Market overview, Findings | Read the headline; scan leaders | "Is now a good time?" | Curious, mildly anxious | Answer in one sentence; "Next: pick a metro" |
+| 1 Market | Market overview | Read the headline; scan leaders | "Is now a good time?" | Curious, mildly anxious | Answer in one sentence; "Next: pick a metro" |
 | 2 Metro | Regional explorer, Market profile | Find or compare metros; choose one | "Where should I look?" | Exploring (messy middle: explore <-> evaluate loop, Google 2020) | Pick once, carry everywhere |
 | 3 Forecast | ML forecast | Read the forecast and how reliable it is | "Can I trust this?" | Skeptical | Range and track record up front |
 | 4 Money | Financing estimator, Affordability | Set price/down payment; read monthly payment and equity | "Can I afford it, will it grow?" | Decisive, wary of being sold to | Payment first; clear "not a quote" |
@@ -39,17 +39,16 @@ The path is not a funnel: users loop between metro and forecast/financing (switc
 
 **Structure:** hub-and-spoke on a shared "selected metro" spine; flat global navigation (Rosenfeld/Morville: global nav + contextual nav). **Organization scheme:** task/stage (ambiguous scheme), ordered by the stated flow.
 
-**Sidebar (global nav): 7 options, one above the earlier 6-item Hick target (Hick-Hyman 1952), justified because Money is the decision stage and Affordability links straight into Financing.** Non-interactive group captions are not options. Labels in sentence case.
+**Sidebar (global nav): 6 options, at the Hick target (Hick-Hyman 1952); Findings merged into Market overview (2026-10-22), /findings is a hidden alias.** Non-interactive group captions are not options. Labels in sentence case.
 
 | # | Group caption | Label | Today's label / position |
 |---|---------------|-------|--------------------------|
 | 1 | Market | Market overview | same, position 1 |
-| 2 | Market | Findings | was 4 (moved up: market-wide rankings help choose a metro) |
-| 3 | Metro | Regional explorer | was 2 |
-| 4 | Metro | Market profile | was 5, "Market Profile"; page header was "Market Profiles" |
-| 5 | Money | ML forecast | was 3 |
-| 6 | Money | Financing estimator | same label, was 6 |
-| 7 | Money | Affordability | new |
+| 2 | Metro | Regional explorer | was 2 |
+| 3 | Metro | Market profile | was 5, "Market Profile"; page header was "Market Profiles" |
+| 4 | Money | ML forecast | was 3 |
+| 5 | Money | Financing estimator | same label, was 6 |
+| 6 | Money | Affordability | new |
 
 Note: order differs from the approved wireframe mock (which kept today's order). Needs user confirmation; if rejected, fall back to today's order with no loss to the other specs.
 
@@ -61,14 +60,14 @@ Note: order differs from the approved wireframe mock (which kept today's order).
 
 ### Primary task flow
 
-Market overview (headline) -> choose metro (picker on "Next" block) -> ML forecast (that metro) -> Financing estimator (that metro). Side paths: Findings and Regional explorer help choose the metro; Market profile compares it.
+Market overview (headline) -> choose metro (picker on "Next" block) -> ML forecast (that metro) -> Financing estimator (that metro). Side paths: Top markets (on Market overview) and Regional explorer help choose the metro; Market profile compares it.
 
 ### Metro persistence flow (DW-1.2)
 
 Source of truth: `st.session_state["metro"]` (a `region` string exactly as in the Zillow metro data, e.g. "Austin, TX"), mirrored to the URL `?metro=Austin%2C%20TX`. Never put anything but the region name in the URL.
 
 1. **Select.** Any metro picker (overview "Next" block, sidebar control, Explorer "Region history" in Metro mode, Market profile selector, Financing "Metro", forecast header) sets the state. The picker defaults to a "Choose a metro..." placeholder when state is empty (no silent default like "largest metro").
-2. **Carry.** On every page load: read state; if empty, read `?metro=`; validate; write back to both. All metro-aware pages (Market profile, ML forecast, Financing estimator) open on the carried metro without asking again. Overview, Explorer, Findings show it in the sidebar and offer it as the next-step target.
+2. **Carry.** On every page load: read state; if empty, read `?metro=`; validate; write back to both. All metro-aware pages (Market profile, ML forecast, Financing estimator) open on the carried metro without asking again. Overview and Explorer show it in the sidebar and offer it as the next-step target.
 3. **Change.** The sidebar "Selected metro" block shows the name and a "Change" control with a click target >= 24px (WCAG 2.2 SC 2.5.8; Fitts 1954); changing it updates state and URL and re-renders the current page. The readout renders from state, not from a widget, so it always equals the picker (fixes mock-review finding: "None yet" shown beside a filled select). Page-local compare selectors (Market profile "Compare with") are NOT persisted.
 4. **Invalid or missing.**
 
@@ -97,29 +96,24 @@ Shared rules for all six: headline answer is the first element under the page ti
 - **Entry points:** app home (default page); sidebar; brand link.
 - **Headline answer:** "US home values: up 1.2% over the past year; forecast +1.3% next 12 months (80% range 0% to +3.6%)." Named data month: "Zillow data as of Sep 2026." Today: no headline; the forecast figure requires the trained model (cached; first load shows a "Training forecast model" spinner). If forecast unavailable: "US home values: up 1.2% over the past year" only.
 - **Headline KPIs (above the fold), 4:** Typical home value; Year over year (arrow + sign); 30-year mortgage rate (with 12-month change); Case-Shiller YoY with caption "different index method than Zillow" (explains why two YoY figures differ).
-- **Content blocks (priority order):** 1 headline + one-line takeaway; 2 KPI row; 3 home-value chart with forecast band; 4 "Next: pick a metro" block (picker + "See this metro's forecast" CTA); 5 YoY vs mortgage rate chart (today a dual axis; Phase 5 decides); 6 Case-Shiller chart; 7 as-of line (Zillow month, FRED month); 8 disclaimer.
+- **Content blocks (priority order):** 1 headline + one-line takeaway; 2 KPI row; 3 home-value chart with forecast band; 4 "Next: pick a metro" block (picker + "See this metro's forecast" CTA); 5 YoY vs mortgage rate chart (today a dual axis; Phase 5 decides); 6 Case-Shiller chart; 7 Top markets (former Findings): sentence, disclaimer callout, KPI row (3), gainers, laggards, Past year / Past 5 years tabs, Most valuable metros; 8 as-of line (Zillow month, FRED month); 9 disclaimer.
 - **States:** *Zillow down:* Zillow-down standard; headline and KPIs absent. *FRED mortgage down:* mortgage KPI shows "n/a", warning "Mortgage rates unavailable", rate chart hidden; headline unaffected. *Case-Shiller down:* tile shows "n/a", chart omitted. *Forecast unavailable or errors:* headline drops the forecast clause. *Loading:* spinners per cached loader. *No metro:* default state, "Next" block shows placeholder picker. *Metro carried:* "Next" block says "Continue with <metro>" plus "Change".
-- **Exits:** primary: "See this metro's forecast" -> ML forecast; secondary: Findings ("See top markets"), Regional explorer.
+- **Exits:** primary: "See this metro's forecast" -> ML forecast; secondary: Regional explorer.
 - **Copy (Phase 4, final; supersedes draft wording above):**
   - Title: "Market overview". Nav label: same.
-  - Headline: "US home values: up {yoy}% over the past year; forecast {fc} next 12 months (80% range {lo} to {hi})." Fallback (no forecast): "US home values: up {yoy}% over the past year." Down year: "down {yoy}%". As-of line: "Zillow data as of {Mon YYYY}. Mortgage rates as of {Mon YYYY}." Takeaway line under headline: "Next, choose a metro to see its forecast."
-  - KPI labels (tooltip in parentheses): "Typical home value" (Zillow Home Value Index, ZHVI: the middle of the market, smoothed); "Change over 12 months" (year over year, YoY); "30-year mortgage rate" with delta "{+0.12} points vs a year ago" (Freddie Mac weekly average via FRED); "Case-Shiller, 12 months" with caption "Measured differently from Zillow, so the two can differ." (S&P Case-Shiller US National index, year over year).
+  - Headline: "US home values: {▲/▼ yoy} over the past year; forecast {▲/▼ fc} next 12 months (80% range {lo} to {hi})." Fallback (no forecast): "US home values: {▲/▼ yoy} over the past year." As-of line: "Zillow data as of {Mon YYYY}. Mortgage rates as of {Mon YYYY}." Takeaway line under headline: "Next, choose a metro to see its forecast."
+  - KPI labels (tooltip in parentheses): "Typical home value" (Zillow Home Value Index, ZHVI: the middle of the market, smoothed); "Change over 12 months" (year over year, YoY); "30-year mortgage rate" with delta "{+0.12} points vs a year ago" (Freddie Mac weekly average via FRED); "Case-Shiller, 12 months" with note "Differs from Zillow's method." (S&P Case-Shiller US National index, year over year).
   - Chart titles: "US typical home value since 2000"; "Home values and mortgage rates"; "Case-Shiller US National Home Price Index".
   - Next block: heading "Next: pick a metro". Picker label "Metro"; placeholder "Choose a metro"; button "See this metro's forecast". When carried: "Continue with {metro}" + button "Change metro".
-  - Secondary links: "See top markets" (Findings), "Explore regions" (Regional explorer).
+  - Secondary link: "Explore regions" (Regional explorer).
   - Empty/error: Zillow down: Zillow-down standard (Voice & tone). Mortgage down: warning "Heads up: mortgage rates are unavailable right now. The headline and home-value chart are unaffected; the rate chart is hidden." KPI value "n/a". Case-Shiller down: KPI "n/a", chart omitted, no message. Forecast unavailable: headline drops the forecast clause, no message.
   - Loading: "Loading home-value data" ; "Loading mortgage rates"; "Training the forecast model (first load takes a minute)".
   - Disclaimer: D1, beside the headline forecast clause and in the footer.
 
 ### 2. Findings
 
-- **Purpose:** show which metros lead and lag, so the user can choose where to look.
-- **Entry points:** sidebar (group Market); Overview secondary link.
-- **Headline answer:** "Top predicted gainer: <metro> at +X% next 12 months (80% range a to b)." Today: no headline; five stacked tables opened by "Top 15 gainers - 1 year".
-- **Headline KPIs (above the fold), 3:** Best predicted metro (name + %); Best performer last 5 years; Most valuable metro. (Derived from existing tables; no new analytics.)
-- **Content blocks:** 1 headline; 2 KPI row; 3 Predicted gainers top 15 (with 80% range column); 4 Predicted laggards bottom 10; 5 Best past 1-yr and 5-yr gainers (tabs, to reduce scroll); 6 Most valuable metros; 7 disclaimer callout (kept as a callout, not only a caption). Each metro name offers "Use this metro" (sets shared metro) where the Streamlit version supports row selection; otherwise a "Choose a metro" picker above the tables.
-- **States:** *Zillow down:* Zillow-down standard; no tables. *Forecast training fails:* tables of past performance still show, predicted sections replaced by "Forecast unavailable right now" and headline falls back to best past performer. *FRED down:* forecast trains without macro (existing) - no UI change, caption "Mortgage data unavailable; forecast may be less accurate." *Supply down:* forecast warning. *Loading:* spinners (data, then "Training forecast model..."). *Empty tables (no metros match size filter):* "No metros to show."
-- **Exits:** "See forecast for <metro>" -> ML forecast (after use-this-metro); Regional explorer for filtering; Market overview.
+Moved into Market overview, section "Top markets" (2026-10-22); /findings is a hidden redirect. Copy below is unchanged.
+
 - **Copy (Phase 4, final):**
   - Title: "Findings". Nav label: same.
   - Headline: "Top predicted gainer: {metro} at {+X}% next 12 months (80% range {a} to {b})." Fallback (forecast unavailable): "Best performer over the past year: {metro} at {+X}%."

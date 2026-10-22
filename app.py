@@ -7,7 +7,7 @@ st.set_page_config(page_title="MarketMachine — US Housing", layout="wide")
 
 NAV = {
     "overview": st.Page("housing/pages/overview.py", title="Market overview", url_path="overview", default=True),
-    "findings": st.Page("housing/pages/findings.py", title="Findings", url_path="findings"),
+    "findings": st.Page("housing/pages/findings.py", title="Findings", url_path="findings", visibility="hidden"),
     "explorer": st.Page("housing/pages/explorer.py", title="Regional explorer", url_path="explorer"),
     "profile": st.Page("housing/pages/profile.py", title="Market profile", url_path="profile"),
     "forecast": st.Page("housing/pages/forecast.py", title="ML forecast", url_path="forecast"),

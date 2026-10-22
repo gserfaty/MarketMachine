@@ -4,8 +4,10 @@ import shutil
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from housing import ui
+
 APP_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app.py")
-PAGES = ["overview", "findings", "explorer", "profile", "forecast", "financing", "affordability"]
+PAGES = ["overview", "explorer", "profile", "forecast", "financing", "affordability"]
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 
@@ -121,3 +123,44 @@ def test_forecast_zillow_down(tmp_path, monkeypatch):
     assert not at.exception
     assert any("Zillow's own forecast is unavailable" in c.value for c in at.caption)
     assert "not financial advice" in " ".join(m.value for m in list(at.markdown) + list(at.caption)).lower()
+
+
+def test_findings_alias_redirects():
+    at = _run_page("findings")
+    assert not at.exception
+    assert "Market overview" in [h.value for h in at.header]
+
+
+def test_overview_has_top_markets():
+    at = _run_page("overview")
+    subs = [x.value for x in at.subheader]
+    assert "Top markets" in subs and "Predicted to gain most, next 12 months" in subs
+    assert "80% range is the span" in " ".join(m.value for m in at.markdown)
+
+
+@pytest.mark.parametrize("page", ["overview", "explorer"])
+def test_headline_has_arrow(page):
+    at = _run_page(page)
+    assert any("mm-answer" in m.value and ("▲" in m.value or "▼" in m.value) for m in at.markdown)
+
+
+def test_kpi_delta_inside_card():
+    at = _run_page("explorer")
+    assert any(str(m.delta).startswith(("▲", "▼")) for m in at.metric)
+    at = _run_page("overview")
+    assert not any("points vs a year ago" in c.value for c in at.caption)
+
+
+def test_color_deltas():
+    out = ui.color_deltas("a ▲ +1.2% b ▼ −0.4%")
+    assert "mm-up" in out and "mm-down" in out
+    assert ui.color_deltas("(80% range −1.0% to +2.0%)") == "(80% range −1.0% to +2.0%)"
+
+
+def test_metro_source_caption():
+    at = _run_page("forecast", {"metro": "Chicago, IL"})
+    assert not any("from Market overview" in c.value for c in at.caption)
+    at = AppTest.from_file(APP_PATH, default_timeout=120).run()
+    at.selectbox(key="metro_pick_overview").set_value("Chicago, IL").run()
+    at = at.switch_page("housing/pages/forecast.py").run()
+    assert any("from Market overview" in c.value for c in at.caption)

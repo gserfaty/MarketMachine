@@ -134,6 +134,7 @@ def _lines(series: list[tuple[str, pd.Series, str, str]], ytitle: str, height: i
         fig.add_annotation(x=s.index[-1], y=s.iloc[-1], text=name, showarrow=False, xanchor="left", xshift=6,
                            font=dict(size=12, color=ui.INK))
     fig.update_layout(showlegend=False, margin=dict(r=150), height=height)
+    ui.end_range(fig, min(s.index[0] for _, s, _, _ in series), max(s.index[-1] for _, s, _, _ in series))
     ys = pd.concat([x[1] for x in series])
     pad = (ys.max() - ys.min()) * 0.05
     fig.update_yaxes(tickformat="$,.0f", title=ytitle, range=[ys.min() - pad, ys.max() + pad])
@@ -146,7 +147,7 @@ def _short(name: str) -> str:
 
 def _num_cols() -> dict:
     return {
-        "region": CC.TextColumn("Metro", pinned=True), "state": CC.TextColumn("State", width="small"),
+        "region": CC.TextColumn("Metro"), "state": CC.TextColumn("State", width="small"),
         "value": CC.NumberColumn("Typical value", format="$%,d"),
         "size_rank": CC.NumberColumn("Size rank", format="%d"),
         "chg_1y": CC.TextColumn("Change, 1 year"), "chg_5y": CC.TextColumn("Change, 5 years"),
