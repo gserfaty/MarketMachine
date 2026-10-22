@@ -5,6 +5,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### National months' supply feature (2026-10-22)
+- Shipped: FRED `MSACSR` (months' supply of new houses) as `msacsr` and `msacsr_chg12`, lagged 1 month (point in time), merged by date like mortgage. NaN (old model) when the series is down.
+- Before -> after (blend; MAE pp / bias pp / rank IC / coverage80 / width80 pp / 2019+ MAE / 2019+ bias):
+  3m 0.937 / -0.108 / 0.607 / 0.801 / 3.45 -> 0.932 / -0.109 / 0.604 / 0.798 / 3.40;
+  12m 3.602 / -0.954 / 0.473 / 0.777 / 14.01 / 4.198 / -0.692 -> 3.374 / -0.719 / 0.481 / 0.788 / 13.12 / 3.986 / -0.621;
+  24m 8.590 / -1.590 / 0.404 / 0.719 / 36.58 / 11.339 / 1.595 -> 8.450 / -1.089 / 0.412 / 0.714 / 34.46 / 11.749 / 1.848.
+- Rejected (12m blend MAE vs 3.602): T10Y2Y curve 3.661, UNRATE chg12 3.643, HOUST YoY 3.615, PERMIT YoY 3.601 (flat), real mortgage rate 3.660 and DRSFRMACBS 3.714 all worse or flat. Combos add nothing: MSACSR + PERMIT 3.394, + HOUST 3.396, + DRSFRMACBS 3.548 (all worse than MSACSR alone, extra loaders).
+- Lag sensitivity (12m): lag 2 gives 3.366, lag 3 gives 3.488; the gain is not a release-timing artifact. Lag 1 kept.
+- Caveat: at 24m the 2019+ MAE is worse (11.339 -> 11.749) and the 80% range is 6% narrower. Series are revised data (no keyless vintages), so there is mild look-ahead.
+
 ### Bias correction rejected, 24m range calibration shipped (2026-10-22)
 - Shipped: (b) at 24m only (`calibrate_intervals`, `ForecastResult.interval_k`); 3m and 12m untouched. Tested on the real-data quarterly backtest, mortgage on (FRED back), supply on. The 2026-10-21 horizon table below was measured with mortgage off; README now carries the mortgage-on numbers.
 - Before (blend; MAE pp / bias pp / rank IC / coverage80 / width80 pp / 2019+ MAE / 2019+ bias):

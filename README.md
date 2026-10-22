@@ -17,6 +17,7 @@ All free, public, and require no API key:
 - Zillow share of listings with a price cut (metro, from 2018).
 - Zillow affordability files (metro, 20% down): total monthly payment, income needed, and share of median income; used as context on the Affordability page.
 - [FRED `MORTGAGE30US`](https://fred.stlouisfed.org/series/MORTGAGE30US) — weekly 30-year fixed mortgage rate.
+- [FRED `MSACSR`](https://fred.stlouisfed.org/series/MSACSR) — monthly months' supply of new houses; a forecast feature, lagged 1 month.
 - [FRED `MORTGAGE15US`](https://fred.stlouisfed.org/series/MORTGAGE15US) — weekly 15-year fixed mortgage rate.
 - [FRED `SOFR30DAYAVG`](https://fred.stlouisfed.org/series/SOFR30DAYAVG) — 30-day average SOFR (ARM index). ARM terms:
   [ARRC white paper](https://www.newyorkfed.org/medialibrary/Microsites/arrc/files/2019/ARRC-SOFR-indexed-ARM-Whitepaper.pdf),
@@ -74,7 +75,7 @@ pytest
 ## Model & evaluation
 
 A `HistGradientBoostingRegressor` predicts each metro's 12-month log return from point-in-time
-price-momentum, volatility, and macro (mortgage rate) features.
+price-momentum, volatility, and macro (mortgage rate, national months' supply of new houses) features.
 Training rows are weighted by recency (weight halves every 3 years
 of origin age), so the model adapts faster after regime changes.
 Supply features (metro for-sale inventory YoY, share of listings with a price cut and its 12-month change)
@@ -104,24 +105,23 @@ under-covers because outcomes span market-wide shocks. Backtest (mortgage on, FR
 
 | Horizon | Blend MAE (pp) | Bias (pp) | Rank IC | Coverage80 | Interval gap |
 |---|---|---|---|---|---|
-| 3 months | 0.94 | -0.11 | 0.61 | 0.80 | 2 yrs |
-| 12 months | 3.60 | -0.95 | 0.47 | 0.78 | 2 yrs |
-| 24 months | 8.59 | -1.59 | 0.40 | 0.72 | 3 yrs |
+| 3 months | 0.93 | -0.11 | 0.60 | 0.80 | 2 yrs |
+| 12 months | 3.37 | -0.72 | 0.48 | 0.79 | 2 yrs |
+| 24 months | 8.45 | -1.09 | 0.41 | 0.71 | 3 yrs |
 
 **Prediction intervals.** A forecast like "+3% (-1% to +6%)" means an 80% range: about 8 of 10 past forecasts
 landed inside it. The range comes from past blend backtest residuals, scaled by the metro's 12-month volatility,
 so volatile metros get wider ranges; for each year only earlier, already-resolved years are used. Backtest coverage
-is about 78% at 12 months (72% at 24 after the range is widened by a factor learned only from earlier years; still under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee.
+is about 79% at 12 months (71% at 24 after the range is widened by a factor learned only from earlier years; still under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee.
 
 **Served forecast.** The page and Findings serve `blend`, the equal-weight average of the model
-and naive momentum (simple returns). Backtest average MAE is about 3.60 pp for the blend vs ~3.58 model
-vs ~4.2 momentum; the page shows live numbers. The backtest still shows a pessimistic bias
-(~-0.95 pp blend), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
+and naive momentum (simple returns). Backtest average MAE is about 3.37 pp for the blend; the page shows live model and momentum numbers. The backtest still shows a pessimistic bias
+(~-0.72 pp blend), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
 
 **Baselines and predictors.** `blend`, `model`, `naive_momentum` (predict the trailing 12-month return) and `zero` (no change;
 rank IC and lift are n/a because it ranks nothing).
 
-**Features tried and not kept.** Zillow sales count, payment-to-income share, implied income and the FHFA HPI-vs-ZHVI gap were backtested as extra features (2026-10-21). None beat the current features by a meaningful margin (best 12m blend MAE change: 0.003 pp), so the model is unchanged. Details in `CHANGELOG.md` and `docs/RESEARCH.md`.
+**Features tried and not kept.** Zillow sales count, payment-to-income share, implied income and the FHFA HPI-vs-ZHVI gap were backtested as extra features (2026-10-21). None beat the current features by a meaningful margin (best 12m blend MAE change: 0.003 pp), so the model was unchanged then. On 2026-10-22 national FRED candidates were added: months' supply (MSACSR) was kept (12m MAE 3.60 to 3.37); yield curve, unemployment, housing starts, permits, real mortgage rate and delinquency were not. Details in `CHANGELOG.md` and `docs/RESEARCH.md`.
 
 Past backtest performance does not guarantee future results.
 

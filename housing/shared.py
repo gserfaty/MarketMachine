@@ -65,8 +65,8 @@ def cached_affordability(data_dir: str | None = None) -> pd.DataFrame | None:
 
 
 @st.cache_resource(show_spinner="Training the forecast model (first load takes a minute)")
-def cached_forecast(as_of_key: str, _long_df: pd.DataFrame, _mortgage, _supply, horizon: int = 12) -> model.ForecastResult:
-    return model.train_and_evaluate(_long_df, _mortgage, supply=_supply, horizon=horizon)
+def cached_forecast(as_of_key: str, _long_df: pd.DataFrame, _mortgage, _supply, horizon: int = 12, _months_supply=None) -> model.ForecastResult:
+    return model.train_and_evaluate(_long_df, _mortgage, supply=_supply, horizon=horizon, months_supply=_months_supply)
 
 
 def _safe_load_metro() -> pd.DataFrame | None:
@@ -169,8 +169,9 @@ def _range_table(df: pd.DataFrame) -> pd.DataFrame:
 def _forecast(metro_df: pd.DataFrame, horizon: int = 12) -> model.ForecastResult:
     mortgage = cached_fred("MORTGAGE30US", _data_dir_key())
     supply = cached_supply(_data_dir_key())
-    as_of_key = f"{metro_df['date'].max()}|supply={supply is not None}"
-    return cached_forecast(as_of_key, metro_df, mortgage, supply, horizon)
+    ms = cached_fred("MSACSR", _data_dir_key())
+    as_of_key = f"{metro_df['date'].max()}|supply={supply is not None}|ms={ms is not None}"
+    return cached_forecast(as_of_key, metro_df, mortgage, supply, horizon, ms)
 
 
 def _forecast_failed() -> None:
