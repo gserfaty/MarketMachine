@@ -30,3 +30,4 @@ holds the `st.Page` objects for `ui.nav_button`.
 `pytest` in `tests/`, fully offline: `tests/conftest.py` points `MARKETMACHINE_DATA_DIR` at
 `tests/fixtures/` (built by `tests/make_fixtures.py`) and blocks sockets. `tests/test_app.py` uses
 `AppTest` and `switch_page` to render each page file.
+CI: `.github/workflows/tests.yml` runs `python -m pytest -q` on Python 3.13 for PRs to and pushes on `main`; its `pytest` job is a required status check.

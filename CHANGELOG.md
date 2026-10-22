@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Continuous integration (2026-10-22)
+- GitHub Actions workflow `tests.yml` runs the offline test suite (`python -m pytest -q`, Python 3.13) on every pull request to `main` and every push to `main`.
+- The `pytest` check is required on `main` (not strict); the code-owner review rule is unchanged.
+
 ### Data experiments (2026-10-21)
 - No model change. New free metro features were tested with the real-data quarterly backtest (same pipeline as `train_and_evaluate`, 2010+, supply on). FRED was in maintenance, so `mortgage=None` for every run (baseline and candidates).
 - Keep bar: at 12m, blend MAE must improve by >= 0.02 pp (the reproduction tolerance) or rank IC by >= 0.005, |bias| must not get worse, and 3m/24m must not get worse by more than the same margins.

@@ -5,6 +5,7 @@ Thanks for your interest in MarketMachine.
 - `main` is protected. All changes go through a pull request, and every pull request needs an approving review from the owner, [@gserfaty](https://github.com/gserfaty) (enforced by `.github/CODEOWNERS`).
 - Fork the repo (or create a branch if you have write access), make your change, and open a pull request against `main`.
 - Before opening a PR, run the tests locally: `.venv/bin/python -m pytest -q`. Tests must pass offline.
+- Every pull request runs the test suite in GitHub Actions (`.github/workflows/tests.yml`, check `pytest`). The check must pass before the PR can be merged.
 - Add a line to `CHANGELOG.md` under `[Unreleased]` describing your change.
 - Forecasts and financing figures are estimates, not financial advice; keep the in-app disclaimers intact.
 
