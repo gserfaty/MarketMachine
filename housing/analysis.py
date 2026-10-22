@@ -137,3 +137,19 @@ def find_similar_markets(
     ].head(n_neighbors)
 
     return neighbors.reset_index(drop=True)
+
+
+def compare_to_zillow(preds: pd.DataFrame, zf: pd.DataFrame, h: int) -> dict | None:
+    """Our forecast vs Zillow's per metro at horizon h (3 or 12). Diff is ours minus Zillow's, in points."""
+    col = f"zf_{h}m"
+    if h not in (3, 12) or col not in zf.columns:
+        return None
+    j = preds.merge(zf[["region", col]], on="region")
+    j = j[(j["region"] != "United States") & j[col].notna() & j["pred_12m"].notna()]
+    if j.empty:
+        return None
+    return {
+        "n": len(j),
+        "same_dir": int((np.sign(j["pred_12m"]) == np.sign(j[col])).sum()),
+        "median_diff_pp": float((j["pred_12m"] - j[col]).median() * 100),
+    }

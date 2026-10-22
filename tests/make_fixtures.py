@@ -1,5 +1,6 @@
 """Deterministically generate small fixture CSVs matching the real source formats.
 
+Note: zillow_forecast.csv is hand-written (not generated here).
 Run with: python tests/make_fixtures.py
 Regenerates tests/fixtures/{zhvi_metro,zhvi_state,MORTGAGE30US,CSUSHPINSA,MSACSR,...}.csv
 """

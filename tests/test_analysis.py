@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 import pandas as pd
 
@@ -54,3 +55,13 @@ def test_national_series():
     series = analysis.national_series(long_df)
     assert len(series) == 13
     assert np.isclose(series.iloc[0], 200.0)
+
+
+def test_compare_to_zillow():
+    preds = pd.DataFrame({"region": ["United States", "A", "B", "C"], "pred_12m": [0.02, 0.05, -0.01, 0.03]})
+    zf = pd.DataFrame({"region": ["United States", "A", "B", "C", "Atlantis"],
+                       "zf_12m": [0.01, 0.03, 0.02, np.nan, 0.1]})
+    r = analysis.compare_to_zillow(preds, zf, 12)
+    assert r["n"] == 2 and r["same_dir"] == 1
+    assert r["median_diff_pp"] == pytest.approx(-0.5)
+    assert analysis.compare_to_zillow(preds, zf, 24) is None

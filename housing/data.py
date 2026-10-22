@@ -40,6 +40,10 @@ URLS: dict[str, str] = {
         "https://files.zillowstatic.com/research/public_csvs/new_homeowner_affordability/"
         "Metro_new_homeowner_affordability_downpayment_0.20_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
     ),
+    "zillow_forecast": (
+        "https://files.zillowstatic.com/research/public_csvs/zhvf_growth/"
+        "Metro_zhvf_growth_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+    ),
     "MORTGAGE30US": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US",
     "MORTGAGE15US": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE15US",
     "SOFR30DAYAVG": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR30DAYAVG",
@@ -56,6 +60,7 @@ _OFFLINE_FILENAMES: dict[str, str] = {
     "afford_payment": "afford_payment.csv",
     "afford_income": "afford_income.csv",
     "afford_share": "afford_share.csv",
+    "zillow_forecast": "zillow_forecast.csv",
     "MORTGAGE30US": "MORTGAGE30US.csv",
     "MORTGAGE15US": "MORTGAGE15US.csv",
     "SOFR30DAYAVG": "SOFR30DAYAVG.csv",
@@ -148,6 +153,27 @@ def parse_fred(buf, series_id: str) -> pd.Series:
     return monthly
 
 
+def parse_zillow_forecast(buf) -> pd.DataFrame:
+    """Parse Zillow's ZHVF growth CSV. Columns: region, region_type, base_date, zf_1m, zf_3m, zf_12m (fractions).
+
+    Horizons are found by month offset from BaseDate, since the date headers change every release.
+    """
+    raw = pd.read_csv(buf)
+    base = pd.to_datetime(raw["BaseDate"]).max() + pd.offsets.MonthEnd(0)
+    cols = {}
+    for c in raw.columns:
+        d = pd.to_datetime(c, errors="coerce", format="%Y-%m-%d")
+        if pd.notna(d) and (d.year - base.year) * 12 + d.month - base.month in (1, 3, 12):
+            cols[c] = f"zf_{(d.year - base.year) * 12 + d.month - base.month}m"
+    if "zf_3m" not in cols.values() and "zf_12m" not in cols.values():
+        raise ValueError("Zillow forecast has no 3-month or 12-month column")
+    out = raw.rename(columns={"RegionName": "region", "RegionType": "region_type", **cols})
+    out[list(cols.values())] = out[list(cols.values())] / 100
+    out["base_date"] = base
+    out = out.dropna(subset=list(cols.values()), how="all")
+    return out[["region", "region_type", "base_date", *sorted(cols.values())]].reset_index(drop=True)
+
+
 def load_zhvi(kind: Literal["metro", "state"]) -> pd.DataFrame:
     key = "zhvi_metro" if kind == "metro" else "zhvi_state"
     raw_bytes = _read_bytes(source(key))
@@ -157,6 +183,10 @@ def load_zhvi(kind: Literal["metro", "state"]) -> pd.DataFrame:
 def load_fred(series_id: str) -> pd.Series:
     raw_bytes = _read_bytes(source(series_id))
     return parse_fred(io.BytesIO(raw_bytes), series_id)
+
+
+def load_zillow_forecast() -> pd.DataFrame:
+    return parse_zillow_forecast(io.BytesIO(_read_bytes(source("zillow_forecast"))))
 
 
 def load_supply() -> pd.DataFrame:

@@ -1,3 +1,4 @@
+import pytest
 import io
 import os
 
@@ -73,3 +74,20 @@ def test_load_affordability_offline():
     assert df["region"].is_unique and "Boise City, ID" not in set(df["region"])
     assert (df["date"] == pd.Timestamp("2026-08-31")).all()
     assert (df[["z_payment", "z_income_needed", "z_share"]] > 0).all().all()
+
+
+def test_parse_zillow_forecast_offsets():
+    z = data.parse_zillow_forecast(os.path.join(os.path.dirname(__file__), "fixtures", "zillow_forecast.csv"))
+    assert z.base_date.iloc[0] == pd.Timestamp("2026-08-31")
+    c = z.set_index("region").loc["Chicago, IL"]
+    assert (c.zf_1m, c.zf_3m, c.zf_12m) == pytest.approx((0.004, 0.011, 0.035))
+
+
+def test_parse_zillow_forecast_bad_offset_raises():
+    with pytest.raises(ValueError):
+        data.parse_zillow_forecast(io.StringIO("RegionName,RegionType,BaseDate,2027-02-28\nA,msa,2026-08-31,1\n"))
+
+
+def test_load_zillow_forecast_offline():
+    z = data.load_zillow_forecast()
+    assert {"zf_1m", "zf_3m", "zf_12m"} <= set(z.columns) and len(z) == 5

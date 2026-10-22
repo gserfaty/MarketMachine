@@ -5,6 +5,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Zillow forecast benchmark (2026-10-22)
+- Added a loader for Zillow's own metro forecast (ZHVF, 1/3/12 months, found by month offset from BaseDate), shown on the ML forecast page at 3m and 12m as a "We vs Zillow" line plus a "Zillow's forecast" table column. No 24m comparison (Zillow has none). It is a comparison only, not a model feature.
+- Added `.github/workflows/zillow-snapshot.yml`: monthly (day 20) copy of the Zillow forecast CSV to the `snapshots` branch.
+- Real data, 2026-10-22: 12m n=894, same direction 771 (86%), median difference -0.1 points (ours minus Zillow); 3m 660 of 894, -0.4 points.
+- No historical accuracy is claimed; that needs the forecasts to come due.
+
 ### National months' supply feature (2026-10-22)
 - Shipped: FRED `MSACSR` (months' supply of new houses) as `msacsr` and `msacsr_chg12`, lagged 1 month (point in time), merged by date like mortgage. NaN (old model) when the series is down.
 - Before -> after (blend; MAE pp / bias pp / rank IC / coverage80 / width80 pp / 2019+ MAE / 2019+ bias):

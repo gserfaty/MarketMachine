@@ -7,9 +7,9 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from housing import data, model, ui
+from housing import analysis, data, model, ui
 from housing.ui import GREY, INK, TEAL, fmt_pct, show, signed
-from housing.shared import _data_dir_key, cached_fred, cached_supply, _safe_load_metro, metro_regions, _footer_disclaimer, _need, _mon, _try_forecast, _short, _table, _range_table, _forecast_failed
+from housing.shared import _data_dir_key, cached_fred, cached_supply, cached_zillow_forecast, _safe_load_metro, metro_regions, _footer_disclaimer, _need, _mon, _try_forecast, _short, _table, _range_table, _forecast_failed
 
 
 def render_forecast() -> None:
@@ -41,6 +41,22 @@ def render_forecast() -> None:
     if h == 24:
         st.caption("24-month forecasts are the total (cumulative) change over two years, not a yearly rate.")
     ui.disclaimer()
+    zf = cached_zillow_forecast(_data_dir_key())
+    cmp = analysis.compare_to_zillow(result.predictions, zf, h) if zf is not None else None
+    if h == 24:
+        st.caption("Zillow doesn't publish a 24-month forecast, so there's no comparison at this horizon.")
+    elif cmp is None:
+        st.caption("Zillow's own forecast is unavailable right now, so there's no comparison.")
+    else:
+        zr_ = zf[zf["region"] == region]
+        z = zr_[f"zf_{h}m"].iloc[0] if len(zr_) else float("nan")
+        st.markdown(
+            f"Zillow's forecast for {_short(region)}: {signed(z)} over the next {label}. "
+            f"We vs Zillow: {cmp['same_dir']} of {cmp['n']} metros in the same direction; "
+            f"median difference {cmp['median_diff_pp']:+.1f} points (ours minus Zillow)."
+        )
+        st.caption(f"Zillow's forecast from {_mon(zf['base_date'].iloc[0])} data. This compares forecasts only, "
+                   "not which has been more accurate; that needs the forecasts to come due.")
     if len(row):
         st.caption(f"Using {metro} (from Market overview).")
     elif metro:
@@ -98,7 +114,11 @@ def render_forecast() -> None:
     preds = result.predictions.copy()
     if search:
         preds = preds[preds["region"].str.contains(search, case=False, na=False)]
-    _table(_range_table(preds), ["region", "state", "value", "pred"], height=320)
+    tbl, tcols = _range_table(preds), ["region", "state", "value", "pred"]
+    if cmp is not None:
+        tbl["zillow"] = tbl["region"].map(zf.set_index("region")[f"zf_{h}m"]).map(signed)
+        tcols.append("zillow")
+    _table(tbl, tcols, height=320)
 
     with st.expander("How we tested this"):
         _backtest_detail(result, h)
