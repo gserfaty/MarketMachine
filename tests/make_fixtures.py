@@ -1,7 +1,7 @@
 """Deterministically generate small fixture CSVs matching the real source formats.
 
 Run with: python tests/make_fixtures.py
-Regenerates tests/fixtures/{zhvi_metro,zhvi_state,MORTGAGE30US,CSUSHPINSA}.csv
+Regenerates tests/fixtures/{zhvi_metro,zhvi_state,MORTGAGE30US,CSUSHPINSA,MSACSR,...}.csv
 """
 from __future__ import annotations
 
@@ -139,6 +139,13 @@ def build_case_shiller(rng: np.random.Generator) -> pd.DataFrame:
     return df
 
 
+def build_msacsr() -> pd.DataFrame:
+    rng = np.random.default_rng(7)
+    months = pd.date_range("2000-01-01", "2026-07-01", freq="MS")
+    vals = 5.5 + 2 * np.sin(np.linspace(0, 8, len(months))) + rng.normal(0, 0.2, len(months))
+    return pd.DataFrame({"observation_date": months.strftime("%Y-%m-%d"), "MSACSR": vals.round(1)})
+
+
 SUPPLY_MONTHS = pd.date_range("2018-03-31", "2026-08-31", freq="ME")
 
 
@@ -198,6 +205,8 @@ def main() -> None:
     rng = np.random.default_rng(2)
     for kind in ("payment", "income", "share"):
         build_affordability(rng, kind).to_csv(os.path.join(FIXTURES_DIR, f"afford_{kind}.csv"), index=False)
+
+    build_msacsr().to_csv(os.path.join(FIXTURES_DIR, "MSACSR.csv"), index=False)
 
 
 if __name__ == "__main__":

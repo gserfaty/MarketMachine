@@ -50,6 +50,8 @@ def test_load_zhvi_metro_offline():
 def test_load_fred_offline():
     s = data.load_fred("CSUSHPINSA")
     assert not s.empty
+    ms = data.load_fred("MSACSR")
+    assert not ms.empty and (ms.index == ms.index + pd.offsets.MonthEnd(0)).all()
 
 
 def test_load_supply_offline():

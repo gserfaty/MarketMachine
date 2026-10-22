@@ -28,7 +28,9 @@ FEATURE_COLS = [
     "vol12", "accel", "drawdown36", "rel_us", "us_r12",
     "log_size_rank", "mort", "mort_chg12",
     "inv_yoy", "pc", "pc_chg12",
+    "msacsr", "msacsr_chg12",
 ]
+MACRO_LAG_MONTHS = 1  # MSACSR is published ~4 weeks after month end
 SUPPLY_COLS = ["inv_yoy", "pc", "pc_chg12"]
 
 _US_REGION = "United States"
@@ -39,12 +41,13 @@ def _melt(df: pd.DataFrame, name: str) -> pd.DataFrame:
     return m
 
 
-def build_features(long_df: pd.DataFrame, mortgage: pd.Series | None = None, supply: pd.DataFrame | None = None
-) -> pd.DataFrame:
+def build_features(long_df: pd.DataFrame, mortgage: pd.Series | None = None, supply: pd.DataFrame | None = None,
+                   months_supply: pd.Series | None = None) -> pd.DataFrame:
     """Panel of point-in-time features keyed (region, date).
 
     Every feature at date t is computed only from data available at or before t
     (no lookahead). Rows with NaN core return (r12) are dropped.
+    National months' supply (FRED MSACSR, lagged 1 month) is NaN when the series is down.
     """
     wide = to_wide(long_df)
     logp = np.log(wide)
@@ -96,6 +99,15 @@ def build_features(long_df: pd.DataFrame, mortgage: pd.Series | None = None, sup
     else:
         feat["mort"] = np.nan
         feat["mort_chg12"] = np.nan
+
+    if months_supply is not None:
+        idx = pd.date_range(months_supply.index.min(), feat["date"].max(), freq="ME")
+        ms = months_supply.reindex(idx).ffill().shift(MACRO_LAG_MONTHS)  # point-in-time; ffill covers a late release
+        ms_df = pd.DataFrame({"date": idx, "msacsr": ms.to_numpy(), "msacsr_chg12": (ms - ms.shift(12)).to_numpy()})
+        feat = feat.merge(ms_df, on="date", how="left")
+    else:
+        feat["msacsr"] = np.nan
+        feat["msacsr_chg12"] = np.nan
 
     feat = feat.dropna(subset=["r12"])
     feat = feat.set_index(["region", "date"]).sort_index()
@@ -299,9 +311,10 @@ def summarize_backtest(scores: pd.DataFrame) -> pd.DataFrame:
 
 
 def train_and_evaluate(
-    long_df: pd.DataFrame, mortgage: pd.Series | None, supply: pd.DataFrame | None = None, horizon: int = 12
+    long_df: pd.DataFrame, mortgage: pd.Series | None, supply: pd.DataFrame | None = None, horizon: int = 12,
+    months_supply: pd.Series | None = None,
 ) -> ForecastResult:
-    feat = build_features(long_df, mortgage, supply)
+    feat = build_features(long_df, mortgage, supply, months_supply)
     target = build_target(long_df, horizon=horizon)
     combined = feat.join(target.rename("y"), how="inner").reset_index()
 

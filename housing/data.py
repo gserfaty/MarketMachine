@@ -44,6 +44,7 @@ URLS: dict[str, str] = {
     "MORTGAGE15US": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE15US",
     "SOFR30DAYAVG": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR30DAYAVG",
     "CSUSHPINSA": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CSUSHPINSA",
+    "MSACSR": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MSACSR",
 }
 
 # Offline fixture filenames, keyed the same way as URLS.
@@ -59,6 +60,7 @@ _OFFLINE_FILENAMES: dict[str, str] = {
     "MORTGAGE15US": "MORTGAGE15US.csv",
     "SOFR30DAYAVG": "SOFR30DAYAVG.csv",
     "CSUSHPINSA": "CSUSHPINSA.csv",
+    "MSACSR": "MSACSR.csv",
 }
 
 STATE_ABBR: dict[str, str] = {

@@ -11,10 +11,29 @@ def _load():
     return long_df, mortgage
 
 
+def _ms():
+    return data.load_fred("MSACSR")
+
+
+def test_months_supply_point_in_time():
+    long_df, mortgage = _load()
+    ms = _ms()
+    f = model.build_features(long_df, mortgage, months_supply=ms)
+    ms2 = ms.copy()
+    ms2.loc["2020-06-30"] = 99
+    f2 = model.build_features(long_df, mortgage, months_supply=ms2)
+    at = lambda x, d: x.xs(pd.Timestamp(d), level="date")
+    pd.testing.assert_frame_equal(at(f, "2020-06-30"), at(f2, "2020-06-30"))
+    assert (at(f2, "2020-07-31")["msacsr"] == 99).all()
+    assert not np.allclose(at(f, "2021-07-31")["msacsr_chg12"], at(f2, "2021-07-31")["msacsr_chg12"])
+    assert model.build_features(long_df, mortgage)["msacsr"].isna().all()
+
+
 def test_build_features_no_lookahead():
     long_df, mortgage = _load()
     supply = data.load_supply()
-    feat_full = model.build_features(long_df, mortgage, supply)
+    ms = _ms()
+    feat_full = model.build_features(long_df, mortgage, supply, ms)
 
     cutoff = pd.Timestamp("2020-06-30")
     long_df_altered = long_df.copy()
@@ -31,7 +50,10 @@ def test_build_features_no_lookahead():
     sm = supply_altered["date"] > cutoff
     supply_altered.loc[sm, ["inventory", "price_cut"]] *= 3
 
-    feat_altered = model.build_features(long_df_altered, mortgage_altered, supply_altered)
+    ms_altered = ms.copy()
+    ms_altered.loc[ms_altered.index > cutoff] = 999.0
+
+    feat_altered = model.build_features(long_df_altered, mortgage_altered, supply_altered, ms_altered)
 
     at_cutoff_full = feat_full.xs(cutoff, level="date", drop_level=False)
     at_cutoff_altered = feat_altered.xs(cutoff, level="date", drop_level=False)
@@ -100,7 +122,7 @@ def mortgage_result():
     with pytest.MonkeyPatch.context() as mp:  # autouse offline fixture is function-scoped
         mp.setenv("MARKETMACHINE_DATA_DIR", FIXTURES_DIR)
         long_df, mortgage = _load()
-        return model.train_and_evaluate(long_df, mortgage, supply=data.load_supply())
+        return model.train_and_evaluate(long_df, mortgage, supply=data.load_supply(), months_supply=_ms())
 
 
 def test_train_and_evaluate_with_mortgage(mortgage_result):
@@ -167,6 +189,9 @@ def test_calibrate_intervals_no_leakage():
     last = lambda c: c.loc[c.year == 2017, ["lo", "hi"]].to_numpy()  # gap 3: years <= 2014 allowed
     assert np.allclose(last(run(2016, 2015)[0]), last(cal))
     assert not np.allclose(last(run(2014)[0]), last(cal))
+    yr = lambda c, y: c.loc[c.year == y, ["lo", "hi"]].to_numpy()
+    assert np.allclose(yr(run(2013)[0], 2014), yr(cal, 2014))  # gap 1 must not leak
+    assert np.allclose(yr(run(2014)[0], 2013), yr(cal, 2013))
     base = model.add_intervals(df, 24)
     c, half = (base.lo + base.hi) / 2, (base.hi - base.lo) / 2
     inside = ((base.actual - c).abs() <= k * half)[base.lo.notna()].sum()

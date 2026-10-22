@@ -118,6 +118,13 @@ Blend results (MAE and bias in pp):
 
 Verdict: none kept; no model change. sales+pti is the best combination (12m MAE -0.003, bias +0.07, IC flat, 2019+ MAE worse), noise-level. FHFA: 12m IC +0.004 but MAE and coverage worse and 24m worse on MAE, bias and coverage.
 
+## 2026-10-22 results: national regime features
+12m blend, real data, mortgage + supply on (MAE pp / bias pp / rank IC / coverage80 / width80 pp):
+baseline 3.602 / -0.954 / 0.473 / 0.777 / 14.01; curve (T10Y2Y) 3.661 / -0.975 / 0.474 / 0.777 / 14.21; UNRATE chg12 3.643 / -1.017 / 0.475 / 0.779 / 14.32;
+**MSACSR lvl + chg12 3.374 / -0.719 / 0.481 / 0.788 / 13.12 (kept)**; MSACSR lvl only 3.402; chg12 only 3.527; HOUST YoY 3.615; PERMIT YoY 3.601; real mortgage 3.660; DRSFRMACBS 3.714; MSACSR + PERMIT 3.394, + HOUST 3.396, + DRSFRMACBS 3.548.
+Lag rules (point in time): daily series use the monthly mean with no lag; monthly series lag 1 month; quarterly DRSFRMACBS forward-filled and shifted 5 months from the quarter-start label; CPI YoY lagged 1 month.
+Caveat: values are revised data (no keyless vintages), so there is mild look-ahead. Gains are at turning points (2011, 2012, 2022, 2023); small losses in 2019 and 2025.
+
 ## 2026-10-22 research
 Verified with curl/gh on 2026-10-22.
 
