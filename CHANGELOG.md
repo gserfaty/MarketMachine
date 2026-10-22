@@ -5,6 +5,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Bias correction rejected, 24m range calibration shipped (2026-10-22)
+- Shipped: (b) at 24m only (`calibrate_intervals`, `ForecastResult.interval_k`); 3m and 12m untouched. Tested on the real-data quarterly backtest, mortgage on (FRED back), supply on. The 2026-10-21 horizon table below was measured with mortgage off; README now carries the mortgage-on numbers.
+- Before (blend; MAE pp / bias pp / rank IC / coverage80 / width80 pp / 2019+ MAE / 2019+ bias):
+  3m 0.937 / -0.108 / 0.607 / 0.801 / 3.45 / 1.083 / -0.026; 12m 3.602 / -0.954 / 0.473 / 0.777 / 14.01 / 4.198 / -0.692; 24m 8.590 / -1.590 / 0.404 / 0.647 / 31.66 / 11.339 / 1.595.
+- (a) Intercept shift (out-of-sample pooled residual, gap 1+ceil(h/12)), mean / median: bias 3m +0.075 / +0.064, 12m +0.335 / +0.078, 24m +2.63 / +2.03 (MAE 24m 9.91 / 9.57 vs 8.59; 12m 3.74 / 3.65; 3m 0.947 / 0.944). Rank IC unchanged. Rejected: |bias| rises at 24m (1.59 to 2.03 median) and 24m MAE worsens by > 0.02 pp. The 24m shift overshoots because the early-year residuals do not predict later ones.
+- (b) Conformal width multiplier on the uncorrected blend. Shipped at 24m: coverage80 0.647 to 0.719, width80 31.66 to 36.58 pp (+16%), MAE/bias/rank IC unchanged. Rejected at 3m (0.801 to 0.814, 0.013 off) and 12m (0.777 to 0.828, overshoots: 0.023 to 0.028 away); widths 3.61 / 16.52 pp. With (a) on, 24m width would grow 92% and coverage still only 0.75.
+
 ### Continuous integration (2026-10-22)
 - GitHub Actions workflow `tests.yml` runs the offline test suite (`python -m pytest -q`, Python 3.13) on every pull request to `main` and every push to `main`.
 - The `pytest` check is required on `main` (not strict); the code-owner review rule is unchanged.

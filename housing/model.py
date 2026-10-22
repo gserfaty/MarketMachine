@@ -7,6 +7,7 @@ The model fit uses exponential recency weights with a 3-year half-life.
 Supply features (inventory YoY, price-cut share) start in 2018 and may be NaN; HGB handles NaN natively.
 
 Each served forecast carries an 80% interval: empirical vol12-scaled quantiles of past blend backtest residuals.
+At 24m the width is scaled by an out-of-sample conformal multiplier (calibrate_intervals, same gap as add_intervals).
 
 No Streamlit import here.
 """
@@ -132,6 +133,7 @@ class ForecastResult:
     as_of: pd.Timestamp
     feature_importance: pd.Series | None = None
     national_interval: tuple[float, float] = (float("nan"), float("nan"))
+    interval_k: float = 1.0
 
 
 def _active_feature_cols(df: pd.DataFrame) -> list[str]:
@@ -180,6 +182,21 @@ def z_quantiles(preds: pd.DataFrame) -> tuple[float, float]:
     z = (preds["actual"] - preds[SERVED]) / interval_scale(preds["vol12"])
     lo, hi = z.dropna().quantile(list(INTERVAL_Q))
     return float(lo), float(hi)
+
+
+def calibrate_intervals(preds: pd.DataFrame, horizon: int = 12) -> tuple[pd.DataFrame, float]:
+    """Scale lo/hi about their center by the past 0.8-quantile of |actual-center|/half-width (years <= Y-gap). Returns (out, k_all)."""
+    gap = 1 + math.ceil(horizon / 12)
+    out = preds.copy()
+    c, half = (preds["lo"] + preds["hi"]) / 2, (preds["hi"] - preds["lo"]) / 2
+    s = (preds["actual"] - c).abs() / half
+    for year in out["year"].unique():
+        past = s[(preds["year"] <= year - gap) & preds["lo"].notna()].dropna()
+        k = past.quantile(0.8) if not past.empty else 1.0
+        m = (out["year"] == year) & preds["lo"].notna()
+        out.loc[m, "lo"] = c[m] - k * half[m]
+        out.loc[m, "hi"] = c[m] + k * half[m]
+    return out, float(s.dropna().quantile(0.8))
 
 
 def add_intervals(preds: pd.DataFrame, horizon: int = 12) -> pd.DataFrame:
@@ -290,6 +307,10 @@ def train_and_evaluate(
 
     feature_cols = _active_feature_cols(combined)
     raw = add_intervals(rolling_backtest(combined, feature_cols, horizon), horizon)
+    k = 1.0
+    # ponytail: only 24m is calibrated (3m/12m already ~0.80 coverage); one global multiplier, per-year k is out-of-sample
+    if horizon >= 24:
+        raw, k = calibrate_intervals(raw, horizon)
     backtest = score_backtest(raw, PREDICTORS)
     zlo, zhi = z_quantiles(raw)
     metrics = summarize_backtest(backtest)
@@ -310,9 +331,9 @@ def train_and_evaluate(
     latest_snapshot = long_df[long_df["date"] == as_of][["region", "state", "value"]].drop_duplicates(
         "region"
     )
+    c, half = served + (zlo + zhi) / 2 * scale, (zhi - zlo) / 2 * scale
     predictions = pd.DataFrame(
-        {"region": latest_feat.index, "pred_12m": served,
-         "lo_12m": served + zlo * scale, "hi_12m": served + zhi * scale}
+        {"region": latest_feat.index, "pred_12m": served, "lo_12m": c - k * half, "hi_12m": c + k * half}
     ).merge(latest_snapshot, on="region", how="left")
     predictions = predictions[["region", "state", "value", "pred_12m", "lo_12m", "hi_12m"]].sort_values(
         "pred_12m", ascending=False
@@ -333,4 +354,5 @@ def train_and_evaluate(
         as_of=as_of,
         feature_importance=None,
         national_interval=national_interval,
+        interval_k=k,
     )

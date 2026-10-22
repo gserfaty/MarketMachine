@@ -100,23 +100,23 @@ overlap ~92%. The served forecast is fit on all rows. Final-year (2025) is parti
 **Forecast horizons.** The ML forecast page offers 3, 12 and 24 months (default 12). Longer horizons are cumulative
 (24 months is the total change over two years, not a yearly rate). The leakage rule is that the training target window
 ends before the first test origin; interval residuals use years <= Y - gap with gap = 1 + ceil(h/12). The 24-month 80% range
-under-covers because outcomes span market-wide shocks. Backtest (mortgage unavailable when measured):
+under-covers because outcomes span market-wide shocks. Backtest (mortgage on, FRED available):
 
 | Horizon | Blend MAE (pp) | Bias (pp) | Rank IC | Coverage80 | Interval gap |
 |---|---|---|---|---|---|
-| 3 months | 0.93 | -0.06 | 0.61 | 0.80 | 2 yrs |
-| 12 months | 3.79 | -0.62 | 0.47 | 0.75 | 2 yrs |
-| 24 months | 9.17 | -1.78 | 0.39 | 0.63 | 3 yrs |
+| 3 months | 0.94 | -0.11 | 0.61 | 0.80 | 2 yrs |
+| 12 months | 3.60 | -0.95 | 0.47 | 0.78 | 2 yrs |
+| 24 months | 8.59 | -1.59 | 0.40 | 0.72 | 3 yrs |
 
 **Prediction intervals.** A forecast like "+3% (-1% to +6%)" means an 80% range: about 8 of 10 past forecasts
 landed inside it. The range comes from past blend backtest residuals, scaled by the metro's 12-month volatility,
 so volatile metros get wider ranges; for each year only earlier, already-resolved years are used. Backtest coverage
-is about 78% (slightly under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee.
+is about 78% at 12 months (72% at 24 after the range is widened by a factor learned only from earlier years; still under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee.
 
 **Served forecast.** The page and Findings serve `blend`, the equal-weight average of the model
-and naive momentum (simple returns). Backtest average MAE is about 3.59 pp for the blend vs ~3.58 model
+and naive momentum (simple returns). Backtest average MAE is about 3.60 pp for the blend vs ~3.58 model
 vs ~4.2 momentum; the page shows live numbers. The backtest still shows a pessimistic bias
-(~-0.9 pp blend), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
+(~-0.95 pp blend), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
 
 **Baselines and predictors.** `blend`, `model`, `naive_momentum` (predict the trailing 12-month return) and `zero` (no change;
 rank IC and lift are n/a because it ranks nothing).
