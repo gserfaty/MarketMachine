@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+import re
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -21,7 +22,7 @@ BAND = "rgba(49,45,44,0.12)"
 FONT = '"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif'
 
 CSS = """<style>
-:root{--neutral-3:#f3efef;--neutral-4:#ece6e6;--neutral-6:#d9d0cf;--neutral-9:#948584;--neutral-11:#696160;--neutral-12:#312d2c;
+:root{--positive:#35742f;--negative:#41629f;--neutral-3:#f3efef;--neutral-4:#ece6e6;--neutral-6:#d9d0cf;--neutral-9:#948584;--neutral-11:#696160;--neutral-12:#312d2c;
 --accent-3:#ffebea;--accent-10:#c74248;--accent-11:#974847;--background:#fdfcfc;--surface:#faf8f8;--surface-hover:var(--neutral-3);
 --surface-active:var(--neutral-4);--border-subtle:var(--neutral-6);--text:var(--neutral-12);--text-secondary:var(--neutral-11);
 --accent-bg-subtle:var(--accent-3);--accent-solid:var(--accent-10);--accent-solid-hover:var(--accent-11);--accent-text:var(--accent-11);
@@ -46,15 +47,19 @@ clip-path:polygon(0 100%,50% 0,100% 100%,100% 140%,50% 40%,0 140%);}
 .mm-answer__sub{font-size:var(--text-sm);color:var(--text-secondary);margin:var(--space-2) 0 0;}
 .mm-disclaimer{background:var(--c-disclaimer-bg);border:1px solid var(--c-disclaimer-border);border-radius:var(--c-callout-radius);
 padding:var(--c-callout-pad);color:var(--c-disclaimer-fg);font-size:var(--text-sm);margin:var(--space-4) 0;}
+.mm-up{color:var(--positive)}.mm-down{color:var(--negative)}
 .mm-readout{font-size:var(--text-base);font-weight:600;color:var(--text);}
 .mm-readout small{display:block;font-size:var(--text-xs);font-weight:400;color:var(--text-secondary);}
 .mm-brand{font-family:var(--font-display);font-size:1.5rem;font-weight:600;color:var(--text);}
 .mm-brand small{display:block;font-family:inherit;font-size:var(--text-xs);font-weight:400;color:var(--text-secondary);}
 [data-testid="stMetric"]{padding:var(--c-kpi-pad);border-radius:var(--c-kpi-radius);font-variant-numeric:tabular-nums;}
 [data-testid="stMetricLabel"]{color:var(--text-secondary);font-size:var(--text-sm);}
-[data-testid="stMetricValue"]{font-size:1.5rem;}
-[data-testid="stMetricLabel"] *,[data-testid="stMetricValue"] *,[data-testid="stMetricDelta"] *{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;overflow-wrap:anywhere;}
-[data-testid="stHorizontalBlock"]{gap:var(--c-kpi-gap);}
+[data-testid="stMetricValue"],[data-testid="stMetricValue"] *{font-size:1.35rem;white-space:nowrap !important;overflow-wrap:normal !important;min-width:0;}
+[data-testid="stMetricLabel"] *,[data-testid="stMetricDelta"] *{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;overflow-wrap:anywhere;}
+[data-testid="stHorizontalBlock"]{gap:var(--c-kpi-gap);align-items:stretch;}
+[data-testid="stMetric"]{height:100%;box-sizing:border-box;min-width:0;}
+[data-testid="stSliderTickBar"],[data-testid="stSliderTickBar"] *{color:var(--text-secondary) !important;opacity:1 !important;}
+[data-testid="stSlider"] [data-testid="stSliderThumbValue"],[data-testid="stSlider"] [data-testid="stSliderThumbValue"] *{color:var(--text);}
 [data-testid="stSidebarNavLink"]{min-height:var(--c-input-min-h);border-radius:var(--c-nav-radius);transition:background var(--c-motion) ease-out;}
 [data-testid="stSidebarNavLink"]:hover{background:var(--surface-hover);}
 [data-testid="stSidebarNavLink"][aria-current="page"]{background:var(--c-nav-active-bg);color:var(--c-nav-active-fg);font-weight:600;
@@ -95,9 +100,14 @@ def inject_css() -> None:
     st.markdown(CSS, unsafe_allow_html=True)
 
 
+def color_deltas(escaped: str) -> str:
+    """Wrap '▲ +4.2%' / '▼ −1.8%' in green / slate-blue spans. Input must already be HTML-escaped."""
+    return re.sub(r"([▲▼]) [+−][\d.,]+%", lambda m: f'<span class="{"mm-up" if m[1] == "▲" else "mm-down"}">{m[0]}</span>', escaped)
+
+
 def headline(text: str, sub: str | None = None) -> None:
     s = f'<p class="mm-answer__sub">{html.escape(sub)}</p>' if sub else ""
-    st.markdown(f'<div class="mm-answer"><h1>{html.escape(text)}</h1>{s}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mm-answer"><h1>{color_deltas(html.escape(text))}</h1>{s}</div>', unsafe_allow_html=True)
 
 
 def disclaimer(text: str = D1) -> None:
@@ -121,12 +131,15 @@ def fmt_pct(v: float, digits: int = 1) -> str:
 
 
 def kpi(col, label: str, value: str, delta: str | None = None, help: str | None = None) -> None:
-    """Bordered metric; the pre-signed delta ('+3.4%' / '−1.2%') is a one-glyph caption (▲ green / ▼ slate blue)."""
-    col.metric(label, value, help=help, border=True)
-    if delta is not None:
-        up = not str(delta).startswith(("−", "-"))
-        col.markdown(f'<span style="font-size:var(--text-sm);color:var(--{"positive" if up else "negative"})">'
-                     f'{"▲" if up else "▼"} {html.escape(str(delta))}</span>', unsafe_allow_html=True)
+    """Bordered equal-height metric. '+x' delta gets ▲ green, '−x' gets ▼ slate blue, any other text is a gray note."""
+    c, d = "gray", delta
+    if d is not None:
+        d = str(d).replace("$", "\\$")
+        if d.startswith("+"):
+            d, c = "▲ " + d, "green"
+        elif d.startswith(("−", "-")):
+            d, c = "▼ " + d, "violet"
+    col.metric(label, value, d, delta_color=c, delta_arrow="off", help=help, border=True, height="stretch")
 
 
 def go_to(page_key: str, label: str, primary: bool = False, key: str | None = None) -> None:
@@ -154,7 +167,9 @@ def sync_metro(regions: list[str] | None) -> None:
 
     regions=None means the metro list is unavailable: keep state as is, do not validate or wipe it.
     """
-    metro = st.session_state.get("metro") or st.query_params.get("metro")
+    metro = st.session_state.get("metro")
+    if not metro and st.query_params.get("metro"):
+        metro, st.session_state["metro_src"] = st.query_params["metro"], "url"
     if metro and regions is not None and metro not in regions:
         st.info(f"We couldn't find '{metro}'. Choose a metro.")
         metro = None
@@ -173,6 +188,7 @@ def metro_picker(regions: list[str] | None, key: str, label: str = "Metro", plac
 
     def _set() -> None:
         st.session_state["metro"] = st.session_state[pk]
+        st.session_state["metro_src"] = key
         if st.session_state[pk]:
             st.query_params["metro"] = st.session_state[pk]
         elif "metro" in st.query_params:
@@ -206,7 +222,7 @@ def _template() -> go.layout.Template:
         font=dict(family=FONT, size=14, color=INK), paper_bgcolor="#fdfcfc", plot_bgcolor="#fdfcfc",
         xaxis=dict(showgrid=False, showline=True, linecolor="#cbc1c0", **ax),
         yaxis=dict(showgrid=True, gridcolor="#ece6e6", gridwidth=1, showline=False, **ax),
-        legend=dict(orientation="h", y=1.08, x=0, font=dict(size=14, color=INK)),
+        legend=dict(orientation="h", y=1.08, x=0, entrywidth=0.3, entrywidthmode="fraction", font=dict(size=14, color=INK)),
         hoverlabel=dict(bgcolor="#fdfcfc", bordercolor=GREY, font=dict(family=FONT, size=14, color=INK)),
         hovermode="x unified", margin=dict(l=48, r=24, t=32, b=40), height=360,
         colorway=[INK, TEAL, AMBER, VIOLET], transition=dict(duration=0),
@@ -236,8 +252,19 @@ def signed_axis(fig: go.Figure, lo: float, hi: float, axis: str = "y", **kw) -> 
     getattr(fig, f"update_{axis}axes")(tickvals=vals, ticktext=text, **kw)
 
 
-def history_band(hist: pd.Series, pred: float | None, lo: float | None, hi: float | None, name: str, months: int = 12) -> go.Figure:
-    """Solid history, dashed projection `months` out, 80% range band. hist is date-indexed values; pred/lo/hi fractions."""
+def end_range(fig: go.Figure, first, last) -> None:
+    """Shared x-axis rule: end 2 months after the last data or forecast point."""
+    fig.update_xaxes(range=[first, last + pd.DateOffset(months=2)])
+
+
+def history_band(hist: pd.Series, pred: float | None, lo: float | None, hi: float | None, name: str, months: int = 12,
+                 years: int | None = None) -> go.Figure:
+    """Solid history, dashed projection `months` out, 80% range band. hist is date-indexed values; pred/lo/hi fractions.
+    years limits the visible window (the full series is still plotted)."""
+    full = hist
+    if years:
+        hist = hist[hist.index >= hist.index[-1] - pd.DateOffset(years=years)]
+    hist = hist if len(hist) else full
     fig = go.Figure(go.Scatter(x=hist.index, y=hist.values, name=name, line=dict(color=INK, width=2.5),
                                hovertemplate="%{y:$,.0f}"))
     ys = [float(hist.min()), float(hist.max())]
@@ -253,6 +280,7 @@ def history_band(hist: pd.Series, pred: float | None, lo: float | None, hi: floa
         fig.add_annotation(x=x1, y=v0 * (1 + pred), text=fmt_pct(pred), showarrow=False, xanchor="left", xshift=6,
                            font=dict(size=14, color=INK))
         fig.add_vline(x=x0, line_width=1, line_color="#cbc1c0", annotation_text="Today", annotation_font=dict(size=12, color="#696160"))
+    end_range(fig, hist.index[0], x1 if pred is not None and pd.notna(pred) else hist.index[-1] - pd.DateOffset(months=2))
     pad = (max(ys) - min(ys)) * 0.05
     fig.update_yaxes(tickformat="$,.0f", title="Typical value ($)", range=[min(ys) - pad, max(ys) + pad])
     fig.update_layout(margin=dict(r=90))

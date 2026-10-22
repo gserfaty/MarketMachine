@@ -12,6 +12,10 @@ from housing.ui import GREY, INK, TEAL, fmt_pct, show, signed
 from housing.shared import _data_dir_key, cached_fred, cached_supply, cached_zillow_forecast, _safe_load_metro, metro_regions, _footer_disclaimer, _need, _mon, _try_forecast, _short, _table, _range_table, _forecast_failed
 
 
+def signed_pp(v: float) -> str:
+    return f"{v:+.1f}".replace("-", "−")
+
+
 def render_forecast() -> None:
     st.header("ML forecast")
     st.caption("Where prices may be headed, and how far to trust it.")
@@ -32,10 +36,10 @@ def render_forecast() -> None:
     if len(row):
         r = row.iloc[0]
         pred, lo, hi, region = r["pred_12m"], r["lo_12m"], r["hi_12m"], metro
-        text = f"{_short(metro)} home values: forecast {signed(pred)} over the next {label} (80% range {signed(lo)} to {signed(hi)})."
+        text = f"{_short(metro)} home values: forecast {fmt_pct(pred)} over the next {label} (80% range {signed(lo)} to {signed(hi)})."
     else:
         pred, (lo, hi), region = result.national_pred, result.national_interval, "United States"
-        text = (f"US home values: forecast {signed(pred)} over the next {label} (80% range {signed(lo)} to {signed(hi)})."
+        text = (f"US home values: forecast {fmt_pct(pred)} over the next {label} (80% range {signed(lo)} to {signed(hi)})."
                 + ("" if metro else " Choose a metro for its forecast."))
     ui.headline(text, f"80% range: in past tests, the actual change landed inside a range this wide {bl['coverage80']:.0%} of the time.")
     if h == 24:
@@ -53,13 +57,13 @@ def render_forecast() -> None:
         st.markdown(
             f"Zillow's forecast for {_short(region)}: {signed(z)} over the next {label}. "
             f"We vs Zillow: {cmp['same_dir']} of {cmp['n']} metros in the same direction; "
-            f"median difference {cmp['median_diff_pp']:+.1f} points (ours minus Zillow)."
+            f"median difference {signed_pp(cmp['median_diff_pp'])} points (ours minus Zillow)."
         )
         st.caption(f"Zillow's forecast from {_mon(zf['base_date'].iloc[0])} data. This compares forecasts only, "
                    "not which has been more accurate; that needs the forecasts to come due.")
-    if len(row):
+    if len(row) and st.session_state.get("metro_src") == "overview":
         st.caption(f"Using {metro} (from Market overview).")
-    elif metro:
+    if metro and not len(row):
         st.info(f"No forecast for {metro} yet. It doesn't have enough price history. Showing the US forecast instead.")
     ui.metro_picker(metro_regions(), "forecast", placeholder="Choose a metro to see its forecast")
     if supply is None:
@@ -70,12 +74,12 @@ def render_forecast() -> None:
         st.warning("Heads up: in this round of tests the combined forecast was slightly less accurate than the model alone.")
 
     k1, k2, k3 = st.columns(3)
-    k1.metric("Typical miss (points)", f"{bl['MAE']:.1f}", border=True,
+    ui.kpi(k1, "Typical miss (points)", f"{bl['MAE']:.1f}",
               help="Average miss (mean absolute error, MAE) of the combined forecast.")
     dacc = bl["direction_acc"] if pd.notna(bl["direction_acc"]) else mo["direction_acc"]
-    k2.metric("Direction calls right", f"{round(dacc * 10)} of 10", border=True,
+    ui.kpi(k2, "Direction calls right", f"{round(dacc * 10)} of 10",
               help="Share of cases where the forecast got up versus down right (direction accuracy).")
-    k3.metric("Versus a no-change guess (points)", f"{bl['MAE']:.1f} vs {zr['MAE']:.1f}", border=True,
+    ui.kpi(k3, "Versus a no-change guess (points)", f"{bl['MAE']:.1f} vs {zr['MAE']:.1f}",
               help="Typical miss of our combined forecast versus assuming prices stay flat.")
     st.caption("Across all metros, past tests.")
 

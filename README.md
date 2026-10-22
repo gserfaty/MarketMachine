@@ -36,13 +36,12 @@ the app shows a clear error/warning instead of crashing.
 
 Navigation is grouped Market / Metro / Money, and the chosen metro carries across pages (also in the `?metro=` URL parameter).
 
-1. **Market overview** — one-sentence US headline with forecast, KPIs (typical value, 12-month change, mortgage rate, Case-Shiller) and trend charts.
-2. **Findings** — top predicted gainers and laggards, best past performers, most valuable metros.
-3. **Regional explorer** — filter/sort metros or states, bar chart of top movers, state map, per-region history.
-4. **Market profile** — single-metro profile, comparison, and similar markets.
-5. **ML forecast** — a metro's 12-month forecast with its 80% range, how reliable the model has been, and all-metro predictions.
-6. **Financing estimator** — monthly payment, 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison, and equity projection.
-7. **Affordability** — ranks metros by the monthly payment against your income (30% rule), with Zillow context and the 12-month forecast.
+1. **Market overview** — one-sentence US headline with forecast, KPIs (typical value, 12-month change, mortgage rate, Case-Shiller), trend charts, and top markets (predicted gainers and laggards, best past performers, most valuable metros).
+2. **Regional explorer** — filter/sort metros or states, bar chart of top movers, state map, per-region history.
+3. **Market profile** — single-metro profile, comparison, and similar markets.
+4. **ML forecast** — a metro's 12-month forecast with its 80% range, how reliable the model has been, and all-metro predictions.
+5. **Financing estimator** — monthly payment, 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison, and equity projection.
+6. **Affordability** — ranks metros by the monthly payment against your income (30% rule), with Zillow context and the 12-month forecast.
 
 ## Project structure
 
@@ -52,7 +51,7 @@ housing/
   data.py analysis.py model.py finance.py   data loading, features, ML, mortgage math
   ui.py             theme, shared widgets
   housing/shared.py cached loaders and cross-page helpers
-  housing/pages/    one Streamlit page script per page (overview, findings, explorer, profile, forecast, financing, affordability)
+  housing/pages/    one Streamlit page script per page (overview, findings (redirect to overview), explorer, profile, forecast, financing, affordability)
 tests/              offline pytest suite
 ```
 
@@ -115,7 +114,7 @@ landed inside it. The range comes from past blend backtest residuals, scaled by 
 so volatile metros get wider ranges; for each year only earlier, already-resolved years are used. Backtest coverage
 is about 79% at 12 months (71% at 24 after the range is widened by a factor learned only from earlier years; still under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee.
 
-**Served forecast.** The page and Findings serve `blend`, the equal-weight average of the model
+**Served forecast.** The page and Market overview serve `blend`, the equal-weight average of the model
 and naive momentum (simple returns). Backtest average MAE is about 3.37 pp for the blend; the page shows live model and momentum numbers. The backtest still shows a pessimistic bias
 (~-0.72 pp blend), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
 

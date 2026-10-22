@@ -8,7 +8,7 @@ import streamlit as st
 
 from housing import analysis, finance, ui
 from housing.ui import AMBER, GREY, INK, TEAL, VIOLET, show
-from housing.shared import _data_dir_key, cached_fred, _safe_load_metro, _footer_disclaimer, _forecast
+from housing.shared import CC, _data_dir_key, cached_fred, _safe_load_metro, _footer_disclaimer, _forecast
 
 
 def _render_arm(res: dict, loan_type: str) -> dict[str, pd.DataFrame]:
@@ -87,15 +87,14 @@ def _render_equity(metro_df, region, price, schedules) -> None:
         st.caption(f"No ML forecast for {region}, so year 1 uses the historical trend.")
     d = finance.equity_projection(price, schedules[loan], mu, sd5, year1, sell)
 
-    def cell(r, c):
-        return f"${r[c]:,.0f} (${r[c + '_lo']:,.0f}–${r[c + '_hi']:,.0f})"
     rows = d[d["year"].isin(finance.PROJECTION_YEARS)]
-    st.dataframe(pd.DataFrame({
-        "Home value": [cell(r, "value") for _, r in rows.iterrows()],
-        "Remaining balance": [f"${b:,.0f}" for b in rows["balance"]],
-        "Equity": [cell(r, "equity") for _, r in rows.iterrows()],
-        "Net equity if sold": [cell(r, "net") for _, r in rows.iterrows()],
-    }, index=[f"Year {y}" for y in rows["year"]]), width="stretch")
+    t = pd.DataFrame({"Year": rows["year"].astype(int), "Home value": rows["value"], "Value low": rows["value_lo"],
+                      "Value high": rows["value_hi"], "Balance": rows["balance"], "Equity": rows["equity"],
+                      "Equity low": rows["equity_lo"], "Equity high": rows["equity_hi"], "Net if sold": rows["net"]})
+    st.caption("Low and high are the 80% range.")
+    st.dataframe(t, hide_index=True, width="stretch", column_config={
+        "Year": CC.NumberColumn(format="%d", width="small"),
+        **{c: CC.NumberColumn(format="$%,d") for c in t.columns[1:]}})
     fig = go.Figure()
     fig.add_scatter(x=d["year"], y=d["equity_lo"], mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip")
     fig.add_scatter(x=d["year"], y=d["equity_hi"], mode="lines", line=dict(width=0), fill="tonexty",
@@ -200,11 +199,11 @@ def render_financing() -> None:
                     None if metro else "Tax and insurance use US averages. Choose a metro for a local equity projection.")
         ui.disclaimer(ui.D2)
     k = kpis.columns(4)
-    k[0].metric("Monthly payment", f"${res[30]['piti']:,.0f}", border=True,
+    ui.kpi(k[0], "Monthly payment", f"${res[30]['piti']:,.0f}",
                 help="Principal, interest, property tax and insurance (PITI), 30-year.")
-    k[1].metric("Rate and APR", f"{r:.2f}% / {res[30]['apr']:.2f}%", border=True, help="APR includes lender fees.")
-    k[2].metric("Cash down", f"${price * down_pct / 100:,.0f}", border=True)
-    k[3].metric("Total interest, 30 years", f"${res[30]['total_interest']:,.0f}", border=True)
+    ui.kpi(k[1], "Rate and APR", f"{r:.2f}% / {res[30]['apr']:.2f}%", help="APR includes lender fees.")
+    ui.kpi(k[2], "Cash down", f"${price * down_pct / 100:,.0f}")
+    ui.kpi(k[3], "Total interest, 30 years", f"${res[30]['total_interest']:,.0f}")
 
     if res[30]["jumbo"]:
         st.info("Loan is above the standard conforming limit. Pricing varies by lender; high-cost counties allow up to $1,249,125.")

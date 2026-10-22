@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from housing import analysis, finance, ui
-from housing.ui import signed
+from housing.ui import fmt_pct, signed
 from housing.shared import (CC, _data_dir_key, _footer_disclaimer, _mon, _need, _num_cols, _safe_load_metro, _short,
                             _try_forecast, cached_affordability, cached_fred, fmt_range)
 
@@ -20,9 +20,10 @@ def render_affordability() -> None:
     table = analysis.appreciation_table(metro_df[metro_df["region_type"] != "country"])
 
     c1, c2, c3 = st.columns(3)
-    income = c1.number_input("Household income ($ per year)", min_value=0.0, value=100_000.0, step=5_000.0,
+    income = c1.number_input("Household income ($ per year)", min_value=0.0, value=100_000.0, step=5_000.0, format="%d",
                              help="Before taxes. The 30% rule: lenders and Zillow treat a home as affordable when the monthly "
                                   "payment, including property tax and insurance, is at most 30% of gross income.")
+    c1.caption(f"${income:,.0f} per year")
     down = c2.number_input("Down payment (%)", min_value=3.0, max_value=99.0, value=20.0, step=1.0)
     debts = c3.number_input("Other monthly debts ($)", min_value=0.0, value=0.0, step=50.0,
                             help="Car, student loan and card payments. If you enter debts, a metro also needs total debts under 43% of income.")
@@ -74,7 +75,7 @@ def render_affordability() -> None:
     ok = t[t["affordable"]]
     if n:
         best = ok.loc[ok["pred_12m"].idxmax()] if res is not None and ok["pred_12m"].notna().any() else ok.loc[ok["share"].idxmin()]
-        tail = f"forecast {signed(best['pred_12m'])}" if res is not None and pd.notna(best["pred_12m"]) else f"{best['share']:.0%} of income"
+        tail = f"forecast {fmt_pct(best['pred_12m'])}" if res is not None and pd.notna(best["pred_12m"]) else f"{best['share']:.0%} of income"
         text = (f"On ${income:,.0f}/yr, {n} of {N} metros keep the payment under 30% of your income. "
                 f"Best value: {_short(best['region'])} ({tail}).")
     else:
@@ -83,8 +84,7 @@ def render_affordability() -> None:
                 f"Lowest: {_short(best['region'])} at {best['share']:.0%}.")
     with head:
         ui.headline(text, f"30-year fixed at {r30:.2f}%{' (your rate)' if manual else ''}, {down:g}% down.")
-        ui.disclaimer(ui.D2)
-        ui.disclaimer()
+        ui.disclaimer(ui.D2 + " " + ui.D1)
 
     metro = st.session_state.get("metro")
     mrow = t[t["region"] == metro] if metro else t.iloc[0:0]
@@ -95,7 +95,7 @@ def render_affordability() -> None:
     ui.kpi(k[2], "Best value", _short(best["region"]), signed(best["pred_12m"]) if res is not None and pd.notna(best["pred_12m"]) else None)
     if len(mrow):
         m = mrow.iloc[0]
-        ui.kpi(k[3], f"{_short(metro)}: payment", f"${m['payment']:,.0f}/mo", help=f"{m['share']:.0%} of income")
+        ui.kpi(k[3], f"{_short(metro)}: monthly payment", f"${m['payment']:,.0f}", help=f"{m['share']:.0%} of income")
         rank = int((t["share"] < m["share"]).sum()) + 1
         st.write(f"{metro}: ${m['payment']:,.0f}/month, {m['share']:.0%} of your income, rank {rank} of {N}.")
     else:

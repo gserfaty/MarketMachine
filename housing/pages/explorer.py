@@ -87,7 +87,7 @@ def render_explorer() -> None:
         if not table.empty:
             vmin, vmax = float(table["value"].min()), float(table["value"].max())
             if vmin < vmax:
-                lo, hi = st.slider("Home value range", vmin, vmax, (vmin, vmax), key=f"f_value_{mode}_{vmin}_{vmax}")
+                lo, hi = st.slider("Home value range", vmin, vmax, (vmin, vmax), format="$%d", key=f"f_value_{mode}_{vmin}_{vmax}")
                 table = table[(table["value"] >= lo) & (table["value"] <= hi)]
         st.button("Reset filters", on_click=_reset)
 
@@ -101,22 +101,22 @@ def render_explorer() -> None:
     med = table["chg_1y"].median()
     top = table.loc[table["chg_1y"].idxmax()] if table["chg_1y"].notna().any() else None
     with head:
-        ui.headline(f"{len(table)} {noun} shown." + (f" The median 1-year change is {signed(med)}, led by {top['region']} ({signed(top['chg_1y'])})."
+        ui.headline(f"{len(table)} {noun} shown." + (f" The median 1-year change is {fmt_pct(med)}, led by {top['region']} ({fmt_pct(top['chg_1y'])})."
                                                      if top is not None else ""))
     k1, k2, k3 = kpis.columns(3)
-    k1.metric("Regions shown", f"{len(table):,}", border=True)
-    k2.metric("Median 1-year change", fmt_pct(med), border=True)
+    ui.kpi(k1, "Regions shown", f"{len(table):,}")
+    ui.kpi(k2, "Median 1-year change", fmt_pct(med))
     if top is not None:
         ui.kpi(k3, "Top mover", _short(top["region"]), signed(top["chg_1y"]))
     else:
-        k3.metric("Top mover", "n/a", border=True)
+        ui.kpi(k3, "Top mover", "n/a")
 
     st.subheader("Ranked regions")
     cols = ["region", "state", "value", "chg_1y", "chg_5y", "chg_10y"]
     if mode == "State":
         cols.remove("state")
     st.dataframe(table.assign(**{c: table[c].map(fmt_pct) for c in ("chg_1y", "chg_5y", "chg_10y")})[cols], hide_index=True,
-                 width="stretch", column_config=_num_cols() | {"region": CC.TextColumn(mode, pinned=True)})
+                 width="stretch", column_config=_num_cols() | {"region": CC.TextColumn(mode)})
 
     st.subheader(f"Top 20 by {sort_choice.lower()}")
     top20 = table.head(20)

@@ -21,7 +21,7 @@ def render_market_profiles():
         market = table[table["region"] == selected].iloc[0]
         text = f"{_short(selected)}: typical home ${market['value']:,.0f}"
         if pd.notna(market["chg_1y"]):
-            text += f", {'up' if market['chg_1y'] >= 0 else 'down'} {abs(market['chg_1y']) * 100:.1f}% in the last year"
+            text += f", {fmt_pct(market['chg_1y'])} in the last year"
         text += f", #{int(market['size_rank'])} by size." if pd.notna(market["size_rank"]) else "."
         ui.headline(text)
     ui.metro_picker(markets, "profile")
@@ -34,10 +34,10 @@ def render_market_profiles():
     history = metro_only[metro_only["region"] == selected].sort_values("date")
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Typical home value", f"${market['value']:,.0f}", border=True)
-    c2.metric("Change, 1 year", fmt_pct(market["chg_1y"]), border=True)
-    c3.metric("Change, 5 years", fmt_pct(market["chg_5y"]), border=True)
-    c4.metric("Size rank", f"#{int(market['size_rank'])}" if pd.notna(market["size_rank"]) else "n/a", border=True,
+    ui.kpi(c1, "Typical home value", f"${market['value']:,.0f}")
+    ui.kpi(c2, "Change, 1 year", fmt_pct(market["chg_1y"]))
+    ui.kpi(c3, "Change, 5 years", fmt_pct(market["chg_5y"]))
+    ui.kpi(c4, "Size rank", f"#{int(market['size_rank'])}" if pd.notna(market["size_rank"]) else "n/a",
               help="1 is the largest metro.")
 
     st.subheader("Home value history")
@@ -65,7 +65,7 @@ def render_market_profiles():
         sim = similar[["region", "state", "value", "chg_1y", "chg_5y"]].copy()
         sim[["chg_1y", "chg_5y"]] *= 100
         st.dataframe(sim, hide_index=True, width="stretch", column_config={
-            "region": CC.TextColumn("Metro", pinned=True), "state": CC.TextColumn("State", width="small"),
+            "region": CC.TextColumn("Metro", width="large"), "state": CC.TextColumn("State", width="small"),
             "value": CC.NumberColumn("Typical value", format="$%,d"),
             "chg_1y": CC.NumberColumn("Change, 1 year", format="%+.1f%%", help="Blank means no data for that period."),
             "chg_5y": CC.NumberColumn("Change, 5 years", format="%+.1f%%", help="Blank means no data for that period.")})

@@ -5,6 +5,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Design polish and 6-item navigation (2026-10-22)
+- Headline deltas use `fmt_pct` ("▲ +4.2%") colored by `ui.color_deltas`; `--positive`/`--negative` are now defined.
+- KPI cards go through `ui.kpi` everywhere: equal height, delta and notes inside the card (arrows in text, gray for notes).
+- Chart legends get fixed-width entry slots so they cannot overlap.
+- History/forecast chart x-axis ends 2 months past the forecast end.
+- "(from Market overview)" caption on ML forecast shows only when the metro was picked on Overview (`metro_src`).
+- Findings merged into Market overview ("Top markets"); `/findings` is a hidden redirect.
+- Sidebar is back to 6 items.
+
 ### Zillow forecast benchmark (2026-10-22)
 - Added a loader for Zillow's own metro forecast (ZHVF, 1/3/12 months, found by month offset from BaseDate), shown on the ML forecast page at 3m and 12m as a "We vs Zillow" line plus a "Zillow's forecast" table column. No 24m comparison (Zillow has none). It is a comparison only, not a model feature.
 - Added `.github/workflows/zillow-snapshot.yml`: monthly (day 20) copy of the Zillow forecast CSV to the `snapshots` branch.
