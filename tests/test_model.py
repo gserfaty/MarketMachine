@@ -151,6 +151,28 @@ def test_add_intervals_no_leakage():
     assert np.allclose(alt.loc[alt.year == 2014, "lo"], base.loc[base.year == 2014, "lo"])
 
 
+def test_calibrate_intervals_no_leakage():
+    rng = np.random.default_rng(0)
+    rows = [(r, y, rng.normal(0.03, 0.02), rng.normal(0.03, 0.02)) for y in range(2010, 2018) for r in "abcde"]
+    df = pd.DataFrame(rows, columns=["region", "year", "blend", "actual"])
+    df["vol12"] = 0.01
+
+    def run(*years):
+        d = df.copy()
+        for y in years:
+            d.loc[d.year == y, "actual"] = [5, -5, 5, -5, 5]
+        return model.calibrate_intervals(model.add_intervals(d, 24), 24)
+
+    cal, k = run()
+    last = lambda c: c.loc[c.year == 2017, ["lo", "hi"]].to_numpy()  # gap 3: years <= 2014 allowed
+    assert np.allclose(last(run(2016, 2015)[0]), last(cal))
+    assert not np.allclose(last(run(2014)[0]), last(cal))
+    base = model.add_intervals(df, 24)
+    c, half = (base.lo + base.hi) / 2, (base.hi - base.lo) / 2
+    inside = ((base.actual - c).abs() <= k * half)[base.lo.notna()].sum()
+    assert abs(inside - 0.8 * base.lo.notna().sum()) <= 1
+
+
 def test_add_intervals_gap_24m():
     rng = np.random.default_rng(0)
     rows = [(r, y, rng.normal(0.03, 0.02), rng.normal(0.03, 0.02)) for y in range(2010, 2017) for r in "abcde"]

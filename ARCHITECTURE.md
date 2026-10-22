@@ -4,7 +4,7 @@
 - `app.py` - entry point: page config, `st.navigation`, sidebar, metro selection.
 - `housing/data.py` - downloads Zillow Research CSVs and FRED `fredgraph.csv`; `MARKETMACHINE_DATA_DIR` points it at local files (offline).
 - `housing/analysis.py` - growth, rankings and market-profile calculations.
-- `housing/model.py` - feature builder and `HistGradientBoostingRegressor` forecast with backtest.
+- `housing/model.py` - feature builder and `HistGradientBoostingRegressor` forecast with backtest; `calibrate_intervals` (out-of-sample conformal width multiplier, 24m only).
 - `housing/finance.py` - mortgage, ARM and equity-projection math (no Streamlit).
 - `housing/ui.py` - theme, CSS, sidebar, shared widgets, disclaimer text.
 - `housing/shared.py` - cached loaders and helpers used by several pages.
