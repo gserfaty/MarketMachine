@@ -117,3 +117,38 @@ Blend results (MAE and bias in pp):
 | + fhfa_r12 | 0.932 / -0.062 / 0.609 / 0.797 | 3.800 / -0.583 / 0.478 / 0.744 | 9.243 / -1.780 / 0.392 / 0.610 | 4.548 |
 
 Verdict: none kept; no model change. sales+pti is the best combination (12m MAE -0.003, bias +0.07, IC flat, 2019+ MAE worse), noise-level. FHFA: 12m IC +0.004 but MAE and coverage worse and 24m worse on MAE, bias and coverage.
+
+## 2026-10-22 research
+Verified with curl/gh on 2026-10-22.
+
+### 1. FRED is back (keyless, no API key)
+`https://fred.stlouisfed.org/graph/fredgraph.csv?id=<ID>` returns CSV again; header `observation_date,<ID>` (new column name, not `DATE`; check `housing/data.py` parser). First retry not needed.
+| Series | Freq | Starts | Last obs seen | Note |
+|---|---|---|---|---|
+| MORTGAGE30US | weekly | 1971-04-02 | current | |
+| T10Y2Y | daily | 1976-06-01 | 2026-10-21 (0.32) | blanks on holidays |
+| DGS10 / DGS2 | daily | 1962-01-02 / 1976-06-01 | 2026-10-20 | 5.12 / 4.79 |
+| UNRATE | monthly | 1948-01 | 2026-09 (4.2) | |
+| MSACSR (months' supply) | monthly | 1963-01 | 2026-08 (8.5) | |
+| HOUST | monthly | 1959-01 | 2026-09 | thousands, SAAR |
+| PERMIT | monthly | 1960-01 | 2026-09 | thousands, SAAR |
+| UMCSENT | monthly | 1952-11 | 2026-08 (51.7) | early rows have empty values; dropna |
+| RHVRUSQ156N (rental vacancy) | quarterly | 1956-01 | 2026-04 (1.2) | NSA |
+| DRSFRMACBS (SF mortgage delinquency, banks) | quarterly | 1991-01 | 2026-04 (1.86) | |
+| CPIAUCSL | monthly | 1947-01 | 2026-09 | |
+Mirrors: `alfred.stlouisfed.org/graph/fredgraph.csv` returns 404; no keyless mirror needed now. Publication lags differ (quarterly 1-2 quarters, monthly 1-2 months): lag features accordingly in a backtest (no vintages available keyless, so values are revised-data = mild look-ahead).
+
+### 2. Zillow Home Value Forecast (zhvf_growth)
+- URL: `https://files.zillowstatic.com/research/public_csvs/zhvf_growth/Metro_zhvf_growth_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv` (HTTP 200). Same product/tier/smoothing as our ZHVI file (`uc_sfrcondo_tier_0.33_0.67_sm_sa_month`): no series mismatch. `..._sfr_...` variant 404.
+- Columns: `RegionID,SizeRank,RegionName,RegionType,StateName,BaseDate,<d1>,<d2>,<d3>`. Today: BaseDate 2026-09-30; horizon columns are dates 2026-10-31 (1 month), 2026-12-31 (3 month), 2027-09-30 (12 month). Only three horizons (no 24m); the date headers change each release, so identify horizons by position (cols 7-9) or by month offset from BaseDate.
+- Units: percent growth vs the BaseDate ZHVI (e.g. NYC 0.3, 0.7, 2.8 means +2.8% over 12m). Range 12m: -4.2 to +7.4.
+- Rows: 895 = 894 `msa` + 1 `country` (United States). 895/895 match our ZHVI file on both RegionID and RegionName (join on RegionID).
+- Wayback: CDX lists 51 HTTP-200 captures of the sm_sa URL (with varying `?t=` params), 30 distinct content digests, 2022-09-04 to 2026-05-08, in 23 distinct months (2022-09..10, 2023-03..07, 2024-01..12 sporadic, 2025-02..12, 2026-01/04/05). Caveat: replay is unreliable. Fetching `.../web/<ts>id_/<url>` for the oldest and newest captures both returned a file with BaseDate 2023-05-31 (i.e. the same stale file), and `?t=` URLs returned empty, so snapshot contents were NOT verified as distinct. Note old 2022 captures also exist under the pre-`sm_sa` name `..._tier_0.33_0.67_month.csv` (4 captures, 2022-10 to 2023-05).
+- Implication: a historical benchmark is possible only as roughly 20 sparse, irregular origins since 2022 (12m outcomes realized only for origins up to ~2025-09), and only if per-capture content checks pass. Cheaper and cleaner: start logging the live file monthly from now (as already suggested above).
+
+### 3. GitHub protection (gserfaty/MarketMachine, main)
+Current: `required_pull_request_reviews` = 1 approving review, `require_code_owner_reviews` true, `dismiss_stale_reviews` true, `require_last_push_approval` false; `enforce_admins` false (owner can merge past it); `required_status_checks` ABSENT; linear history, force pushes, deletions, conversation resolution, signatures all off/disabled.
+To add a required check without touching reviews, PATCH the sub-resource (PUT on the branch would overwrite everything and requires re-sending all fields):
+`gh api -X PATCH repos/gserfaty/MarketMachine/branches/main/protection/required_status_checks -F strict=false -f 'checks[][context]=test'`
+Since no required_status_checks exists yet, PATCH will likely 404 (untested, to avoid changing protection); then use the full `PUT .../branches/main/protection` body (must resend `required_pull_request_reviews{required_approving_review_count:1,require_code_owner_reviews:true,dismiss_stale_reviews:true}`, `enforce_admins:false`, `restrictions:null`, `required_status_checks{strict:false,checks:[{context:"test"}]}`). The check name must match the Actions job name, and the workflow must have run once before the check can be selected. Actions minutes are free for public repos.
+CI python: `.venv` is Python 3.13.1 (CLAUDE.md says 3.11+); pin the workflow to `python-version: "3.13"` and install `requirements.txt` + pytest. Tests must stay offline.

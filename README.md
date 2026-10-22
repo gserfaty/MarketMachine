@@ -1,5 +1,7 @@
 # MarketMachine
 
+[![tests](https://github.com/gserfaty/MarketMachine/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gserfaty/MarketMachine/actions/workflows/tests.yml)
+
 A Streamlit web app that analyzes the US housing market with historical and current public
 data and uses machine learning to forecast market direction, find appreciating areas, and rank
 the most valuable markets.
