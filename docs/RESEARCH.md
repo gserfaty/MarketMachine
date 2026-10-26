@@ -160,3 +160,47 @@ To add a required check without touching reviews, PATCH the sub-resource (PUT on
 `gh api -X PATCH repos/gserfaty/MarketMachine/branches/main/protection/required_status_checks -F strict=false -f 'checks[][context]=test'`
 Since no required_status_checks exists yet, PATCH will likely 404 (untested, to avoid changing protection); then use the full `PUT .../branches/main/protection` body (must resend `required_pull_request_reviews{required_approving_review_count:1,require_code_owner_reviews:true,dismiss_stale_reviews:true}`, `enforce_admins:false`, `restrictions:null`, `required_status_checks{strict:false,checks:[{context:"test"}]}`). The check name must match the Actions job name, and the workflow must have run once before the check can be selected. Actions minutes are free for public repos.
 CI python: `.venv` is Python 3.13.1 (CLAUDE.md says 3.11+); pin the workflow to `python-version: "3.13"` and install `requirements.txt` + pytest. Tests must stay offline.
+
+## 2026-10-26 platform stack
+Verified in throwaway venvs (Python 3.13.1, macOS arm64) against PyPI JSON; all wheels `py3-none-any` unless noted; every package requires Python >=3.10 or lower. Ubuntu CI uses manylinux wheels for the same versions (psycopg-binary, sqlalchemy, numpy have cp313 wheels for macOS arm64/x86_64 and manylinux x86_64/aarch64).
+
+| Package | Latest | Notes |
+|---|---|---|
+| pandera | 0.35.0 | import `pandera.pandas as pa` (the bare `import pandera as pa` pandas API is deprecated); deps: pydantic, typeguard, typing_inspect, packaging |
+| mlflow-skinny | 3.17.2 | tracking + sqlite store + model registry verified working (see below) |
+| mlflow (full) | 3.17.2 | adds flask, gunicorn, graphene, docker, matplotlib, scipy, pyarrow, cryptography; not needed |
+| fastapi / starlette | 0.162.0 / 1.10.0 | needs pydantic v2 |
+| uvicorn | 0.54.0 | plain `uvicorn` is enough (no `[standard]`) |
+| pydantic | 2.14.1 | v2 only |
+| httpx | 0.28.1 | required by starlette TestClient |
+| redis (redis-py) | 8.1.0 | |
+| fakeredis | 2.40.0 | in-memory Redis for tests (INCR/EXPIRE/TTL supported) |
+| slowapi / fastapi-limiter | 0.1.10 / 0.2.0 | slowapi pulls `limits`; fastapi-limiter needs a live Redis (and pyrate-limiter) |
+| sqlalchemy | 2.1.6 | requires Python >=3.11; 2.0.x also fine |
+| alembic | 1.20.1 | |
+| psycopg + psycopg-binary | 3.3.6 | URL scheme `postgresql+psycopg://`; binary has cp313 wheels (macOS + manylinux) |
+| prometheus-client | 0.26.0 | zero deps; use `make_asgi_app()` mounted at `/metrics` |
+| prometheus-fastapi-instrumentator | 8.1.0 | optional wrapper over prometheus-client |
+| python-json-logger | 4.2.0 | stdlib `logging` formatter; structlog 26.1.0 is bigger/more API surface |
+
+### Findings
+- **Conflicts:** none. `pip check` clean after installing the whole stack on top of current requirements.txt. Note: unpinned `pandas>=2.0` now resolves to pandas 3.x (3.1.0 fresh, local .venv has 3.0.6) and numpy 2.5; pandera 0.35 imports fine with pandas 3. streamlit now 1.66.1 (local 1.64.0).
+- **mlflow-skinny is viable.** Tested: `set_tracking_uri("sqlite:///.../m.db")`, `start_run`, `log_metric`, `mlflow.sklearn.log_model(..., registered_model_name=...)` -> "Created version 1". Gotchas: (1) mlflow 3 defaults sklearn serialization to `skops`, which is not installed; pass `serialization_format="cloudpickle"` (cloudpickle ships with skinny) or add `skops`; (2) skinny pulls sqlalchemy/alembic itself for the sqlite store; (3) no `mlflow ui` (needs full mlflow) - inspect via the sqlite file or pip-install full mlflow ad hoc locally. Use `sqlite:///` plus a local artifact root (default `./mlruns`; gitignore `mlruns/` and `*.db`).
+- **Install weight** (on top of requirements.txt, site-packages: base 566 MB): skinny+sqlalchemy+alembic = +113 MB (679 MB total); full mlflow = +224 MB (790 MB). Base install ~1-2 min wheels-only; skinny adds roughly 10-20 s, full roughly 40-60 s (estimate; not timed precisely, pip cache hides it). Recommend skinny.
+- **Rate limiting:** smallest = hand-rolled fixed window in ~10 lines: `n = r.incr(key)`; `if n == 1: r.expire(key, 60)`; 429 when `n > limit` (key = `rl:{client_ip}:{minute}`). No extra dependency, testable with fakeredis, fails open if Redis is down. slowapi adds `limits` and decorator plumbing; fastapi-limiter is async-Redis only. Recommend INCR/EXPIRE.
+- **Logging:** python-json-logger (one handler line) over structlog.
+
+### Homebrew (arm64, Sequoia bottles; none installed yet, `brew info` only)
+| Formula | Version | Start | Port | Data/config |
+|---|---|---|---|---|
+| postgresql@17 | 17.11 (keg-only) | `brew services start postgresql@17` | 5432 | cluster in `/opt/homebrew/var/postgresql@17` (auto-initdb); `createdb marketmachine`; binaries need `/opt/homebrew/opt/postgresql@17/bin` on PATH (postgresql@18 is 18.6, also available) |
+| redis | 8.10.3 | `brew services start redis` | 6379 | `/opt/homebrew/etc/redis.conf`; licence is RSAL/AGPL-tri for 8.x (fine locally) |
+| prometheus | 3.15.1 | `brew services start prometheus` | 9090 | flags in `/opt/homebrew/etc/prometheus.args` (config `/opt/homebrew/etc/prometheus.yml`: add scrape job for `localhost:8000/metrics`) |
+| grafana | 13.2.4 | `brew services start grafana` | 3000 | `/opt/homebrew/etc/grafana/grafana.ini`, data `/opt/homebrew/var/lib/grafana`; default login admin/admin; add Prometheus datasource `http://localhost:9090`; provisioning dir `/opt/homebrew/etc/grafana/provisioning` or import a dashboard JSON committed to the repo |
+Without services: `redis-server` / `postgres -D <dir>` / `prometheus --config.file=...` run in the foreground. App/API: Streamlit 8501, uvicorn 8000, MLflow none (sqlite file).
+
+### Recommended dependency split
+- `requirements.txt` (Streamlit Cloud, unchanged): streamlit, pandas, numpy, scikit-learn, plotly. Add `pandera` here only if validation runs inside `housing/data.py` (it does for D: tiny, pure Python) -> add `pandera>=0.20`.
+- `requirements-api.txt`: `-r requirements.txt`, mlflow-skinny>=3, fastapi, uvicorn, pydantic>=2, redis, sqlalchemy>=2, alembic, psycopg[binary]>=3, prometheus-client, python-json-logger.
+- `requirements-dev.txt`: `-r requirements-api.txt`, pytest, httpx, fakeredis. (CI already installs `requirements.txt` + `requirements-dev.txt`, so the workflow needs no change; today dev does `-r requirements.txt`, change that one line, and update the cache-dependency-path to include requirements-api.txt.)
+- Keep imports of mlflow/redis/sqlalchemy/prometheus lazy or confined to new modules (`housing/tracking.py`, `api/`) so the Streamlit app never imports them; tests for DB/Redis use sqlite in-memory and fakeredis (SQLAlchemy models must avoid Postgres-only types, or gate pg tests with a skip marker).

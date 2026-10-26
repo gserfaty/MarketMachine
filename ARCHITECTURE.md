@@ -2,6 +2,7 @@
 
 ## Module map
 - `app.py` - entry point: page config, `st.navigation`, sidebar, metro selection.
+- `housing/schemas.py` - Pandera contracts per source and `DataValidationError`.
 - `housing/data.py` - downloads Zillow Research CSVs and FRED `fredgraph.csv` (mortgage, months' supply) plus Zillow's own forecast (`load_zillow_forecast`, comparison only); `MARKETMACHINE_DATA_DIR` points it at local files (offline).
 - `housing/analysis.py` - growth, rankings and market-profile calculations.
 - `housing/model.py` - feature builder (national macro features merged by date, lagged per release) and `HistGradientBoostingRegressor` forecast with backtest; `calibrate_intervals` (out-of-sample conformal width multiplier, 24m only).
@@ -12,9 +13,11 @@
   Streamlit runs these files; they are not imported. Each ends with a call to its render function.
 
 ## Data flow
-download (`data.py`: Zillow CSVs, FRED) -> features / analysis (`analysis.py`, `model.py` feature builder)
+download (`data.py`: Zillow CSVs, FRED) -> parse -> validate (`schemas.validate` via `data._parsed`) -> features / analysis (`analysis.py`, `model.py` feature builder)
 -> model (`cached_forecast` trains once per data as-of date) -> pages render tables and charts.
 Candidate feature sources are evaluated offline with `model.rolling_backtest` before a loader is added (see `docs/RESEARCH.md` results).
+
+Validation also runs live-only freshness and minimum-count checks (off when `MARKETMACHINE_DATA_DIR` is set). A failure raises `DataValidationError`, which `shared.py` turns into `None`, so the UI shows the "Heads up" warning or its degraded mode.
 
 ## Caching
 All in `housing/shared.py`, so every page shares the same caches:

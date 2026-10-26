@@ -5,6 +5,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Data contracts with Pandera (2026-10-26)
+- New `housing/schemas.py`: one Pandera contract per data source (columns, ranges, month-end/unique dates).
+- All loaders go through `data._parsed`, which raises `DataValidationError` on bad data; the UI degrades as before.
+- Live downloads also check minimum region counts and freshness.
+- Added `pandera>=0.20` to requirements and `tests/test_schemas.py`.
+
 ### Design polish and 6-item navigation (2026-10-22)
 - Headline deltas use `fmt_pct` ("▲ +4.2%") colored by `ui.color_deltas`; `--positive`/`--negative` are now defined.
 - KPI cards go through `ui.kpi` everywhere: equal height, delta and notes inside the card (arrows in text, gray for notes).
