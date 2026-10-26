@@ -146,11 +146,12 @@ class ForecastResult:
     feature_importance: pd.Series | None = None
     national_interval: tuple[float, float] = (float("nan"), float("nan"))
     interval_k: float = 1.0
+    model: HistGradientBoostingRegressor | None = None
 
 
-def _active_feature_cols(df: pd.DataFrame) -> list[str]:
-    """FEATURE_COLS present and not entirely NaN (e.g. macro features when mortgage=None)."""
-    return [c for c in FEATURE_COLS if c in df.columns and df[c].notna().any()]
+def _active_feature_cols(df: pd.DataFrame, cols: list[str] = FEATURE_COLS) -> list[str]:
+    """`cols` (default FEATURE_COLS) present and not entirely NaN (e.g. macro features when mortgage=None)."""
+    return [c for c in cols if c in df.columns and df[c].notna().any()]
 
 
 HALF_LIFE_YEARS = 3.0
@@ -312,13 +313,13 @@ def summarize_backtest(scores: pd.DataFrame) -> pd.DataFrame:
 
 def train_and_evaluate(
     long_df: pd.DataFrame, mortgage: pd.Series | None, supply: pd.DataFrame | None = None, horizon: int = 12,
-    months_supply: pd.Series | None = None,
+    months_supply: pd.Series | None = None, feature_cols: list[str] | None = None,
 ) -> ForecastResult:
     feat = build_features(long_df, mortgage, supply, months_supply)
     target = build_target(long_df, horizon=horizon)
     combined = feat.join(target.rename("y"), how="inner").reset_index()
 
-    feature_cols = _active_feature_cols(combined)
+    feature_cols = _active_feature_cols(combined, feature_cols or FEATURE_COLS)
     raw = add_intervals(rolling_backtest(combined, feature_cols, horizon), horizon)
     k = 1.0
     # ponytail: only 24m is calibrated (3m/12m already ~0.80 coverage); one global multiplier, per-year k is out-of-sample
@@ -368,4 +369,5 @@ def train_and_evaluate(
         feature_importance=None,
         national_interval=national_interval,
         interval_k=k,
+        model=full_model,
     )

@@ -8,3 +8,6 @@ __pycache__/
 CLAUDE.md
 docs/PLAN.md
 docs/EVAL.md
+mlruns.db
+mlartifacts/
+mlruns/

@@ -1,0 +1,4 @@
+-r requirements.txt
+mlflow-skinny>=3,<4
+sqlalchemy>=2
+alembic
