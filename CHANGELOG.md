@@ -5,6 +5,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Experiment tracking and model registry (2026-10-26)
+- New `housing/track.py` CLI: logs params, metrics and backtest per horizon to a local MLflow sqlite store.
+- Registers `marketmachine-{h}m` with `champion`/`challenger` aliases and a MAE/coverage promotion rule; `load_champion(h)` for the API.
+- `model.train_and_evaluate` takes `feature_cols` and returns the fitted model; app behaviour unchanged.
+- New `requirements-api.txt` (mlflow-skinny); the app and `requirements.txt` do not use mlflow.
+
 ### Data contracts with Pandera (2026-10-26)
 - New `housing/schemas.py`: one Pandera contract per data source (columns, ranges, month-end/unique dates).
 - All loaders go through `data._parsed`, which raises `DataValidationError` on bad data; the UI degrades as before.

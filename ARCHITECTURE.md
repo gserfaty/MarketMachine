@@ -5,6 +5,7 @@
 - `housing/schemas.py` - Pandera contracts per source and `DataValidationError`.
 - `housing/data.py` - downloads Zillow Research CSVs and FRED `fredgraph.csv` (mortgage, months' supply) plus Zillow's own forecast (`load_zillow_forecast`, comparison only); `MARKETMACHINE_DATA_DIR` points it at local files (offline).
 - `housing/analysis.py` - growth, rankings and market-profile calculations.
+- `housing/track.py` - CLI (`python -m housing.track`) logging each horizon's run to a local MLflow sqlite store, registering `marketmachine-{h}m` with `champion`/`challenger` aliases; `load_champion(h)` is the hook for the API. Never imported by the app.
 - `housing/model.py` - feature builder (national macro features merged by date, lagged per release) and `HistGradientBoostingRegressor` forecast with backtest; `calibrate_intervals` (out-of-sample conformal width multiplier, 24m only).
 - `housing/finance.py` - mortgage, ARM and equity-projection math (no Streamlit).
 - `housing/ui.py` - theme, CSS, sidebar, shared widgets, disclaimer text.
@@ -29,10 +30,16 @@ All in `housing/shared.py`, so every page shares the same caches:
 The selected metro lives in session state and the `?metro=` query parameter. `st.session_state["_nav"]`
 holds the `st.Page` objects for `ui.nav_button`.
 
+## Tracking and registry
+Store: `mlruns.db` (sqlite) and `mlartifacts/` in the repo root (gitignored), or `MLFLOW_TRACKING_URI`. Each run logs params,
+metrics, the backtest table and the fitted HGB model (registered as `marketmachine-{h}m`). With `--promote`, the new version
+becomes `champion` if blend coverage80 is in 0.70-0.90 and blend MAE <= the horizon's champion MAE + 0.02 pp (or no champion
+yet); otherwise it is `challenger`. mlflow lives in `requirements-api.txt`; the Streamlit app never imports it.
+
 ## Tests
 `pytest` in `tests/`, fully offline: `tests/conftest.py` points `MARKETMACHINE_DATA_DIR` at
 `tests/fixtures/` (built by `tests/make_fixtures.py`) and blocks sockets. `tests/test_app.py` uses
-`AppTest` and `switch_page` to render each page file.
+`AppTest` and `switch_page` to render each page file. `tests/test_track.py` runs one fixture training against a tmp sqlite MLflow store.
 CI: `.github/workflows/tests.yml` runs `python -m pytest -q` on Python 3.13 for PRs to and pushes on `main`; its `pytest` job is a required status check.
 `.github/workflows/zillow-snapshot.yml` is the monthly snapshot job (not a test).
 

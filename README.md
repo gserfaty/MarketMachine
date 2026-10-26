@@ -40,6 +40,18 @@ Every download is parsed and then validated against a Pandera contract in `housi
 env -u MARKETMACHINE_DATA_DIR .venv/bin/python -c "from housing import data; [data._parsed(k) for k in data.URLS]; print('ALL OK')"
 ```
 
+## Experiment tracking
+
+Optional, not needed by the app. Install `pip install -r requirements-dev.txt` (adds MLflow), then:
+
+```
+.venv/bin/python -m housing.track --promote   # train 3/12/24m on live data, log, register, move aliases
+.venv/bin/python -m housing.track --report    # comparison table of all runs
+```
+
+The store is `mlruns.db` + `mlartifacts/` in the repo root; set `MLFLOW_TRACKING_URI` to override. For the full UI run
+`pip install mlflow` and `mlflow ui --backend-store-uri sqlite:///mlruns.db`.
+
 ## Pages
 
 Navigation is grouped Market / Metro / Money, and the chosen metro carries across pages (also in the `?metro=` URL parameter).
