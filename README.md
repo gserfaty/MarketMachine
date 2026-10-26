@@ -32,6 +32,14 @@ Sources evaluated and rejected are listed in `docs/RESEARCH.md`.
 Data is downloaded at runtime and cached (`st.cache_data`, 24h TTL). If a source is unavailable,
 the app shows a clear error/warning instead of crashing.
 
+## Data quality
+
+Every download is parsed and then validated against a Pandera contract in `housing/schemas.py`: required columns, value ranges (for example prices > 0, mortgage rates 0-25%), month-end unique dates, plus (live data only) a minimum region count and a freshness limit of 2-5 months. If any check fails the loader raises `DataValidationError` listing all problems, and the app shows the "Heads up" warning (or its degraded mode) instead of training on bad data. Check live data with:
+
+```
+env -u MARKETMACHINE_DATA_DIR .venv/bin/python -c "from housing import data; [data._parsed(k) for k in data.URLS]; print('ALL OK')"
+```
+
 ## Pages
 
 Navigation is grouped Market / Metro / Money, and the chosen metro carries across pages (also in the `?metro=` URL parameter).

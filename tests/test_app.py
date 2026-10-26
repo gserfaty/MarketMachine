@@ -164,3 +164,20 @@ def test_metro_source_caption():
     at.selectbox(key="metro_pick_overview").set_value("Chicago, IL").run()
     at = at.switch_page("housing/pages/forecast.py").run()
     assert any("from Market overview" in c.value for c in at.caption)
+
+
+def test_overview_corrupt_zhvi_shows_heads_up(tmp_path, monkeypatch):
+    shutil.copytree(FIXTURES, tmp_path, dirs_exist_ok=True)
+    p = tmp_path / "zhvi_metro.csv"
+    lines = p.read_text().splitlines()
+    cells = lines[2].split(",")
+    cells[-1] = "-5"
+    lines[2] = ",".join(cells)
+    p.write_text("\n".join(lines) + "\n")
+    monkeypatch.setenv("MARKETMACHINE_DATA_DIR", str(tmp_path))
+    at = AppTest.from_file(APP_PATH, default_timeout=60)
+    at.run()
+    assert not at.exception
+    assert any(w.value.startswith("Heads up:") for w in at.warning)
+    assert any(b.label == "Try again" for b in at.button)
+    assert "not financial advice" in " ".join(m.value for m in at.markdown)

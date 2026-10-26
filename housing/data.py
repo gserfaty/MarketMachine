@@ -7,11 +7,14 @@ blocks sockets and points MARKETMACHINE_DATA_DIR at local fixtures).
 from __future__ import annotations
 
 import io
+import logging
 import os
 from typing import Literal
 from urllib.request import urlopen
 
 import pandas as pd
+
+from housing import schemas
 
 URLS: dict[str, str] = {
     "zhvi_metro": (
@@ -174,26 +177,44 @@ def parse_zillow_forecast(buf) -> pd.DataFrame:
     return out[["region", "region_type", "base_date", *sorted(cols.values())]].reset_index(drop=True)
 
 
+def _parsed(key: str) -> pd.DataFrame | pd.Series:
+    """Read, parse and validate one source. Raises DataValidationError on any bad data."""
+    src = source(key)
+    buf = io.BytesIO(_read_bytes(src))
+    try:
+        if "fredgraph" in URLS[key]:
+            out = parse_fred(buf, key)
+        elif key == "zillow_forecast":
+            out = parse_zillow_forecast(buf)
+        else:
+            out = parse_zhvi(buf)
+        return schemas.validate(key, out, live=src.startswith("http"))
+    except schemas.DataValidationError as err:
+        logging.getLogger(__name__).warning(str(err))
+        raise
+    except Exception as e:
+        err = schemas.DataValidationError(key, [f"could not parse: {e}"])
+        logging.getLogger(__name__).warning(str(err))
+        raise err from e
+
+
 def load_zhvi(kind: Literal["metro", "state"]) -> pd.DataFrame:
-    key = "zhvi_metro" if kind == "metro" else "zhvi_state"
-    raw_bytes = _read_bytes(source(key))
-    return parse_zhvi(io.BytesIO(raw_bytes))
+    return _parsed("zhvi_metro" if kind == "metro" else "zhvi_state")
 
 
 def load_fred(series_id: str) -> pd.Series:
-    raw_bytes = _read_bytes(source(series_id))
-    return parse_fred(io.BytesIO(raw_bytes), series_id)
+    return _parsed(series_id)
 
 
 def load_zillow_forecast() -> pd.DataFrame:
-    return parse_zillow_forecast(io.BytesIO(_read_bytes(source("zillow_forecast"))))
+    return _parsed("zillow_forecast")
 
 
 def load_supply() -> pd.DataFrame:
     """Metro for-sale inventory and price-cut share. Columns: region, date, inventory, price_cut."""
     parts = []
     for key, name in (("inventory_metro", "inventory"), ("price_cut_metro", "price_cut")):
-        df = parse_zhvi(io.BytesIO(_read_bytes(source(key))))
+        df = _parsed(key)
         parts.append(df[["region", "date", "value"]].rename(columns={"value": name}))
     return parts[0].merge(parts[1], on=["region", "date"], how="outer")
 
@@ -202,7 +223,7 @@ def load_affordability() -> pd.DataFrame:
     """Zillow affordability (20% down), latest month per region. Columns: region, date, z_payment, z_income_needed, z_share."""
     out = None
     for key, name in (("afford_payment", "z_payment"), ("afford_income", "z_income_needed"), ("afford_share", "z_share")):
-        df = parse_zhvi(io.BytesIO(_read_bytes(source(key))))[["region", "date", "value"]].rename(columns={"value": name})
+        df = _parsed(key)[["region", "date", "value"]].rename(columns={"value": name})
         out = df if out is None else out.merge(df, on=["region", "date"], how="outer")
     return out.sort_values("date").groupby("region", as_index=False).last()[["region", "date", "z_payment", "z_income_needed", "z_share"]]
 
