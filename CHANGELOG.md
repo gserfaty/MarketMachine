@@ -10,6 +10,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 - Forecasts computed on demand and cached in-process; optional `MARKETMACHINE_WARM=1`; uses the registry champion when present.
 - Uniform JSON error schema; data failures return 503.
 - `data.load_forecast_inputs` and `model.as_of_key` shared with the app; `train_and_evaluate(final_model=...)`; `track.champion_version`.
+- Review fixes: guarded per-key cache locks, generic 503 text (details logged), concurrency test.
+- PR: [#1](https://github.com/gserfaty/MarketMachine/pull/1), 2 review rounds (approved, then re-approved after hardening), 6 commits.
 
 ### Experiment tracking and model registry (2026-10-26)
 - New `housing/track.py` CLI: logs params, metrics and backtest per horizon to a local MLflow sqlite store.
