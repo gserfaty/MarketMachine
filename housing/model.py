@@ -311,9 +311,13 @@ def summarize_backtest(scores: pd.DataFrame) -> pd.DataFrame:
     return out.reindex([p for p in PREDICTORS if p in out.index])
 
 
+def as_of_key(long_df: pd.DataFrame, supply, months_supply) -> str:
+    return f"{long_df['date'].max()}|supply={supply is not None}|ms={months_supply is not None}"
+
+
 def train_and_evaluate(
     long_df: pd.DataFrame, mortgage: pd.Series | None, supply: pd.DataFrame | None = None, horizon: int = 12,
-    months_supply: pd.Series | None = None, feature_cols: list[str] | None = None,
+    months_supply: pd.Series | None = None, feature_cols: list[str] | None = None, final_model=None,
 ) -> ForecastResult:
     feat = build_features(long_df, mortgage, supply, months_supply)
     target = build_target(long_df, horizon=horizon)
@@ -331,7 +335,8 @@ def train_and_evaluate(
 
     # Final fit on every row with a known target, then predict at the latest date.
     as_of = feat.index.get_level_values("date").max()
-    full_model = _fit_model(combined, feature_cols, as_of)
+    reuse = final_model is not None and list(final_model.feature_names_in_) == feature_cols
+    full_model = final_model if reuse else _fit_model(combined, feature_cols, as_of)
 
     latest_feat = feat.xs(as_of, level="date").dropna(
         subset=[c for c in feature_cols if c not in SUPPLY_COLS], how="any"

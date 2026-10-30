@@ -52,6 +52,27 @@ Optional, not needed by the app. Install `pip install -r requirements-dev.txt` (
 The store is `mlruns.db` + `mlartifacts/` in the repo root; set `MLFLOW_TRACKING_URI` to override. For the full UI run
 `pip install mlflow` and `mlflow ui --backend-store-uri sqlite:///mlruns.db`.
 
+## REST API
+
+A FastAPI service over the same code (a local or separate-host service; it is not deployed to Streamlit Cloud).
+
+```
+pip install -r requirements-api.txt
+MARKETMACHINE_WARM=1 uvicorn api.main:app --port 8000   # WARM trains the 12m forecast at startup
+```
+
+Interactive docs at `http://localhost:8000/docs`. The first forecast request takes 60-120 s on live data (computed on demand, then cached 24 h).
+Metro paths take a Zillow RegionID or the URL-encoded name. Forecasts are statistical estimates, not financial advice.
+
+```
+curl localhost:8000/v1/health
+curl 'localhost:8000/v1/metros?q=austin'
+curl 'localhost:8000/v1/metros/Austin%2C%20TX/forecast?horizon=12'
+curl 'localhost:8000/v1/affordability?income=120000&down_pct=20&limit=5'
+curl -X POST localhost:8000/v1/financing/estimate -H 'content-type: application/json' \
+  -d '{"price":450000,"down_pct":20,"state":"TX"}'
+```
+
 ## Pages
 
 Navigation is grouped Market / Metro / Money, and the chosen metro carries across pages (also in the `?metro=` URL parameter).
@@ -70,6 +91,7 @@ app.py              entry point: navigation and sidebar
 housing/
   data.py analysis.py model.py finance.py   data loading, features, ML, mortgage math
   ui.py             theme, shared widgets
+api/                FastAPI service (uvicorn api.main:app)
   housing/shared.py cached loaders and cross-page helpers
   housing/pages/    one Streamlit page script per page (overview, findings (redirect to overview), explorer, profile, forecast, financing, affordability)
 tests/              offline pytest suite
