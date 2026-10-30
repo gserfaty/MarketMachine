@@ -5,6 +5,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Versioned REST API (2026-10-30)
+- New `api/` FastAPI app (`uvicorn api.main:app`): `/v1` health, ready, metros, per-metro forecast, forecast summary, affordability, financing estimate.
+- Forecasts computed on demand and cached in-process; optional `MARKETMACHINE_WARM=1`; uses the registry champion when present.
+- Uniform JSON error schema; data failures return 503.
+- `data.load_forecast_inputs` and `model.as_of_key` shared with the app; `train_and_evaluate(final_model=...)`; `track.champion_version`.
+
 ### Experiment tracking and model registry (2026-10-26)
 - New `housing/track.py` CLI: logs params, metrics and backtest per horizon to a local MLflow sqlite store.
 - Registers `marketmachine-{h}m` with `champion`/`challenger` aliases and a MAE/coverage promotion rule; `load_champion(h)` for the API.
