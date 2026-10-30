@@ -231,3 +231,14 @@ def load_affordability() -> pd.DataFrame:
 def to_wide(long_df: pd.DataFrame) -> pd.DataFrame:
     """Pivot a tidy long dataframe to wide: index date, columns region."""
     return long_df.pivot_table(index="date", columns="region", values="value")
+
+
+def load_forecast_inputs() -> dict:
+    """Inputs for train_and_evaluate. ZHVI is required (raises); the rest degrade to None."""
+    def opt(fn, *a):
+        try:
+            return fn(*a)
+        except Exception:
+            return None
+    return {"long_df": load_zhvi("metro"), "mortgage": opt(load_fred, "MORTGAGE30US"),
+            "supply": opt(load_supply), "months_supply": opt(load_fred, "MSACSR")}

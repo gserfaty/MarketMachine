@@ -4,8 +4,9 @@
 - `app.py` - entry point: page config, `st.navigation`, sidebar, metro selection.
 - `housing/schemas.py` - Pandera contracts per source and `DataValidationError`.
 - `housing/data.py` - downloads Zillow Research CSVs and FRED `fredgraph.csv` (mortgage, months' supply) plus Zillow's own forecast (`load_zillow_forecast`, comparison only); `MARKETMACHINE_DATA_DIR` points it at local files (offline).
+- `api/` - FastAPI service: `main.py` (routes, TTL cache, error handlers), `models.py` (Pydantic). Imports neither streamlit nor mlflow (unless a registry exists).
 - `housing/analysis.py` - growth, rankings and market-profile calculations.
-- `housing/track.py` - CLI (`python -m housing.track`) logging each horizon's run to a local MLflow sqlite store, registering `marketmachine-{h}m` with `champion`/`challenger` aliases; `load_champion(h)` is the hook for the API. Never imported by the app.
+- `housing/track.py` - CLI (`python -m housing.track`) logging each horizon's run to a local MLflow sqlite store, registering `marketmachine-{h}m` with `champion`/`challenger` aliases; `load_champion(h)`/`champion_version(h)` serve the API; `load_inputs` aliases `data.load_forecast_inputs`. Never imported by the app.
 - `housing/model.py` - feature builder (national macro features merged by date, lagged per release) and `HistGradientBoostingRegressor` forecast with backtest; `calibrate_intervals` (out-of-sample conformal width multiplier, 24m only).
 - `housing/finance.py` - mortgage, ARM and equity-projection math (no Streamlit).
 - `housing/ui.py` - theme, CSS, sidebar, shared widgets, disclaimer text.
@@ -35,6 +36,16 @@ Store: `mlruns.db` (sqlite) and `mlartifacts/` in the repo root (gitignored), or
 metrics, the backtest table and the fitted HGB model (registered as `marketmachine-{h}m`). With `--promote`, the new version
 becomes `champion` if blend coverage80 is in 0.70-0.90 and blend MAE <= the horizon's champion MAE + 0.02 pp (or no champion
 yet); otherwise it is `challenger`. mlflow lives in `requirements-api.txt`; the Streamlit app never imports it.
+
+## API layer
+```
+clients (curl, future frontends) -> FastAPI api.main (/v1, TTL cache, errors) -> housing.{data,analysis,model,finance,track}
+                                                                                  <- Streamlit app (shared.py st.cache)
+```
+Routes are thin wrappers over `housing.*`. Forecasts are computed on demand and cached in-process (24 h, per-key lock), so the
+first forecast request takes 60-120 s on real data; `MARKETMACHINE_WARM=1` trains the 12m model in a background thread at
+startup. If a registry (`MLFLOW_TRACKING_URI` or `mlruns.db`) has a `champion` whose features match, `train_and_evaluate`
+reuses that model for the point forecast (the backtest still runs for the interval); otherwise it trains on demand.
 
 ## Tests
 `pytest` in `tests/`, fully offline: `tests/conftest.py` points `MARKETMACHINE_DATA_DIR` at
