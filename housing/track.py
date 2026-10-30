@@ -37,21 +37,7 @@ def setup(tracking_uri: str | None = None, artifact_dir: str | None = None) -> s
     return uri
 
 
-def _optional(fn, *args):
-    try:
-        return fn(*args)
-    except Exception:
-        return None
-
-
-def load_inputs() -> dict:
-    """Same inputs as shared._forecast, without Streamlit. ZHVI is required; the rest degrade to None."""
-    return {
-        "long_df": data.load_zhvi("metro"),
-        "mortgage": _optional(data.load_fred, "MORTGAGE30US"),
-        "supply": _optional(data.load_supply),
-        "months_supply": _optional(data.load_fred, "MSACSR"),
-    }
+load_inputs = data.load_forecast_inputs
 
 
 def _git_sha() -> str:
@@ -131,6 +117,14 @@ def promote(horizon: int, version: str, apply: bool) -> str:
     alias = "champion" if apply and ok else "challenger"
     client.set_registered_model_alias(name, alias, version)
     return f"{alias}: {reason}"
+
+
+def champion_version(horizon: int) -> str | None:
+    try:
+        v = _champion_version(MlflowClient(), f"marketmachine-{horizon}m")
+        return str(v.version) if v else None
+    except Exception:
+        return None
 
 
 def load_champion(horizon: int):

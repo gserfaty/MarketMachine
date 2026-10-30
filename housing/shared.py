@@ -180,8 +180,7 @@ def _forecast(metro_df: pd.DataFrame, horizon: int = 12) -> model.ForecastResult
     mortgage = cached_fred("MORTGAGE30US", _data_dir_key())
     supply = cached_supply(_data_dir_key())
     ms = cached_fred("MSACSR", _data_dir_key())
-    as_of_key = f"{metro_df['date'].max()}|supply={supply is not None}|ms={ms is not None}"
-    return cached_forecast(as_of_key, metro_df, mortgage, supply, horizon, ms)
+    return cached_forecast(model.as_of_key(metro_df, supply, ms), metro_df, mortgage, supply, horizon, ms)
 
 
 def _forecast_failed() -> None:
