@@ -152,3 +152,26 @@ def test_cached_ttl_and_exceptions():
 def test_api_imports_no_streamlit():
     code = "import api.main, sys; assert 'streamlit' not in sys.modules and 'mlflow' not in sys.modules"
     subprocess.run([sys.executable, "-c", code], check=True)
+
+
+def test_concurrent_first_requests_compute_once():
+    import threading
+    import time as _t
+
+    from api import main as api_main
+
+    calls = []
+
+    def slow():
+        calls.append(1)
+        _t.sleep(0.2)
+        return "v"
+
+    key = ("test-concurrency", _t.monotonic())
+    out = []
+    threads = [threading.Thread(target=lambda: out.append(api_main.cached(key, 60, slow))) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert out == ["v"] * 5 and len(calls) == 1

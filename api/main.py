@@ -5,7 +5,6 @@ import logging
 import os
 import threading
 import time
-from collections import defaultdict
 from contextlib import asynccontextmanager
 from enum import IntEnum
 from pathlib import Path
@@ -35,11 +34,17 @@ class Horizon(IntEnum):  # Literal[3, 12, 24] does not coerce query strings
 
 # ponytail: per-process cache, Redis in step G
 _cache: dict[tuple, tuple[float, object]] = {}
-_locks: defaultdict = defaultdict(threading.Lock)
+_locks: dict[tuple, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+def _lock(key: tuple) -> threading.Lock:
+    with _locks_guard:  # setdefault on a shared dict needs a guard to hand out one lock per key
+        return _locks.setdefault(key, threading.Lock())
 
 
 def cached(key: tuple, ttl: float, fn: Callable[[], T]) -> T:
-    with _locks[key]:
+    with _lock(key):
         hit = _cache.get(key)
         if hit and time.monotonic() - hit[0] < ttl:
             return hit[1]
@@ -88,6 +93,7 @@ def _champion(h: int):
         mdl, ver = track.load_champion(h), track.champion_version(h)
         return (mdl, ver) if mdl is not None and ver else None
     except Exception:  # noqa: BLE001
+        log.warning("registry model unavailable for %sm; training on demand", h, exc_info=True)
         return None
 
 
@@ -176,7 +182,8 @@ async def _invalid(_r: Request, e: DataValidationError):
 
 @app.exception_handler(OSError)
 async def _down(_r: Request, e: OSError):
-    return _err(503, "data_unavailable", f"A data source is unavailable: {e}")
+    log.warning("data source unavailable", exc_info=e)
+    return _err(503, "data_unavailable", "A data source is unavailable. Try again later.")
 
 
 @v1.get("/health", response_model=m.Health)
@@ -188,7 +195,7 @@ def health():
 def ready():
     t = metros()
     as_of = inputs()["long_df"]["date"].max().date()
-    done = sorted({k[3] for k in _cache if k[0] == "forecast" and k[1] == _dd()})
+    done = sorted({k[3] for k in list(_cache) if k[0] == "forecast" and k[1] == _dd()})
     return {"status": "ready", "zhvi_as_of": as_of, "metros": len(t), "forecasts_cached": done}
 
 
