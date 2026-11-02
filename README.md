@@ -165,6 +165,8 @@ rank IC and lift are n/a because it ranks nothing).
 
 **Features tried and not kept.** Zillow sales count, payment-to-income share, implied income and the FHFA HPI-vs-ZHVI gap were backtested as extra features (2026-10-21). None beat the current features by a meaningful margin (best 12m blend MAE change: 0.003 pp), so the model was unchanged then. On 2026-10-22 national FRED candidates were added: months' supply (MSACSR) was kept (12m MAE 3.60 to 3.37); yield curve, unemployment, housing starts, permits, real mortgage rate and delinquency were not. Details in `CHANGELOG.md` and `docs/RESEARCH.md`.
 
+**Tuning tried and not kept.** Absolute-error loss, target clipping, and 17 hyperparameter settings (learning rate, iterations, early stopping, leaves, leaf size, L2, feature subsampling, recency half-life) were tuned on 2010-2019 and checked on a 2020-2025 holdout (2026-11-02). None improved holdout 12m MAE by the 0.03 pp bar without worse bias or ranking, so the current settings stay. Runs are in MLflow experiment `marketmachine-tuning-2026-10-30`.
+
 **Versus Zillow.** The forecast page compares our 3- and 12-month forecasts with Zillow's own. On 2026-10-22 at 12 months, 771 of 894 metros had the same direction as Zillow's, and the median difference was -0.1 points (ours minus Zillow). This compares forecasts only, not accuracy.
 
 **Snapshots.** `.github/workflows/zillow-snapshot.yml` saves Zillow's forecast CSV monthly (cron `0 14 20 * *`) to the `snapshots` branch, at `https://raw.githubusercontent.com/gserfaty/MarketMachine/snapshots/zillow_forecast/<BaseDate>.csv`. A track record comparing forecasts with outcomes comes later, once they come due.
