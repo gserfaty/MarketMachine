@@ -5,6 +5,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Loss and hyperparameter tuning rejected (2026-11-02)
+- Protocol: configs chosen on test years 2010-2019, confirmed on a 2020-2025 holdout untouched during tuning; live data with mortgage, supply and MSACSR. 19 configs logged to MLflow experiment `marketmachine-tuning-2026-10-30` (nothing registered).
+- 12m served blend, holdout MAE / bias / rank IC / cov80: current 4.252 / -0.480 / 0.485 / 0.772. Best alternatives: target clipped 1%/99% 4.238 (-0.014 pp), early stopping 4.236 (bias worse, -0.581), l2=5 4.253, half-life 5y 4.315; absolute_error loss 4.310 (worse in both periods). Keep bar was -0.03 pp holdout MAE with |bias| and rank IC not worse; none passed, so the model is unchanged.
+- Blend check: model-only beats the 50/50 blend on holdout MAE (4.202) and rank IC (0.507) but has bias -1.78 pp, so the 50/50 blend stays; input for a later learned-stacking step.
+- Full-period 12m blend MAE is now 3.404 (was 3.374 on 2026-10-22) from one more month of data and Zillow revisions; same code.
+
 ### Versioned REST API (2026-10-30)
 - New `api/` FastAPI app (`uvicorn api.main:app`): `/v1` health, ready, metros, per-metro forecast, forecast summary, affordability, financing estimate.
 - Forecasts computed on demand and cached in-process; optional `MARKETMACHINE_WARM=1`; uses the registry champion when present.
