@@ -14,6 +14,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
   - Keep bar was -0.03 pp holdout MAE with |bias| and rank IC not worse; none passed, so the model is unchanged.
 - Blend check: model-only beats the 50/50 blend on holdout MAE (4.202) and rank IC (0.507) but has bias -1.78 pp, so the 50/50 blend stays; input for a later learned-stacking step.
 - Full-period 12m blend MAE is now 3.404 (was 3.374 on 2026-10-22) with the model settings and features unchanged; attributed to one more month of data and Zillow revisions (the 2026-10-26/30 code changes added optional parameters with unchanged defaults).
+- PR: [#2](https://github.com/gserfaty/MarketMachine/pull/2), 2 review rounds (changes requested, then approved), 3 commits.
 
 ### Versioned REST API (2026-10-30)
 - New `api/` FastAPI app (`uvicorn api.main:app`): `/v1` health, ready, metros, per-metro forecast, forecast summary, affordability, financing estimate.
