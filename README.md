@@ -169,7 +169,16 @@ rank IC and lift are n/a because it ranks nothing).
 
 **Versus Zillow.** The forecast page compares our 3- and 12-month forecasts with Zillow's own. On 2026-10-22 at 12 months, 771 of 894 metros had the same direction as Zillow's, and the median difference was -0.1 points (ours minus Zillow). This compares forecasts only, not accuracy.
 
-**Snapshots.** `.github/workflows/zillow-snapshot.yml` saves Zillow's forecast CSV monthly (cron `0 14 20 * *`) to the `snapshots` branch, at `https://raw.githubusercontent.com/gserfaty/MarketMachine/snapshots/zillow_forecast/<BaseDate>.csv`. A track record comparing forecasts with outcomes comes later, once they come due.
+**Accuracy versus Zillow.** `python -m housing.benchmark DIR` scores our backtest against Zillow's published metro forecasts, using 24 monthly snapshots on the `snapshots` branch (23 recovered from the Wayback Machine, BaseDate 2022-07 to 2026-03). On 2026-11-03, over ~890 metros:
+
+| Horizon | Snapshots | Zillow MAE | Our MAE | Our rank IC (Zillow) | Snapshots we won |
+|---|---|---|---|---|---|
+| 3m | 23 | 1.00 | 1.01 | 0.58 (0.56) | 15/23 |
+| 12m | 18 | 3.56 | 2.97 | 0.49 (0.17) | 15/18 |
+
+Zillow's forecasts ran low (12m bias -1.5 pp vs our +0.5). Caveats: our side is the rolling backtest on today's revised ZHVI, while Zillow forecast from the data it had at the time, so this favors us somewhat; it is a backtest, not a live track record.
+
+**Snapshots.** `.github/workflows/zillow-snapshot.yml` saves Zillow's forecast CSV monthly (cron `0 14 20 * *`) to the `snapshots` branch, at `https://raw.githubusercontent.com/gserfaty/MarketMachine/snapshots/zillow_forecast/<BaseDate>.csv`. To rerun the benchmark: `git worktree add /tmp/snap origin/snapshots && python -m housing.benchmark /tmp/snap/zillow_forecast`.
 
 Past backtest performance does not guarantee future results.
 

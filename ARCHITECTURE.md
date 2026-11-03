@@ -6,6 +6,7 @@
 - `housing/data.py` - downloads Zillow Research CSVs and FRED `fredgraph.csv` (mortgage, months' supply) plus Zillow's own forecast (`load_zillow_forecast`, comparison only); `MARKETMACHINE_DATA_DIR` points it at local files (offline).
 - `api/` - FastAPI service: `main.py` (routes, TTL cache, error handlers), `models.py` (Pydantic). Imports neither streamlit nor mlflow (unless a registry exists).
 - `housing/analysis.py` - growth, rankings and market-profile calculations.
+- `housing/benchmark.py` - CLI (`python -m housing.benchmark DIR`) scoring the rolling backtest against Zillow forecast snapshots per BaseDate via `model.score_backtest`. Never imported by the app.
 - `housing/track.py` - CLI (`python -m housing.track`) logging each horizon's run to a local MLflow sqlite store, registering `marketmachine-{h}m` with `champion`/`challenger` aliases; `load_champion(h)`/`champion_version(h)` serve the API; `load_inputs` aliases `data.load_forecast_inputs`. Never imported by the app.
 - `housing/model.py` - feature builder (national macro features merged by date, lagged per release) and `HistGradientBoostingRegressor` forecast with backtest; `calibrate_intervals` (out-of-sample conformal width multiplier, 24m only).
 - `housing/finance.py` - mortgage, ARM and equity-projection math (no Streamlit).
@@ -56,6 +57,6 @@ CI: `.github/workflows/tests.yml` runs `python -m pytest -q` on Python 3.13 for 
 
 ## Snapshots and future track record
 - The `snapshots` branch holds `zillow_forecast/<BaseDate>.csv`, one file per month.
-- A future page lists them and, for each BaseDate b and h in {3,12} with b+h <= the latest ZHVI month, computes realized = ZHVI(b+h)/ZHVI(b) - 1 per metro.
-- It reports Zillow's MAE and direction accuracy, and ours from either our own snapshots (to be added) or a point-in-time retrain on ZHVI truncated to b (caveat: revised data).
-- First 3m results arrive about Jan 2027; first 12m about Oct 2027.
+- 23 earlier snapshots (2022-07 to 2026-03) were recovered from the Wayback Machine and added to the branch.
+- `housing/benchmark.py` joins each snapshot to the rolling backtest on (region, BaseDate) and scores Zillow, blend, model and naive momentum against realized ZHVI(b+h)/ZHVI(b) - 1. Caveat: our side uses revised ZHVI.
+- Not yet in the app; a page can reuse `benchmark.head_to_head`.
