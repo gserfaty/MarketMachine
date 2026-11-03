@@ -10,6 +10,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 - Recovered 23 Zillow forecast snapshots (BaseDate 2022-07 to 2026-03) from the Wayback Machine and added them to the `snapshots` branch.
 - Result, ~890 metros: 12m (18 snapshots) MAE 2.97 vs Zillow 3.56, rank IC 0.49 vs 0.17, won 15/18; 3m (23 snapshots) MAE 1.01 vs 1.00, rank IC 0.58 vs 0.56, won 15/23. Model-only is better at 3m (MAE 0.92).
 - Caveat: our side uses today's revised ZHVI; Zillow forecast on real-time data. No model change.
+- PR: [#3](https://github.com/gserfaty/MarketMachine/pull/3), 1 review round (approved; minor doc notes applied), 3 commits.
 
 ### Loss and hyperparameter tuning rejected (2026-11-02)
 - Protocol: configs chosen on test years 2010-2019, confirmed on a 2020-2025 holdout untouched during tuning; live data with mortgage, supply and MSACSR. 19 configs logged to MLflow experiment `marketmachine-tuning-2026-10-30` (nothing registered).

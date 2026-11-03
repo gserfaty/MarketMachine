@@ -176,9 +176,9 @@ rank IC and lift are n/a because it ranks nothing).
 | 3m | 23 | 1.00 | 1.01 | 0.58 (0.56) | 15/23 |
 | 12m | 18 | 3.56 | 2.97 | 0.49 (0.17) | 15/18 |
 
-Zillow's forecasts ran low (12m bias -1.5 pp vs our +0.5). Caveats: our side is the rolling backtest on today's revised ZHVI, while Zillow forecast from the data it had at the time, so this favors us somewhat; it is a backtest, not a live track record.
+Zillow's forecasts ran low (12m bias -1.5 pp vs our +0.5). Caveats: our side is the rolling backtest on today's revised ZHVI, while Zillow forecast from the data it had at the time, so this favors us somewhat; it is a backtest, not a live track record. Each year's model is trained once at the year's first origin, so later snapshots that year use a slightly stale model (conservative). The newest snapshot (2026-09) has no outcomes yet.
 
-**Snapshots.** `.github/workflows/zillow-snapshot.yml` saves Zillow's forecast CSV monthly (cron `0 14 20 * *`) to the `snapshots` branch, at `https://raw.githubusercontent.com/gserfaty/MarketMachine/snapshots/zillow_forecast/<BaseDate>.csv`. To rerun the benchmark: `git worktree add /tmp/snap origin/snapshots && python -m housing.benchmark /tmp/snap/zillow_forecast`.
+**Snapshots.** `.github/workflows/zillow-snapshot.yml` saves Zillow's forecast CSV monthly (cron `0 14 20 * *`) to the `snapshots` branch, at `https://raw.githubusercontent.com/gserfaty/MarketMachine/snapshots/zillow_forecast/<BaseDate>.csv`. To rerun the benchmark: `git fetch origin snapshots && git worktree add /tmp/snap origin/snapshots && python -m housing.benchmark /tmp/snap/zillow_forecast`.
 
 Past backtest performance does not guarantee future results.
 
