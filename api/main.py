@@ -19,7 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api import cache as rc
-from api import models as m
+from api import ledger, models as m
 from housing import analysis, data, finance, model
 from housing.schemas import DataValidationError
 
@@ -110,6 +110,7 @@ def forecast(h: int) -> tuple[model.ForecastResult, m.ModelInfo]:
         res = model.train_and_evaluate(
             i["long_df"], i["mortgage"], supply=i["supply"], horizon=h, months_supply=i["months_supply"],
             final_model=champ[0] if champ else None)
+        ledger.record(res, h, champ[1] if champ and res.model is champ[0] else None)
         out = (res, m.ModelInfo(source="registry", name=f"marketmachine-{h}m", version=champ[1])
                if champ and res.model is champ[0] else m.ModelInfo(source="trained on demand"))
         rc.save_forecast(key, out)
@@ -290,6 +291,16 @@ def financing_estimate(req: m.FinancingRequest):
         raise HTTPException(422, str(e))
     est.pop("schedule")
     return {**est, "apr": _f(est["apr"]), "rates_as_of": r["rates_as_of"]}
+
+
+@v1.get("/monitoring/drift", response_model=m.Drift, responses=ERR)
+def monitoring_drift(horizon: Horizon = Horizon.m12):
+    eng = ledger.engine()
+    if eng is None:
+        raise HTTPException(404, "Forecast ledger is disabled (DATABASE_URL not set).")
+    horizon = int(horizon)
+    mae = _f(forecast(horizon)[0].metrics.loc[model.SERVED, "MAE"])
+    return ledger.drift(eng, horizon, inputs()["long_df"], mae)
 
 
 app.include_router(v1)
