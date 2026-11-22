@@ -5,6 +5,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Stale forecast cache after deploy fixed (2026-11-22)
+- After PR #7 deployed, the live forecast page raised `AttributeError` on `blend_weight`: Streamlit Cloud reloads code without restarting, so `st.cache_resource` kept a `ForecastResult` built by the old model code.
+- `model.as_of_key` now includes `CODE_VERSION`, a hash of `housing/model.py`, so the Streamlit, in-process API and Redis caches all drop results from older model code.
+- PR: [#8](https://github.com/gserfaty/MarketMachine/pull/8), 1 review round (approved), 2 commits.
+
 ### Learned blend weight (2026-11-22)
 - The served `blend` is now `w*model + (1-w)*naive_momentum` with a learned w (`model.fit_blend_weight`, `ForecastResult.blend_weight`) instead of a fixed 50/50. The forecast page caption and README show the weight. `housing.benchmark` now backtests from 2010 so each year's weight has history.
 - Method: replace the fixed 50/50 `blend` with `w*model + (1-w)*naive_momentum`, w on a 0-1 grid (step 0.05) minimizing MAE. Variant (a) learns w only; variant (b) also learns an intercept (median residual). Expanding window: for each test year, w is fit only on backtest rows resolved before that year's first origin (w=0.5 with fewer than 2 resolved years), so scores and intervals are out-of-sample (`model.apply_blend_weights`). The served w is fit on all backtest rows. Live data, rolling backtest from 2010, intervals recomputed (24m also calibrated).
