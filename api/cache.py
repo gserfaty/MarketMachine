@@ -1,12 +1,9 @@
 """Optional Redis layer (REDIS_URL): shared forecast cache + per-IP rate limit. Fails open: no Redis or any Redis error = no-op."""
 from __future__ import annotations
 
-import io
 import json
 import logging
 import os
-
-import pandas as pd
 
 from api import models as m
 from housing import model
@@ -38,22 +35,12 @@ def _rkey(key: tuple) -> str:
 
 
 def _enc(v: tuple[model.ForecastResult, m.ModelInfo]) -> str:
-    res, info = v
-    return json.dumps({
-        "metrics": res.metrics.to_json(orient="split"), "predictions": res.predictions.to_json(orient="split"),
-        "national_pred": res.national_pred, "as_of": res.as_of.isoformat(), "interval": list(res.national_interval),
-        "interval_k": res.interval_k, "info": info.model_dump()})
+    return json.dumps({"res": model.result_to_json(v[0]), "info": v[1].model_dump()})
 
 
 def _dec(s: str) -> tuple[model.ForecastResult, m.ModelInfo]:
     d = json.loads(s)
-    res = model.ForecastResult(
-        metrics=pd.read_json(io.StringIO(d["metrics"]), orient="split"),
-        backtest=pd.DataFrame(),  # not served by the API
-        predictions=pd.read_json(io.StringIO(d["predictions"]), orient="split"),
-        national_pred=d["national_pred"], as_of=pd.Timestamp(d["as_of"]),
-        national_interval=tuple(d["interval"]), interval_k=d["interval_k"])
-    return res, m.ModelInfo(**d["info"])
+    return model.result_from_json(d["res"]), m.ModelInfo(**d["info"])
 
 
 def load_forecast(key: tuple):
