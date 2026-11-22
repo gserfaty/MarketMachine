@@ -25,7 +25,7 @@ Validation also runs live-only freshness and minimum-count checks (off when `MAR
 ## Caching
 All in `housing/shared.py`, so every page shares the same caches:
 - `st.cache_data` (ttl 24h) for Zillow, FRED, supply and affordability (`cached_affordability`, `cached_zillow_forecast`) loaders, keyed by the data directory.
-- `st.cache_resource` for the trained model, keyed by `as_of_key` (latest data date plus supply flag) plus `horizon`. 12m is shared by all pages; 3m/24m are trained only when picked on the forecast page.
+- `st.cache_resource` for the trained model, keyed by `as_of_key` (latest data date, supply flags and a hash of `housing/model.py`, so a deploy that changes model code retrains instead of serving a stale result) plus `horizon`. The API and Redis caches use the same key. 12m is shared by all pages; 3m/24m are trained only when picked on the forecast page.
 
 ## Navigation
 `app.py` registers `st.Page("housing/pages/<name>.py", ...)` entries and runs `st.navigation`. `findings` is registered with `visibility="hidden"` as an alias for old /findings links (6 visible items).
