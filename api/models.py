@@ -145,3 +145,26 @@ class FinancingEstimate(BaseModel):
     upfront: float
     rates_as_of: date
     disclaimer: str = DISCLAIMER
+
+
+class DriftRealized(BaseModel):
+    n: int
+    mae: float  # pp
+    bias: float  # pp, predicted minus realized
+
+
+class DriftShift(BaseModel):
+    latest_as_of: date
+    previous_as_of: date
+    n_latest: int
+    n_previous: int
+    psi: float
+    mean_shift_pp: float
+
+
+class Drift(BaseModel):
+    horizon: int
+    backtest_mae: float | None = None  # pp, served blend
+    realized: DriftRealized | None = None
+    shift: DriftShift | None = None
+    disclaimer: str = DISCLAIMER
