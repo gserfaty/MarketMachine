@@ -186,7 +186,7 @@ under-covers because outcomes span market-wide shocks. Backtest (mortgage on, FR
 **Prediction intervals.** A forecast like "+3% (-1% to +6%)" means an 80% range: about 8 of 10 past forecasts
 landed inside it. The range comes from past blend backtest residuals, scaled by the metro's 12-month volatility,
 so volatile metros get wider ranges; for each year only earlier, already-resolved years are used. Backtest coverage
-is about 80% at 12 months (71% at 24 after the range is widened by a factor learned only from earlier years; still under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee.
+is about 80% at 12 months (71% at 24 after the range is widened by a factor learned only from earlier years; still under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee. Recency-weighted, last-K-year, volatility-bucket, quantile-regression, all-horizon calibration and common-shock variants were tested on 2026-11-22; none kept 24m coverage within 0.75-0.85 on the 2020-2025 holdout, so the method is unchanged (table in `CHANGELOG.md`).
 
 **Served forecast.** The page and Market overview serve `blend` = w × model + (1 - w) × naive momentum (simple returns).
 The weight w is learned (currently 0.95 at 3m, 0.8 at 12m, 0.65 at 24m; `ForecastResult.blend_weight`), see "Learned blend weight" below.
