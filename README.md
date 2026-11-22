@@ -73,6 +73,16 @@ curl -X POST localhost:8000/v1/financing/estimate -H 'content-type: application/
   -d '{"price":450000,"down_pct":20,"state":"TX"}'
 ```
 
+### Observability
+
+The API writes one JSON access-log line per request (`request_id`, `method`, `route` template, `status`, `duration_ms`; set `LOG_FORMAT=text` for plain logs) and honors/echoes `X-Request-ID`. Prometheus metrics are at `/metrics`: request counter and latency histogram, forecast compute time, cache hits/misses, data as-of date.
+
+```
+brew services start prometheus   # point it at ops/prometheus.yml, or run: prometheus --config.file=ops/prometheus.yml
+brew services start grafana      # http://localhost:3000
+```
+In Grafana add a Prometheus data source at `http://localhost:9090`, then import `ops/grafana/marketmachine-dashboard.json`.
+
 ## Pages
 
 Navigation is grouped Market / Metro / Money, and the chosen metro carries across pages (also in the `?metro=` URL parameter).
