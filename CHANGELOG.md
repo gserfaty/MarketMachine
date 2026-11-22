@@ -5,6 +5,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Bias correction tried, not kept (2026-11-22)
+- Goal: reduce the served blend's pessimistic bias (12m -1.10 pp full, -1.21 pp 2020-2025 holdout). Docs only; the served forecast is unchanged.
+- Method: add an intercept c to the learned-weight blend (after the weight). Same leakage rule as the weight: year Y uses only rows with date + h months <= Y's first origin, c = 0 with fewer than 2 resolved years. Variants: (a) median residual of all resolved rows, optionally shrunk x0.5 and/or capped at |c| <= 1 pp x h/12; (b) median of the most recent K = 2 or 3 resolved years; (c) regime median, split by the sign of the cross-metro mean trailing momentum at the origin (proxy for national r12; the cached backtest has no mortgage column). Scored offline on the cached raw backtests (2010-2025, same rows as PR #7), intervals recomputed (24m also calibrated).
+- Results, full period / 2020-2025 holdout (MAE pp, bias pp, cov80). Rank IC is unchanged for every variant (constant shift): 3m 0.669 / 0.673, 12m 0.492 / 0.528, 24m 0.422 / 0.464.
+
+  | Variant | 3m MAE | 3m bias | 3m cov80 | 12m MAE | 12m bias | 12m cov80 | 24m MAE | 24m bias | 24m cov80 |
+  |---|---|---|---|---|---|---|---|---|---|
+  | shipped (no intercept) | 0.869 / 1.042 | -0.14 / -0.10 | 0.81 / 0.81 | 3.326 / 3.924 | -1.10 / -1.21 | 0.80 / 0.81 | 8.392 / 11.299 | -1.41 / +4.06 | 0.71 / 0.62 |
+  | (a) median | 0.867 / 1.042 | +0.01 / +0.06 | 0.81 / 0.81 | 3.327 / 3.849 | -0.30 / -0.26 | 0.78 / 0.83 | 9.014 / 12.858 | +1.64 / +7.17 | 0.75 / 0.84 |
+  | (a) median x0.5 | 0.865 / 1.040 | -0.06 / -0.02 | 0.81 / 0.81 | 3.300 / 3.862 | -0.70 / -0.73 | 0.79 / 0.82 | 8.519 / 12.022 | +0.12 / +5.61 | 0.73 / 0.75 |
+  | (a) median cap 1pp | 0.867 / 1.042 | +0.01 / +0.06 | 0.81 / 0.81 | 3.293 / 3.842 | -0.38 / -0.29 | 0.79 / 0.82 | 8.482 / 12.134 | +0.19 / +6.06 | 0.73 / 0.71 |
+  | (a) x0.5 + cap 1pp | 0.865 / 1.040 | -0.06 / -0.02 | 0.81 / 0.81 | 3.300 / 3.862 | -0.70 / -0.73 | 0.79 / 0.82 | 8.486 / 12.022 | -0.05 / +5.61 | 0.73 / 0.71 |
+  | (b) K=2 | 0.888 / 1.083 | -0.01 / +0.01 | 0.80 / 0.81 | 3.634 / 4.366 | -0.17 / +0.30 | 0.77 / 0.82 | 10.246 / 16.229 | +1.64 / +8.80 | 0.73 / 0.77 |
+  | (b) K=3 | 0.873 / 1.057 | -0.00 / +0.04 | 0.80 / 0.80 | 3.455 / 4.123 | -0.20 / +0.34 | 0.77 / 0.81 | 9.830 / 15.069 | +1.77 / +8.95 | 0.72 / 0.78 |
+  | (b) K=3 x0.5 | 0.868 / 1.047 | -0.07 / -0.03 | 0.81 / 0.81 | 3.337 / 3.932 | -0.65 / -0.43 | 0.79 / 0.81 | 8.954 / 13.098 | +0.18 / +6.50 | 0.71 / 0.70 |
+  | (c) regime | 0.867 / 1.042 | -0.02 / +0.03 | 0.81 / 0.81 | 3.359 / 3.867 | -0.54 / -0.43 | 0.78 / 0.82 | 8.845 / 12.470 | +0.48 / +6.23 | 0.74 / 0.79 |
+  | (c) regime x0.5 | 0.866 / 1.040 | -0.08 / -0.04 | 0.81 / 0.81 | 3.322 / 3.878 | -0.82 / -0.82 | 0.79 / 0.82 | 8.528 / 11.855 | -0.47 / +5.14 | 0.73 / 0.70 |
+
+- Pre-set keep bar: 12m |bias| at least 0.3 pp better on full and holdout, MAE no more than 0.02 pp worse at any horizon on either period, rank IC unchanged, cov80 in 0.70-0.90 at 3m and 12m.
+  - Every variant fails on 24m MAE (best: +0.09 pp full, +0.56 pp holdout). The 2020-2025 24m blend already runs high (+4.06 pp), so any upward shift learned from the 2010s overshoots.
+  - At 3m and 12m several pass: (a) median cap 1pp is best (12m bias -0.38 / -0.29, MAE 3.293 / 3.842). (b) K=2/3 fail 12m MAE. A 3m/12m-only intercept was not adopted: pre-2020 data favors the intercept at 24m too (cap 1pp: 24m MAE 6.94 to 6.66 in 2010-2019), so the h <= 12 gate could only be chosen from the holdout.
+- Possible follow-up: revisit the capped intercept at 3m/12m once 2026 outcomes give a fresh out-of-sample year.
+
 ### Stale forecast cache after deploy fixed (2026-11-22)
 - After PR #7 deployed, the live forecast page raised `AttributeError` on `blend_weight`: Streamlit Cloud reloads code without restarting, so `st.cache_resource` kept a `ForecastResult` built by the old model code.
 - `model.as_of_key` now includes `CODE_VERSION`, a hash of `housing/model.py`, so the Streamlit, in-process API and Redis caches all drop results from older model code.
