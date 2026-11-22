@@ -5,6 +5,30 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Learned blend weight rejected (2026-11-22)
+- Experiment: replace the fixed 50/50 `blend` with `w*model + (1-w)*naive_momentum`, w on a 0-1 grid (step 0.05) minimizing MAE. Variant (a) learns w only; variant (b) also learns an intercept (median residual). For each test year, w is fit only on backtest rows resolved before that year's first origin (w=0.5 with fewer than 2 resolved years), so scores are out-of-sample. Live data, rolling backtest from 2010, intervals recomputed (24m also calibrated).
+- Learned w: about 0.95 at 3m, 0.8 at 12m and 0.65-0.85 at 24m. Fit on all resolved rows: 0.95 / 0.8 / 0.65.
+- Results, full period / 2020-2025 holdout (MAE pp, bias pp, rank IC, cov80):
+
+  | h | Predictor | Full MAE | Full bias | Full IC | Full cov80 | Holdout MAE | Holdout bias | Holdout IC | Holdout cov80 |
+  |---|---|---|---|---|---|---|---|---|---|
+  | 3m | 50/50 blend | 0.926 | -0.10 | 0.606 | 0.80 | 1.128 | -0.01 | 0.596 | 0.80 |
+  | 3m | (a) learned w | 0.869 | -0.14 | 0.669 | 0.81 | 1.042 | -0.10 | 0.673 | 0.81 |
+  | 3m | (b) w + intercept | 0.866 | -0.01 | 0.669 | 0.81 | 1.042 | +0.04 | 0.673 | 0.81 |
+  | 3m | model only | 0.859 | -0.13 | 0.674 | - | 1.039 | -0.11 | 0.671 | - |
+  | 12m | 50/50 blend | 3.422 | -0.79 | 0.478 | 0.78 | 4.198 | -0.41 | 0.491 | 0.77 |
+  | 12m | (a) learned w | 3.326 | -1.10 | 0.492 | 0.80 | 3.924 | -1.21 | 0.528 | 0.81 |
+  | 12m | (b) w + intercept | 3.324 | -0.23 | 0.490 | 0.78 | 3.882 | -0.19 | 0.524 | 0.82 |
+  | 12m | model only | 3.366 | -1.25 | 0.485 | - | 4.093 | -1.62 | 0.512 | - |
+  | 24m | 50/50 blend | 8.401 | -1.17 | 0.414 | 0.72 | 11.482 | +4.36 | 0.435 | 0.64 |
+  | 24m | (a) learned w | 8.392 | -1.41 | 0.422 | 0.71 | 11.299 | +4.06 | 0.464 | 0.62 |
+  | 24m | (b) w + intercept | 8.975 | +1.59 | 0.422 | 0.74 | 12.779 | +7.01 | 0.463 | 0.84 |
+  | 24m | model only | 8.670 | -1.41 | 0.401 | - | 11.966 | +3.87 | 0.464 | - |
+
+- Keep bar: 12m MAE at least 0.03 pp lower on both periods, rank IC not worse, |bias| no more than 0.3 pp worse, cov80 in 0.70-0.90, no horizon's MAE worse. (a) failed on 12m bias (full +0.30 pp worse, holdout +0.80 pp worse). (b) failed on 24m MAE (+0.57 pp full, +1.30 pp holdout). Model unchanged.
+- Zillow head-to-head (`housing.benchmark`, 23 snapshots at 3m, 19 at 12m, ~890 metros), MAE / bias / rank IC: 3m Zillow 1.000 / -0.42 / 0.56, 50/50 blend 0.996 / +0.04 / 0.58, (a) 0.904 / -0.09 / 0.67, (b) 0.904 / +0.05 / 0.67, model 0.899 / -0.10 / 0.67. 12m Zillow 3.510 / -1.47 / 0.18, 50/50 blend 2.973 / +0.47 / 0.50, (a) 2.770 / -0.29 / 0.52, (b) 2.822 / +0.74 / 0.51, model 2.953 / -0.72 / 0.49.
+- Possible follow-up: (b) at 3m and 12m only, or a capped intercept. Choosing that now would use the holdout to pick the rule, so it would need a fresh out-of-sample check first.
+
 ### Head-to-head with Zillow's forecasts (2026-11-03)
 - New `housing/benchmark.py` CLI scores our rolling backtest against Zillow's published metro forecasts per snapshot (MAE, bias, direction, rank IC, snapshots won).
 - Recovered 23 Zillow forecast snapshots (BaseDate 2022-07 to 2026-03) from the Wayback Machine and added them to the `snapshots` branch.
