@@ -15,8 +15,10 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from api import cache as rc
 from api import ledger, models as m, obs
 from housing import analysis, data, finance, model
 from housing.schemas import DataValidationError
@@ -32,7 +34,7 @@ class Horizon(IntEnum):  # Literal[3, 12, 24] does not coerce query strings
     m12 = 12
     m24 = 24
 
-# ponytail: per-process cache, Redis in step G
+# first layer: per-process cache; api.cache adds an optional shared Redis layer for forecasts
 _cache: dict[tuple, tuple[float, object]] = {}
 _locks: dict[tuple, threading.Lock] = {}
 _locks_guard = threading.Lock()
@@ -104,6 +106,9 @@ def forecast(h: int) -> tuple[model.ForecastResult, m.ModelInfo]:
     key = ("forecast", _dd(), model.as_of_key(i["long_df"], i["supply"], i["months_supply"]), h)
 
     def build():
+        if (hit := rc.load_forecast(key)) is not None:
+            obs.CACHE.labels("forecast", "redis_hit").inc()  # the in-process miss was already counted
+            return hit
         champ = _champion(h)
         with obs.FORECAST_SECONDS.labels(str(h)).time():
             res = model.train_and_evaluate(
@@ -111,9 +116,10 @@ def forecast(h: int) -> tuple[model.ForecastResult, m.ModelInfo]:
                 final_model=champ[0] if champ else None)
         obs.DATA_AS_OF.labels(str(h)).set(res.as_of.timestamp())
         ledger.record(res, h, champ[1] if champ and res.model is champ[0] else None)
-        if champ and res.model is champ[0]:
-            return res, m.ModelInfo(source="registry", name=f"marketmachine-{h}m", version=champ[1])
-        return res, m.ModelInfo(source="trained on demand")
+        out = (res, m.ModelInfo(source="registry", name=f"marketmachine-{h}m", version=champ[1])
+               if champ and res.model is champ[0] else m.ModelInfo(source="trained on demand"))
+        rc.save_forecast(key, out)
+        return out
 
     return cached(key, TTL, build)
 
@@ -161,7 +167,6 @@ async def lifespan(_app):
 
 app = FastAPI(title="MarketMachine API", version="1.0.0", lifespan=lifespan)
 obs.setup()
-app.middleware("http")(obs.middleware)
 app.mount("/metrics", obs.metrics_app)
 v1 = APIRouter(prefix="/v1")
 ERR = {c: {"model": m.ErrorResponse} for c in (404, 422, 503)}
@@ -192,6 +197,20 @@ async def _invalid(_r: Request, e: DataValidationError):
 async def _down(_r: Request, e: OSError):
     log.warning("data source unavailable", exc_info=e)
     return _err(503, "data_unavailable", "A data source is unavailable. Try again later.")
+
+
+@app.middleware("http")
+async def _rate_limit(request: Request, call_next):
+    if request.url.path not in ("/v1/health", "/v1/ready"):
+        wait = await run_in_threadpool(rc.retry_after, request.client.host if request.client else "unknown")
+        if wait is not None:
+            r = _err(429, "rate_limited", "Too many requests. Try again later.")
+            r.headers["Retry-After"] = str(wait)
+            return r
+    return await call_next(request)
+
+
+app.middleware("http")(obs.middleware)  # registered last = outermost, so 429s are logged and counted
 
 
 @v1.get("/health", response_model=m.Health)

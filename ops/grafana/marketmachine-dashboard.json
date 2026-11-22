@@ -24,7 +24,7 @@
     {"id": 5, "type": "stat", "title": "Cache hit ratio", "gridPos": {"x": 0, "y": 16, "w": 12, "h": 6},
      "datasource": {"type": "prometheus", "uid": "${DS}"},
      "fieldConfig": {"defaults": {"unit": "percentunit"}},
-     "targets": [{"refId": "A", "expr": "sum(cache_requests_total{result=\"hit\"}) / sum(cache_requests_total)"}]},
+     "targets": [{"refId": "A", "expr": "sum(cache_requests_total{result=~\"hit|redis_hit\"}) / sum(cache_requests_total{result=~\"hit|miss\"})"}]},
     {"id": 6, "type": "stat", "title": "Data as of", "gridPos": {"x": 12, "y": 16, "w": 12, "h": 6},
      "datasource": {"type": "prometheus", "uid": "${DS}"},
      "fieldConfig": {"defaults": {"unit": "dateTimeAsIso"}},
