@@ -17,7 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from api import models as m
+from api import models as m, obs
 from housing import analysis, data, finance, model
 from housing.schemas import DataValidationError
 
@@ -47,7 +47,9 @@ def cached(key: tuple, ttl: float, fn: Callable[[], T]) -> T:
     with _lock(key):
         hit = _cache.get(key)
         if hit and time.monotonic() - hit[0] < ttl:
+            obs.CACHE.labels(key[0], "hit").inc()
             return hit[1]
+        obs.CACHE.labels(key[0], "miss").inc()
         val = fn()
         _cache[key] = (time.monotonic(), val)
         return val
@@ -103,9 +105,11 @@ def forecast(h: int) -> tuple[model.ForecastResult, m.ModelInfo]:
 
     def build():
         champ = _champion(h)
-        res = model.train_and_evaluate(
-            i["long_df"], i["mortgage"], supply=i["supply"], horizon=h, months_supply=i["months_supply"],
-            final_model=champ[0] if champ else None)
+        with obs.FORECAST_SECONDS.labels(str(h)).time():
+            res = model.train_and_evaluate(
+                i["long_df"], i["mortgage"], supply=i["supply"], horizon=h, months_supply=i["months_supply"],
+                final_model=champ[0] if champ else None)
+        obs.DATA_AS_OF.labels(str(h)).set(res.as_of.timestamp())
         if champ and res.model is champ[0]:
             return res, m.ModelInfo(source="registry", name=f"marketmachine-{h}m", version=champ[1])
         return res, m.ModelInfo(source="trained on demand")
@@ -155,6 +159,9 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="MarketMachine API", version="1.0.0", lifespan=lifespan)
+obs.setup()
+app.middleware("http")(obs.middleware)
+app.mount("/metrics", obs.metrics_app)
 v1 = APIRouter(prefix="/v1")
 ERR = {c: {"model": m.ErrorResponse} for c in (404, 422, 503)}
 

@@ -1,3 +1,4 @@
+import json
 import shutil
 import subprocess
 import sys
@@ -175,3 +176,24 @@ def test_concurrent_first_requests_compute_once():
     for t in threads:
         t.join()
     assert out == ["v"] * 5 and len(calls) == 1
+
+
+def test_metrics_route_template_and_request_id(client):
+    r = client.get("/v1/metros/10003/forecast", headers={"X-Request-ID": "abc-123"})
+    assert r.headers["X-Request-ID"] == "abc-123"
+    assert client.get("/v1/health").headers["X-Request-ID"]
+    body = client.get("/metrics").text
+    assert 'http_requests_total{method="GET",route="/v1/metros/{region}/forecast",status="200"}' in body
+    assert "10003" not in body
+    assert 'cache_requests_total{kind="forecast",result="hit"}' in body
+    assert "forecast_compute_seconds_bucket" in body and "forecast_data_as_of_timestamp_seconds" in body
+
+
+def test_access_log_json(client, caplog):
+    from api import obs
+    with caplog.at_level("INFO", logger="marketmachine.api.access"):
+        client.get("/v1/health", headers={"X-Request-ID": "rid-1"})
+    rec = next(r for r in caplog.records if r.name == "marketmachine.api.access")
+    line = json.loads(obs.JsonFormatter("%(message)s").format(rec))
+    assert line["request_id"] == "rid-1" and line["route"] == "/v1/health"
+    assert line["method"] == "GET" and line["status"] == 200 and "duration_ms" in line
