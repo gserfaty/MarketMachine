@@ -9,6 +9,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 - New `api/obs.py`: JSON access logs with request id (`X-Request-ID` honored and echoed), Prometheus metrics at `/metrics` (requests, latency, forecast compute time, cache hits/misses, data as-of gauge).
 - `ops/prometheus.yml` and `ops/grafana/marketmachine-dashboard.json`; setup in README "Observability". Adds `prometheus-client` and `python-json-logger` to `requirements-api.txt` only.
 
+### Forecast ledger and drift monitoring (2026-11-22)
+- Optional Postgres ledger for the API (`DATABASE_URL`, `api/ledger.py`, Alembic migration for table `forecasts`): all metros' predictions recorded once per as-of, horizon and model version; disabled when unset, write errors never fail a request.
+- New `GET /v1/monitoring/drift?horizon=`: realized MAE and bias of matured forecasts versus the backtest MAE, and PSI plus mean shift between the latest and previous batch.
+- `psycopg[binary]` added to `requirements-api.txt`; `requirements.txt` unchanged.
+- PR: [#5](https://github.com/gserfaty/MarketMachine/pull/5), 1 review round (approved), 5 commits.
+
 ### Head-to-head with Zillow's forecasts (2026-11-03)
 - New `housing/benchmark.py` CLI scores our rolling backtest against Zillow's published metro forecasts per snapshot (MAE, bias, direction, rank IC, snapshots won).
 - Recovered 23 Zillow forecast snapshots (BaseDate 2022-07 to 2026-03) from the Wayback Machine and added them to the `snapshots` branch.

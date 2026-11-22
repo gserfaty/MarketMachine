@@ -103,7 +103,7 @@ def test_financing(client):
 
 def test_openapi(client):
     paths = [p for p in client.get("/openapi.json").json()["paths"] if p.startswith("/v1/")]
-    assert len(paths) == 7
+    assert len(paths) == 8
 
 
 def test_corrupt_zhvi_503(tmp_path, monkeypatch):
