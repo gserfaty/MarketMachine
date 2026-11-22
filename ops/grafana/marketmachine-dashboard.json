@@ -1,0 +1,33 @@
+{
+  "title": "MarketMachine API",
+  "uid": "marketmachine-api",
+  "schemaVersion": 39,
+  "time": {"from": "now-6h", "to": "now"},
+  "refresh": "30s",
+  "templating": {"list": [{"name": "DS", "type": "datasource", "query": "prometheus"}]},
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "Request rate (req/s by route)", "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+     "datasource": {"type": "prometheus", "uid": "${DS}"},
+     "targets": [{"refId": "A", "expr": "sum by (route) (rate(http_requests_total[5m]))", "legendFormat": "{{route}}"}]},
+    {"id": 2, "type": "timeseries", "title": "p95 latency (s)", "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+     "datasource": {"type": "prometheus", "uid": "${DS}"},
+     "fieldConfig": {"defaults": {"unit": "s"}},
+     "targets": [{"refId": "A", "expr": "histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket[5m])))", "legendFormat": "{{route}}"}]},
+    {"id": 3, "type": "timeseries", "title": "Error rate (5xx share)", "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+     "datasource": {"type": "prometheus", "uid": "${DS}"},
+     "fieldConfig": {"defaults": {"unit": "percentunit"}},
+     "targets": [{"refId": "A", "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))", "legendFormat": "5xx"}]},
+    {"id": 4, "type": "timeseries", "title": "Forecast compute time (avg s)", "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+     "datasource": {"type": "prometheus", "uid": "${DS}"},
+     "fieldConfig": {"defaults": {"unit": "s"}},
+     "targets": [{"refId": "A", "expr": "rate(forecast_compute_seconds_sum[1h]) / rate(forecast_compute_seconds_count[1h])", "legendFormat": "{{horizon}}m"}]},
+    {"id": 5, "type": "stat", "title": "Cache hit ratio", "gridPos": {"x": 0, "y": 16, "w": 12, "h": 6},
+     "datasource": {"type": "prometheus", "uid": "${DS}"},
+     "fieldConfig": {"defaults": {"unit": "percentunit"}},
+     "targets": [{"refId": "A", "expr": "sum(cache_requests_total{result=~\"hit|redis_hit\"}) / sum(cache_requests_total{result=~\"hit|miss\"})"}]},
+    {"id": 6, "type": "stat", "title": "Data as of", "gridPos": {"x": 12, "y": 16, "w": 12, "h": 6},
+     "datasource": {"type": "prometheus", "uid": "${DS}"},
+     "fieldConfig": {"defaults": {"unit": "dateTimeAsIso"}},
+     "targets": [{"refId": "A", "expr": "forecast_data_as_of_timestamp_seconds * 1000", "legendFormat": "{{horizon}}m"}]}
+  ]
+}

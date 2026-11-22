@@ -95,6 +95,16 @@ curl 'localhost:8000/v1/monitoring/drift?horizon=12'
 
 The drift endpoint returns (1) realized error of matured ledger forecasts (as_of + horizon already in the ZHVI data): n, MAE and bias in pp next to the backtest MAE, and (2) the shift between the latest and previous recorded batch: PSI over 10 quantile bins and the mean shift in pp. It is 404 when the ledger is disabled; with no data the two sections are `null`. Recording needs a forecast to be computed first (an endpoint call or `MARKETMACHINE_WARM=1`).
 
+### Observability
+
+The API writes one JSON access-log line per request (`request_id`, `method`, `route` template, `status`, `duration_ms`; set `LOG_FORMAT=text` for plain logs) and honors/echoes `X-Request-ID`. Prometheus metrics are at `/metrics`: request counter and latency histogram, forecast compute time, cache hits/misses, data as-of date.
+
+```
+brew services start prometheus   # point it at ops/prometheus.yml, or run: prometheus --config.file=ops/prometheus.yml
+brew services start grafana      # http://localhost:3000
+```
+In Grafana add a Prometheus data source at `http://localhost:9090`, then import `ops/grafana/marketmachine-dashboard.json`.
+
 ## Pages
 
 Navigation is grouped Market / Metro / Money, and the chosen metro carries across pages (also in the `?metro=` URL parameter).
