@@ -25,7 +25,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 - Pre-set keep bar: 12m |bias| at least 0.3 pp better on full and holdout, MAE no more than 0.02 pp worse at any horizon on either period, rank IC unchanged, cov80 in 0.70-0.90 at 3m and 12m.
   - Every variant fails on 24m MAE (best: +0.09 pp full, +0.56 pp holdout). The 2020-2025 24m blend already runs high (+4.06 pp), so any upward shift learned from the 2010s overshoots.
-  - At 3m and 12m several pass: (a) median cap 1pp is best (12m bias -0.38 / -0.29, MAE 3.293 / 3.842). (b) K=2/3 fail 12m MAE. A 3m/12m-only intercept was not adopted: pre-2020 data favors the intercept at 24m too (cap 1pp: 24m MAE 6.94 to 6.66 in 2010-2019), so the h <= 12 gate could only be chosen from the holdout.
+  - At 3m and 12m several pass: (a) median cap 1pp is best (12m bias -0.38 / -0.29, MAE 3.293 / 3.842). (b) K=2/3 fail 12m MAE. A 3m/12m-only intercept was not adopted: pre-2020 data favors the intercept at 24m too (cap 1pp: 24m MAE 6.94 to 6.66 in 2010-2019), so the h <= 12 gate could only be chosen from the holdout. 2010-2019 only (MAE pp, bias pp, cov80):
+
+    | Variant | 3m MAE | 3m bias | 3m cov80 | 12m MAE | 12m bias | 12m cov80 | 24m MAE | 24m bias | 24m cov80 |
+    |---|---|---|---|---|---|---|---|---|---|
+    | shipped (no intercept) | 0.747 | -0.16 | 0.81 | 2.966 | -1.03 | 0.78 | 6.939 | -4.14 | 0.77 |
+    | (a) median cap 1pp | 0.744 | -0.02 | 0.80 | 2.964 | -0.44 | 0.76 | 6.657 | -2.74 | 0.74 |
 - Possible follow-up: revisit the capped intercept at 3m/12m once 2026 outcomes give a fresh out-of-sample year.
 
 ### Stale forecast cache after deploy fixed (2026-11-22)

@@ -192,7 +192,7 @@ is about 80% at 12 months (71% at 24 after the range is widened by a factor lear
 The weight w is learned (currently 0.95 at 3m, 0.8 at 12m, 0.65 at 24m; `ForecastResult.blend_weight`), see "Learned blend weight" below.
 Backtest average MAE is about 3.33 pp for the blend at 12m; the page shows live model and momentum numbers. The backtest still shows a pessimistic bias
 (~-1.10 pp blend at 12m), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
-Out-of-sample intercept corrections fixed most of the 12m bias but made 24m MAE worse, so none is served (see "Bias correction tried" in `CHANGELOG.md`).
+Capped or shrunk out-of-sample median intercepts fixed most of the 12m bias (cap 1pp: -1.10 to -0.38 pp full, -1.21 to -0.29 pp holdout) but made 24m MAE worse, so none is served (see "Bias correction tried" in `CHANGELOG.md`).
 
 **Baselines and predictors.** `blend`, `model`, `naive_momentum` (predict the trailing 12-month return) and `zero` (no change;
 rank IC and lift are n/a because it ranks nothing).
