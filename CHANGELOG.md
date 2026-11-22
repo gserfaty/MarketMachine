@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Redis caching and rate limiting (2026-11-22)
+- API only: optional `REDIS_URL` shares computed forecasts across workers (JSON, 6 h TTL, keyed by the data as-of key) and enables a per-IP fixed-window rate limit (`RATE_LIMIT_PER_MIN`, default 60) returning 429 with `Retry-After`; `/v1/health` and `/v1/ready` are exempt.
+- Fails open: no Redis or a Redis error keeps the in-process cache and no limit. Streamlit app and `requirements.txt` unchanged; `redis` added to `requirements-api.txt`.
+
 ### Head-to-head with Zillow's forecasts (2026-11-03)
 - New `housing/benchmark.py` CLI scores our rolling backtest against Zillow's published metro forecasts per snapshot (MAE, bias, direction, rank IC, snapshots won).
 - Recovered 23 Zillow forecast snapshots (BaseDate 2022-07 to 2026-03) from the Wayback Machine and added them to the `snapshots` branch.
