@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import hashlib
 import math
 
 import numpy as np
@@ -334,8 +335,12 @@ def summarize_backtest(scores: pd.DataFrame) -> pd.DataFrame:
     return out.reindex([p for p in PREDICTORS if p in out.index])
 
 
+# Cached forecasts (Streamlit, Redis) outlive a code deploy; keying on this file's hash drops results built by older model code.
+CODE_VERSION = hashlib.sha256(open(__file__, "rb").read()).hexdigest()[:12]
+
+
 def as_of_key(long_df: pd.DataFrame, supply, months_supply) -> str:
-    return f"{long_df['date'].max()}|supply={supply is not None}|ms={months_supply is not None}"
+    return f"{long_df['date'].max()}|supply={supply is not None}|ms={months_supply is not None}|code={CODE_VERSION}"
 
 
 def train_and_evaluate(
