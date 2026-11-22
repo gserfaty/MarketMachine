@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Observability: JSON logs, Prometheus metrics, Grafana dashboard (2026-11-22)
+- New `api/obs.py`: JSON access logs with request id (`X-Request-ID` honored and echoed), Prometheus metrics at `/metrics` (requests, latency, forecast compute time, cache hits/misses, data as-of gauge).
+- `ops/prometheus.yml` and `ops/grafana/marketmachine-dashboard.json`; setup in README "Observability". Adds `prometheus-client` and `python-json-logger` to `requirements-api.txt` only.
+
 ### Head-to-head with Zillow's forecasts (2026-11-03)
 - New `housing/benchmark.py` CLI scores our rolling backtest against Zillow's published metro forecasts per snapshot (MAE, bias, direction, rank IC, snapshots won).
 - Recovered 23 Zillow forecast snapshots (BaseDate 2022-07 to 2026-03) from the Wayback Machine and added them to the `snapshots` branch.

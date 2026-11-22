@@ -48,6 +48,10 @@ first forecast request takes 60-120 s on real data; `MARKETMACHINE_WARM=1` train
 startup. If a registry (`MLFLOW_TRACKING_URI` or `mlruns.db`) has a `champion` whose features match, `train_and_evaluate`
 reuses that model for the point forecast (the backtest still runs for the interval); otherwise it trains on demand.
 
+Observability lives in `api/obs.py` (API only; Streamlit never imports it): an HTTP middleware emits JSON access logs and
+Prometheus request metrics labelled by route template, `cached()` counts hits/misses per key kind, and `forecast()` times
+training and sets the data as-of gauge. `/metrics` is scraped by `ops/prometheus.yml`; dashboard in `ops/grafana/`.
+
 ## Tests
 `pytest` in `tests/`, fully offline: `tests/conftest.py` points `MARKETMACHINE_DATA_DIR` at
 `tests/fixtures/` (built by `tests/make_fixtures.py`) and blocks sockets. `tests/test_app.py` uses
