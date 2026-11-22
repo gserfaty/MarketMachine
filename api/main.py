@@ -19,7 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api import cache as rc
-from api import ledger, models as m
+from api import ledger, models as m, obs
 from housing import analysis, data, finance, model
 from housing.schemas import DataValidationError
 
@@ -49,7 +49,9 @@ def cached(key: tuple, ttl: float, fn: Callable[[], T]) -> T:
     with _lock(key):
         hit = _cache.get(key)
         if hit and time.monotonic() - hit[0] < ttl:
+            obs.CACHE.labels(key[0], "hit").inc()
             return hit[1]
+        obs.CACHE.labels(key[0], "miss").inc()
         val = fn()
         _cache[key] = (time.monotonic(), val)
         return val
@@ -105,11 +107,14 @@ def forecast(h: int) -> tuple[model.ForecastResult, m.ModelInfo]:
 
     def build():
         if (hit := rc.load_forecast(key)) is not None:
+            obs.CACHE.labels("forecast", "redis_hit").inc()  # the in-process miss was already counted
             return hit
         champ = _champion(h)
-        res = model.train_and_evaluate(
-            i["long_df"], i["mortgage"], supply=i["supply"], horizon=h, months_supply=i["months_supply"],
-            final_model=champ[0] if champ else None)
+        with obs.FORECAST_SECONDS.labels(str(h)).time():
+            res = model.train_and_evaluate(
+                i["long_df"], i["mortgage"], supply=i["supply"], horizon=h, months_supply=i["months_supply"],
+                final_model=champ[0] if champ else None)
+        obs.DATA_AS_OF.labels(str(h)).set(res.as_of.timestamp())
         ledger.record(res, h, champ[1] if champ and res.model is champ[0] else None)
         out = (res, m.ModelInfo(source="registry", name=f"marketmachine-{h}m", version=champ[1])
                if champ and res.model is champ[0] else m.ModelInfo(source="trained on demand"))
@@ -161,6 +166,8 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="MarketMachine API", version="1.0.0", lifespan=lifespan)
+obs.setup()
+app.mount("/metrics", obs.metrics_app)
 v1 = APIRouter(prefix="/v1")
 ERR = {c: {"model": m.ErrorResponse} for c in (404, 422, 503)}
 
@@ -201,6 +208,9 @@ async def _rate_limit(request: Request, call_next):
             r.headers["Retry-After"] = str(wait)
             return r
     return await call_next(request)
+
+
+app.middleware("http")(obs.middleware)  # registered last = outermost, so 429s are logged and counted
 
 
 @v1.get("/health", response_model=m.Health)
