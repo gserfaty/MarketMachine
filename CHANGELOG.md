@@ -5,6 +5,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Rent vs buy calculator (2026-11-22)
+- New Money page `rent_vs_buy`: headline answer, buy-vs-rent net worth chart and table, break-even year.
+- `finance.rent_vs_buy` and `break_even_year` are pure functions reusing `amortization_schedule`; rent defaults to 0.5% of price (rule of thumb, no rent data source), appreciation to the metro's 12-month forecast (3% if unavailable).
+- PR: [#10](https://github.com/gserfaty/MarketMachine/pull/10)
+
 ### Stale forecast cache after deploy fixed (2026-11-22)
 - After PR #7 deployed, the live forecast page raised `AttributeError` on `blend_weight`: Streamlit Cloud reloads code without restarting, so `st.cache_resource` kept a `ForecastResult` built by the old model code.
 - `model.as_of_key` now includes `CODE_VERSION`, a hash of `housing/model.py`, so the Streamlit, in-process API and Redis caches all drop results from older model code.
