@@ -216,14 +216,26 @@ def test_add_intervals_gap_24m():
     assert not np.allclose(alt.loc[alt.year == 2015, "lo"], base.loc[base.year == 2015, "lo"])
 
 
-def test_backtest_blend_is_average(mortgage_result):
-    b = mortgage_result.metrics["bias"]
-    assert np.isclose(b["blend"], (b["model"] + b["naive_momentum"]) / 2)
+def test_fit_blend_weight():
+    # actual = 0.8*model + 0.2*naive, so w=0.8 has zero MAE
+    rows = pd.DataFrame({"year": [2010, 2010, 2011, 2011], "model": [0.1, 0.0, 0.05, -0.02],
+                         "naive_momentum": [0.0, 0.1, -0.05, 0.03]})
+    rows["actual"] = 0.8 * rows["model"] + 0.2 * rows["naive_momentum"]
+    assert model.fit_blend_weight(rows) == 0.8
+    assert model.fit_blend_weight(rows[rows["year"] == 2010]) == 0.5  # < 2 resolved years
+    # backtest: 2012 sees only 2010 resolved (fallback 0.5); 2013 sees 2010 and 2011 (w=0.8)
+    bt = rows.assign(date=pd.to_datetime(["2010-01-01", "2010-06-01", "2011-06-01", "2011-06-01"]))
+    later = bt.iloc[:2].assign(date=pd.Timestamp("2012-01-01"), year=2012)
+    bt = pd.concat([bt, later, later.assign(date=pd.Timestamp("2013-01-01"), year=2013)], ignore_index=True)
+    out = model.apply_blend_weights(bt, horizon=12)
+    m, n = out["model"], out["naive_momentum"]
+    assert np.allclose(out.loc[out.year == 2012, "blend"], ((m + n) / 2)[out.year == 2012])
+    assert np.allclose(out.loc[out.year == 2013, "blend"], (0.8 * m + 0.2 * n)[out.year == 2013])
 
 
 def test_served_is_blend(monkeypatch):
     assert model.blend(np.array([0.02]), np.array([0.06]))[0] == 0.04
-    monkeypatch.setattr(model, "blend", lambda m, n: n)
+    monkeypatch.setattr(model, "blend", lambda m, n, w=0.5: n)
     long_df, mortgage = _load()
     r = model.train_and_evaluate(long_df, mortgage)
     us_r12 = model.build_features(long_df, mortgage).loc[("United States", r.as_of), "r12"]

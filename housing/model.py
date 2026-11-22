@@ -146,6 +146,7 @@ class ForecastResult:
     feature_importance: pd.Series | None = None
     national_interval: tuple[float, float] = (float("nan"), float("nan"))
     interval_k: float = 1.0
+    blend_weight: float = 0.5  # w on the model in the served blend
     model: HistGradientBoostingRegressor | None = None
 
 
@@ -176,9 +177,20 @@ def _fit_model(train: pd.DataFrame, feature_cols: list[str], ref_date: pd.Timest
 
 PREDICTORS = ["model", "blend", "naive_momentum", "zero"]
 SERVED = "blend"
-def blend(model_simple, naive_simple):
-    """Equal-weight average of two simple-return forecasts."""
-    return (model_simple + naive_simple) / 2
+BLEND_GRID = np.round(np.arange(0, 1.0001, 0.05), 2)
+
+
+def blend(model_simple, naive_simple, w=0.5):
+    """Weighted average of two simple-return forecasts: w * model + (1 - w) * naive."""
+    return w * model_simple + (1 - w) * naive_simple
+
+
+def fit_blend_weight(rows: pd.DataFrame) -> float:
+    """MAE-minimizing w in BLEND_GRID over backtest rows (model, naive_momentum, actual); 0.5 if < 2 years."""
+    if rows["year"].nunique() < 2:
+        return 0.5
+    mae = [(blend(rows["model"], rows["naive_momentum"], w) - rows["actual"]).abs().mean() for w in BLEND_GRID]
+    return float(BLEND_GRID[int(np.argmin(mae))])
 
 
 METRICS = ["MAE", "bias", "direction_acc", "rank_ic", "top_decile_lift", "coverage80", "width80"]
@@ -253,13 +265,24 @@ def rolling_backtest(
             "vol12": test["vol12"].to_numpy(),
             "actual": np.exp(test["y"].to_numpy()) - 1.0,
             "model": model_col,
-            "blend": blend(model_col, naive_col),
+            "blend": np.nan,
             "naive_momentum": naive_col,
             "zero": 0.0,
         }))
     if not out:
         raise ValueError("No test years with data for the backtest.")
-    return pd.concat(out, ignore_index=True)
+    return apply_blend_weights(pd.concat(out, ignore_index=True), horizon)
+
+
+def apply_blend_weights(bt: pd.DataFrame, horizon: int) -> pd.DataFrame:
+    """Set `blend`; year Y's weight is fit only on rows resolved before Y's first origin (expanding window)."""
+    bt = bt.copy()
+    resolved = bt["date"] + pd.DateOffset(months=horizon)
+    for year in bt["year"].unique():
+        m = bt["year"] == year
+        w = fit_blend_weight(bt[resolved <= bt.loc[m, "date"].min()])
+        bt.loc[m, "blend"] = blend(bt.loc[m, "model"], bt.loc[m, "naive_momentum"], w)
+    return bt
 
 
 def _rank_ic(g: pd.DataFrame, col: str) -> float:
@@ -324,7 +347,9 @@ def train_and_evaluate(
     combined = feat.join(target.rename("y"), how="inner").reset_index()
 
     feature_cols = _active_feature_cols(combined, feature_cols or FEATURE_COLS)
-    raw = add_intervals(rolling_backtest(combined, feature_cols, horizon), horizon)
+    raw = rolling_backtest(combined, feature_cols, horizon)
+    w = fit_blend_weight(raw)
+    raw = add_intervals(raw, horizon)
     k = 1.0
     # ponytail: only 24m is calibrated (3m/12m already ~0.80 coverage); one global multiplier, per-year k is out-of-sample
     if horizon >= 24:
@@ -344,7 +369,7 @@ def train_and_evaluate(
     latest_pred_log = full_model.predict(latest_feat[feature_cols])
     latest_pred_simple = np.exp(latest_pred_log) - 1.0
     naive_latest = np.exp(latest_feat["r12"].to_numpy() * horizon / 12) - 1.0
-    served = blend(latest_pred_simple, naive_latest)
+    served = blend(latest_pred_simple, naive_latest, w)
 
     scale = interval_scale(latest_feat["vol12"].to_numpy())
     latest_snapshot = long_df[long_df["date"] == as_of][["region", "state", "value"]].drop_duplicates(
@@ -374,5 +399,6 @@ def train_and_evaluate(
         feature_importance=None,
         national_interval=national_interval,
         interval_k=k,
+        blend_weight=w,
         model=full_model,
     )
