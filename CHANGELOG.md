@@ -34,6 +34,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 - Possible follow-up for the bias: (b) at 3m and 12m only, or a capped intercept. Choosing that now would use the holdout to pick the rule, so it would need a fresh out-of-sample check first.
 - PR: [#7](https://github.com/gserfaty/MarketMachine/pull/7), 1 review round (changes requested; addressed), then the owner decided to ship (a).
 
+### Observability: JSON logs, Prometheus metrics, Grafana dashboard (2026-11-22)
+- New `api/obs.py`: JSON access logs with request id (`X-Request-ID` honored and echoed), Prometheus metrics at `/metrics` (requests, latency, forecast compute time, cache hits/misses, data as-of gauge).
+- `ops/prometheus.yml` and `ops/grafana/marketmachine-dashboard.json`; setup in README "Observability". Adds `prometheus-client` and `python-json-logger` to `requirements-api.txt` only.
+- PR: [#6](https://github.com/gserfaty/MarketMachine/pull/6), 2 review rounds (changes requested, then approved), 5 commits.
+
+### Redis caching and rate limiting (2026-11-22)
+- API only: optional `REDIS_URL` shares computed forecasts across workers (JSON, 6 h TTL, keyed by the data as-of key) and enables a per-IP fixed-window rate limit (`RATE_LIMIT_PER_MIN`, default 60) returning 429 with `Retry-After`; `/v1/health` and `/v1/ready` are exempt.
+- Fails open: no Redis or a Redis error keeps the in-process cache and no limit. Streamlit app and `requirements.txt` unchanged; `redis` added to `requirements-api.txt`.
+- PR: [#4](https://github.com/gserfaty/MarketMachine/pull/4), 1 review round (approved), 4 commits.
+
 ### Forecast ledger and drift monitoring (2026-11-22)
 - Optional Postgres ledger for the API (`DATABASE_URL`, `api/ledger.py`, Alembic migration for table `forecasts`): all metros' predictions recorded once per as-of, horizon and model version; disabled when unset, write errors never fail a request.
 - New `GET /v1/monitoring/drift?horizon=`: realized MAE and bias of matured forecasts versus the backtest MAE, and PSI plus mean shift between the latest and previous batch.

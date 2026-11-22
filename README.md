@@ -61,6 +61,15 @@ pip install -r requirements-api.txt
 MARKETMACHINE_WARM=1 uvicorn api.main:app --port 8000   # WARM trains the 12m forecast at startup
 ```
 
+Optional Redis (shared forecast cache across workers, per-IP rate limit). Without it the API behaves as before:
+
+```
+brew services start redis
+REDIS_URL=redis://localhost:6379/0 RATE_LIMIT_PER_MIN=60 uvicorn api.main:app --workers 2
+```
+
+`REDIS_URL` unset or unreachable = in-process cache only, no rate limit (a warning is logged once). Forecasts are cached in Redis as JSON for 6 h; over `RATE_LIMIT_PER_MIN` (default 60, per client IP, fixed 1-minute window) returns 429 with `Retry-After`. `/v1/health` and `/v1/ready` are exempt.
+
 Interactive docs at `http://localhost:8000/docs`. The first forecast request takes 60-120 s on live data (computed on demand, then cached 24 h).
 Metro paths take a Zillow RegionID or the URL-encoded name. Forecasts are statistical estimates, not financial advice.
 
@@ -85,6 +94,16 @@ curl 'localhost:8000/v1/monitoring/drift?horizon=12'
 ```
 
 The drift endpoint returns (1) realized error of matured ledger forecasts (as_of + horizon already in the ZHVI data): n, MAE and bias in pp next to the backtest MAE, and (2) the shift between the latest and previous recorded batch: PSI over 10 quantile bins and the mean shift in pp. It is 404 when the ledger is disabled; with no data the two sections are `null`. Recording needs a forecast to be computed first (an endpoint call or `MARKETMACHINE_WARM=1`).
+
+### Observability
+
+The API writes one JSON access-log line per request (`request_id`, `method`, `route` template, `status`, `duration_ms`; set `LOG_FORMAT=text` for plain logs) and honors/echoes `X-Request-ID`. Prometheus metrics are at `/metrics`: request counter and latency histogram, forecast compute time, cache hits/misses, data as-of date.
+
+```
+brew services start prometheus   # point it at ops/prometheus.yml, or run: prometheus --config.file=ops/prometheus.yml
+brew services start grafana      # http://localhost:3000
+```
+In Grafana add a Prometheus data source at `http://localhost:9090`, then import `ops/grafana/marketmachine-dashboard.json`.
 
 ## Pages
 
