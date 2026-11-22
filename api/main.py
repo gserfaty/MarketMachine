@@ -17,7 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from api import models as m, obs
+from api import ledger, models as m, obs
 from housing import analysis, data, finance, model
 from housing.schemas import DataValidationError
 
@@ -110,6 +110,7 @@ def forecast(h: int) -> tuple[model.ForecastResult, m.ModelInfo]:
                 i["long_df"], i["mortgage"], supply=i["supply"], horizon=h, months_supply=i["months_supply"],
                 final_model=champ[0] if champ else None)
         obs.DATA_AS_OF.labels(str(h)).set(res.as_of.timestamp())
+        ledger.record(res, h, champ[1] if champ and res.model is champ[0] else None)
         if champ and res.model is champ[0]:
             return res, m.ModelInfo(source="registry", name=f"marketmachine-{h}m", version=champ[1])
         return res, m.ModelInfo(source="trained on demand")
@@ -281,6 +282,16 @@ def financing_estimate(req: m.FinancingRequest):
         raise HTTPException(422, str(e))
     est.pop("schedule")
     return {**est, "apr": _f(est["apr"]), "rates_as_of": r["rates_as_of"]}
+
+
+@v1.get("/monitoring/drift", response_model=m.Drift, responses=ERR)
+def monitoring_drift(horizon: Horizon = Horizon.m12):
+    eng = ledger.engine()
+    if eng is None:
+        raise HTTPException(404, "Forecast ledger is disabled (DATABASE_URL not set).")
+    horizon = int(horizon)
+    mae = _f(forecast(horizon)[0].metrics.loc[model.SERVED, "MAE"])
+    return ledger.drift(eng, horizon, inputs()["long_df"], mae)
 
 
 app.include_router(v1)
