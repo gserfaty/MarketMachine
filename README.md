@@ -179,18 +179,19 @@ under-covers because outcomes span market-wide shocks. Backtest (mortgage on, FR
 
 | Horizon | Blend MAE (pp) | Bias (pp) | Rank IC | Coverage80 | Interval gap |
 |---|---|---|---|---|---|
-| 3 months | 0.93 | -0.11 | 0.60 | 0.80 | 2 yrs |
-| 12 months | 3.37 | -0.72 | 0.48 | 0.79 | 2 yrs |
-| 24 months | 8.45 | -1.09 | 0.41 | 0.71 | 3 yrs |
+| 3 months | 0.87 | -0.14 | 0.67 | 0.81 | 2 yrs |
+| 12 months | 3.33 | -1.10 | 0.49 | 0.80 | 2 yrs |
+| 24 months | 8.39 | -1.41 | 0.42 | 0.71 | 3 yrs |
 
 **Prediction intervals.** A forecast like "+3% (-1% to +6%)" means an 80% range: about 8 of 10 past forecasts
 landed inside it. The range comes from past blend backtest residuals, scaled by the metro's 12-month volatility,
 so volatile metros get wider ranges; for each year only earlier, already-resolved years are used. Backtest coverage
-is about 79% at 12 months (71% at 24 after the range is widened by a factor learned only from earlier years; still under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee.
+is about 80% at 12 months (71% at 24 after the range is widened by a factor learned only from earlier years; still under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee.
 
-**Served forecast.** The page and Market overview serve `blend`, the equal-weight average of the model
-and naive momentum (simple returns). Backtest average MAE is about 3.37 pp for the blend; the page shows live model and momentum numbers. The backtest still shows a pessimistic bias
-(~-0.72 pp blend), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
+**Served forecast.** The page and Market overview serve `blend` = w × model + (1 - w) × naive momentum (simple returns).
+The weight w is learned (currently 0.95 at 3m, 0.8 at 12m, 0.65 at 24m; `ForecastResult.blend_weight`), see "Learned blend weight" below.
+Backtest average MAE is about 3.33 pp for the blend at 12m; the page shows live model and momentum numbers. The backtest still shows a pessimistic bias
+(~-1.10 pp blend at 12m), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
 
 **Baselines and predictors.** `blend`, `model`, `naive_momentum` (predict the trailing 12-month return) and `zero` (no change;
 rank IC and lift are n/a because it ranks nothing).
@@ -199,16 +200,18 @@ rank IC and lift are n/a because it ranks nothing).
 
 **Tuning tried and not kept.** Absolute-error loss, target clipping, and 17 hyperparameter settings (learning rate, iterations, early stopping, leaves, leaf size, L2, feature subsampling, recency half-life) were tuned on 2010-2019 and checked on a 2020-2025 holdout (2026-11-02). None improved holdout 12m MAE by the 0.03 pp bar without worse bias or ranking, so the current settings stay. Runs are in MLflow experiment `marketmachine-tuning-2026-10-30`.
 
+**Learned blend weight.** Since 2026-11-22 the served blend uses a learned weight w on the model instead of a fixed 0.5: the MAE-minimizing w on a 0 to 1 grid (step 0.05). In the backtest it is an expanding window: each test year's w is fit only on backtest rows whose outcomes were known before that year's first origin, with w = 0.5 when fewer than 2 years are resolved, so the reported metrics and intervals stay out-of-sample. The served w is fit on all backtest rows: 0.95 at 3m, 0.8 at 12m, 0.65 at 24m (per-year backtest weights at 24m ranged 0.2-0.85). 12m MAE fell from 3.42 to 3.33 (holdout 2020-2025: 4.20 to 3.92) and rank IC rose, but the bias got more pessimistic: 12m -0.79 to -1.10 pp (holdout -0.41 to -1.21). That broke the pre-set bar of |bias| no more than 0.3 pp worse (+0.31 full, +0.80 holdout); the owner chose to ship it for the lower MAE. A variant with an added intercept (median residual) fixed the 12m bias but raised 24m MAE (8.40 to 8.98) and 24m bias (-1.17 to +1.59), likely because the intercept learned in the 2010s overshoots later years, so it was not used. Full table in `CHANGELOG.md`.
+
 **Versus Zillow.** The forecast page compares our 3- and 12-month forecasts with Zillow's own. On 2026-10-22 at 12 months, 771 of 894 metros had the same direction as Zillow's, and the median difference was -0.1 points (ours minus Zillow). This compares forecasts only, not accuracy.
 
-**Accuracy versus Zillow.** `python -m housing.benchmark DIR` scores our backtest against Zillow's published metro forecasts, using 24 monthly snapshots on the `snapshots` branch (23 recovered from the Wayback Machine, BaseDate 2022-07 to 2026-03). On 2026-11-03, over ~890 metros:
+**Accuracy versus Zillow.** `python -m housing.benchmark DIR` scores our backtest against Zillow's published metro forecasts, using monthly snapshots on the `snapshots` branch (23 recovered from the Wayback Machine, BaseDate 2022-07 to 2026-03). On 2026-11-22 (served learned blend), over ~890 metros:
 
 | Horizon | Snapshots | Zillow MAE | Our MAE | Our rank IC (Zillow) | Snapshots we won |
 |---|---|---|---|---|---|
-| 3m | 23 | 1.00 | 1.01 | 0.58 (0.56) | 15/23 |
-| 12m | 18 | 3.56 | 2.97 | 0.49 (0.17) | 15/18 |
+| 3m | 23 | 1.00 | 0.90 | 0.67 (0.56) | 18/23 |
+| 12m | 19 | 3.51 | 2.77 | 0.52 (0.18) | 15/19 |
 
-Zillow's forecasts ran low (12m bias -1.5 pp vs our +0.5). Caveats: our side is the rolling backtest on today's revised ZHVI, while Zillow forecast from the data it had at the time, so this favors us somewhat; it is a backtest, not a live track record. Each year's model is trained once at the year's first origin, so later snapshots that year use a slightly stale model (conservative). The newest snapshot (2026-09) has no outcomes yet.
+Zillow's forecasts ran low (12m bias -1.5 pp vs our -0.3). Caveats: our side is the rolling backtest on today's revised ZHVI, while Zillow forecast from the data it had at the time, so this favors us somewhat; it is a backtest, not a live track record. Each year's model is trained once at the year's first origin, so later snapshots that year use a slightly stale model (conservative). The newest snapshot (2026-09) has no outcomes yet.
 
 **Snapshots.** `.github/workflows/zillow-snapshot.yml` saves Zillow's forecast CSV monthly (cron `0 14 20 * *`) to the `snapshots` branch, at `https://raw.githubusercontent.com/gserfaty/MarketMachine/snapshots/zillow_forecast/<BaseDate>.csv`. To rerun the benchmark: `git fetch origin snapshots && git worktree add /tmp/snap origin/snapshots && python -m housing.benchmark /tmp/snap/zillow_forecast`.
 

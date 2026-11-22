@@ -55,7 +55,7 @@ def main(argv: list[str] | None = None) -> None:
     for h in args.horizons:
         combined = feat.join(model.build_target(inp["long_df"], h).rename("y"), how="inner").reset_index()
         cols = model._active_feature_cols(combined)
-        bt = model.rolling_backtest(combined, cols, h, first_year=zf["date"].min().year)
+        bt = model.rolling_backtest(combined, cols, h)  # from 2010 so the learned blend weight has history
         scores = head_to_head(bt, zf, h)
         print(f"\n{h}m: {scores['year'].nunique()} snapshots with outcomes "
               f"({scores['year'].min():%Y-%m} to {scores['year'].max():%Y-%m})")
