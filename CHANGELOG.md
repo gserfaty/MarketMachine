@@ -32,7 +32,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
   - The repo owner chose to ship (a) at all horizons for the lower MAE and better ranking, accepting the more pessimistic bias.
 - Zillow head-to-head (`housing.benchmark`, 23 snapshots at 3m, 19 at 12m, ~890 metros), MAE / bias / rank IC: 3m Zillow 1.000 / -0.42 / 0.56, 50/50 blend 0.996 / +0.04 / 0.58, (a, shipped) 0.904 / -0.09 / 0.67, (b) 0.904 / +0.05 / 0.67, model 0.899 / -0.10 / 0.67. 12m Zillow 3.510 / -1.47 / 0.18, 50/50 blend 2.973 / +0.47 / 0.50, (a, shipped) 2.770 / -0.29 / 0.52, (b) 2.822 / +0.74 / 0.51, model 2.953 / -0.72 / 0.49.
 - Possible follow-up for the bias: (b) at 3m and 12m only, or a capped intercept. Choosing that now would use the holdout to pick the rule, so it would need a fresh out-of-sample check first.
-- PR: [#7](https://github.com/gserfaty/MarketMachine/pull/7), 1 review round (changes requested; addressed), then the owner decided to ship (a).
+- PR: [#7](https://github.com/gserfaty/MarketMachine/pull/7), 3 review rounds (changes requested on the docs-only version; approved after converting to the model change), 7 commits.
 
 ### Observability: JSON logs, Prometheus metrics, Grafana dashboard (2026-11-22)
 - New `api/obs.py`: JSON access logs with request id (`X-Request-ID` honored and echoed), Prometheus metrics at `/metrics` (requests, latency, forecast compute time, cache hits/misses, data as-of gauge).
