@@ -61,6 +61,15 @@ pip install -r requirements-api.txt
 MARKETMACHINE_WARM=1 uvicorn api.main:app --port 8000   # WARM trains the 12m forecast at startup
 ```
 
+Optional Redis (shared forecast cache across workers, per-IP rate limit). Without it the API behaves as before:
+
+```
+brew services start redis
+REDIS_URL=redis://localhost:6379/0 RATE_LIMIT_PER_MIN=60 uvicorn api.main:app --workers 2
+```
+
+`REDIS_URL` unset or unreachable = in-process cache only, no rate limit (a warning is logged once). Forecasts are cached in Redis as JSON for 6 h; over `RATE_LIMIT_PER_MIN` (default 60, per client IP, fixed 1-minute window) returns 429 with `Retry-After`. `/v1/health` and `/v1/ready` are exempt.
+
 Interactive docs at `http://localhost:8000/docs`. The first forecast request takes 60-120 s on live data (computed on demand, then cached 24 h).
 Metro paths take a Zillow RegionID or the URL-encoded name. Forecasts are statistical estimates, not financial advice.
 
