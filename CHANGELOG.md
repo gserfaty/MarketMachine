@@ -29,6 +29,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 - Zillow head-to-head (`housing.benchmark`, 23 snapshots at 3m, 19 at 12m, ~890 metros), MAE / bias / rank IC: 3m Zillow 1.000 / -0.42 / 0.56, 50/50 blend 0.996 / +0.04 / 0.58, (a) 0.904 / -0.09 / 0.67, (b) 0.904 / +0.05 / 0.67, model 0.899 / -0.10 / 0.67. 12m Zillow 3.510 / -1.47 / 0.18, 50/50 blend 2.973 / +0.47 / 0.50, (a) 2.770 / -0.29 / 0.52, (b) 2.822 / +0.74 / 0.51, model 2.953 / -0.72 / 0.49.
 - Possible follow-up: (b) at 3m and 12m only, or a capped intercept. Choosing that now would use the holdout to pick the rule, so it would need a fresh out-of-sample check first.
 
+### Forecast ledger and drift monitoring (2026-11-22)
+- Optional Postgres ledger for the API (`DATABASE_URL`, `api/ledger.py`, Alembic migration for table `forecasts`): all metros' predictions recorded once per as-of, horizon and model version; disabled when unset, write errors never fail a request.
+- New `GET /v1/monitoring/drift?horizon=`: realized MAE and bias of matured forecasts versus the backtest MAE, and PSI plus mean shift between the latest and previous batch.
+- `psycopg[binary]` added to `requirements-api.txt`; `requirements.txt` unchanged.
+- PR: [#5](https://github.com/gserfaty/MarketMachine/pull/5), 1 review round (approved), 5 commits.
+
 ### Head-to-head with Zillow's forecasts (2026-11-03)
 - New `housing/benchmark.py` CLI scores our rolling backtest against Zillow's published metro forecasts per snapshot (MAE, bias, direction, rank IC, snapshots won).
 - Recovered 23 Zillow forecast snapshots (BaseDate 2022-07 to 2026-03) from the Wayback Machine and added them to the `snapshots` branch.
