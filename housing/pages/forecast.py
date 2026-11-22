@@ -187,10 +187,11 @@ def _backtest_detail(result: model.ForecastResult, h: int) -> None:
         f"- Direction right {mo['direction_acc'] * 100:.0f}% of the time."
     )
     st.info(
-        "Served forecast: **blend** (combined forecast) = average of the ML model and naive momentum (simple returns). "
+        f"Served forecast: **blend** (combined forecast) = {result.blend_weight:.2f} x ML model + "
+        f"{1 - result.blend_weight:.2f} x naive momentum (simple returns; weight learned on past backtest misses). "
         f"Backtest average MAE: blend {bl['MAE']:.2f} pp vs model {mo['MAE']:.2f} pp vs momentum {nv['MAE']:.2f} pp; "
         f"rank IC: blend {bl['rank_ic']:.2f} vs model {mo['rank_ic']:.2f} vs momentum {nv['rank_ic']:.2f}. "
-        "The blend is served because averaging two partly independent forecasts cuts the miss. "
+        "The blend is served because combining two partly independent forecasts cuts the miss. "
         "The model weights recent history more (3-year half-life), which lowered backtest MAE slightly; "
         "it does not remove the pessimistic bias. "
         "Since step 4 the model also uses metro for-sale inventory (YoY) and the share of listings "
