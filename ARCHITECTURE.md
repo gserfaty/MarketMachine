@@ -53,6 +53,9 @@ stays the first layer) so several uvicorn workers share them, and a middleware a
 (`RATE_LIMIT_PER_MIN`, INCR + EXPIRE; 429 in the uniform error schema with `Retry-After`; health/ready exempt). Any Redis error
 fails open. Only the API imports redis.
 
+## Forecast ledger
+`api/ledger.py` (SQLAlchemy 2; Postgres via `DATABASE_URL`, off when unset). `api.main.forecast()` calls `ledger.record` after computing a forecast; it writes all metros' predictions once per (as_of, horizon, model_version), swallowing and logging errors. `GET /v1/monitoring/drift` compares matured ledger predictions with realized ZHVI change and computes PSI between the last two batches. Schema is managed by Alembic (`migrations/`); the Streamlit app never imports sqlalchemy.
+
 ## Tests
 `pytest` in `tests/`, fully offline: `tests/conftest.py` points `MARKETMACHINE_DATA_DIR` at
 `tests/fixtures/` (built by `tests/make_fixtures.py`) and blocks sockets. `tests/test_app.py` uses
