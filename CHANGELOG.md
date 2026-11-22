@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 ### Observability: JSON logs, Prometheus metrics, Grafana dashboard (2026-11-22)
 - New `api/obs.py`: JSON access logs with request id (`X-Request-ID` honored and echoed), Prometheus metrics at `/metrics` (requests, latency, forecast compute time, cache hits/misses, data as-of gauge).
 - `ops/prometheus.yml` and `ops/grafana/marketmachine-dashboard.json`; setup in README "Observability". Adds `prometheus-client` and `python-json-logger` to `requirements-api.txt` only.
+- PR: [#6](https://github.com/gserfaty/MarketMachine/pull/6), 2 review rounds (changes requested, then approved), 5 commits.
 
 ### Redis caching and rate limiting (2026-11-22)
 - API only: optional `REDIS_URL` shares computed forecasts across workers (JSON, 6 h TTL, keyed by the data as-of key) and enables a per-IP fixed-window rate limit (`RATE_LIMIT_PER_MIN`, default 60) returning 429 with `Retry-After`; `/v1/health` and `/v1/ready` are exempt.
