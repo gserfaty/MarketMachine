@@ -48,6 +48,9 @@ first forecast request takes 60-120 s on real data; `MARKETMACHINE_WARM=1` train
 startup. If a registry (`MLFLOW_TRACKING_URI` or `mlruns.db`) has a `champion` whose features match, `train_and_evaluate`
 reuses that model for the point forecast (the backtest still runs for the interval); otherwise it trains on demand.
 
+## Forecast ledger
+`api/ledger.py` (SQLAlchemy 2; Postgres via `DATABASE_URL`, off when unset). `api.main.forecast()` calls `ledger.record` after computing a forecast; it writes all metros' predictions once per (as_of, horizon, model_version), swallowing and logging errors. `GET /v1/monitoring/drift` compares matured ledger predictions with realized ZHVI change and computes PSI between the last two batches. Schema is managed by Alembic (`migrations/`); the Streamlit app never imports sqlalchemy.
+
 ## Tests
 `pytest` in `tests/`, fully offline: `tests/conftest.py` points `MARKETMACHINE_DATA_DIR` at
 `tests/fixtures/` (built by `tests/make_fixtures.py`) and blocks sockets. `tests/test_app.py` uses

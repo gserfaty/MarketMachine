@@ -73,6 +73,19 @@ curl -X POST localhost:8000/v1/financing/estimate -H 'content-type: application/
   -d '{"price":450000,"down_pct":20,"state":"TX"}'
 ```
 
+### Forecast ledger and drift monitoring (optional)
+
+Set `DATABASE_URL` and the API records every metro's prediction each time it computes a forecast, then reports drift. Unset, the ledger is off and the API is unchanged; ledger write errors are logged and never fail a request.
+
+```
+brew services start postgresql@17 && createdb marketmachine
+export DATABASE_URL=postgresql+psycopg://localhost/marketmachine
+alembic upgrade head                      # creates the `forecasts` table
+curl 'localhost:8000/v1/monitoring/drift?horizon=12'
+```
+
+The drift endpoint returns (1) realized error of matured ledger forecasts (as_of + horizon already in the ZHVI data): n, MAE and bias in pp next to the backtest MAE, and (2) the shift between the latest and previous recorded batch: PSI over 10 quantile bins and the mean shift in pp. It is 404 when the ledger is disabled; with no data the two sections are `null`. Recording needs a forecast to be computed first (an endpoint call or `MARKETMACHINE_WARM=1`).
+
 ## Pages
 
 Navigation is grouped Market / Metro / Money, and the chosen metro carries across pages (also in the `?metro=` URL parameter).
