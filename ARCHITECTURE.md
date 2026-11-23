@@ -27,6 +27,8 @@ All in `housing/shared.py`, so every page shares the same caches:
 - `st.cache_data` (ttl 24h) for Zillow, FRED, supply and affordability (`cached_affordability`, `cached_zillow_forecast`) loaders, keyed by the data directory.
 - `st.cache_resource` for the trained model, keyed by `as_of_key` (latest data date, supply flags and a hash of `housing/model.py`, so a deploy that changes model code retrains instead of serving a stale result) plus `horizon`. The API and Redis caches use the same key. 12m is shared by all pages; 3m/24m are trained only when picked on the forecast page.
 
+- Precomputed forecasts: `housing/precompute.py` (`python -m housing.precompute OUT_DIR`, run monthly by `.github/workflows/precompute.yml`) publishes `<h>m.json` to the `forecasts` branch. `cached_forecast` and `api.main.forecast` fetch it (app: `st.cache_data` ttl 6h) and use it only if its `as_of_key` matches; else they train on demand. Serialization: `model.result_to_json` / `result_from_json`, also used by the Redis cache.
+
 ## Navigation
 `app.py` registers `st.Page("housing/pages/<name>.py", ...)` entries and runs `st.navigation`. `findings` is registered with `visibility="hidden"` as an alias for old /findings links (6 visible items).
 The selected metro lives in session state and the `?metro=` query parameter. `st.session_state["_nav"]`
@@ -65,7 +67,7 @@ training and sets the data as-of gauge. `/metrics` is scraped by `ops/prometheus
 `tests/fixtures/` (built by `tests/make_fixtures.py`) and blocks sockets. `tests/test_app.py` uses
 `AppTest` and `switch_page` to render each page file. `tests/test_track.py` runs one fixture training against a tmp sqlite MLflow store.
 CI: `.github/workflows/tests.yml` runs `python -m pytest -q` on Python 3.13 for PRs to and pushes on `main`; its `pytest` job is a required status check.
-`.github/workflows/zillow-snapshot.yml` is the monthly snapshot job (not a test).
+`.github/workflows/zillow-snapshot.yml` is the monthly snapshot job and `precompute.yml` the monthly forecast job (neither is a test).
 
 ## Snapshots and future track record
 - The `snapshots` branch holds `zillow_forecast/<BaseDate>.csv`, one file per month.

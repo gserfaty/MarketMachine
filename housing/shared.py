@@ -7,7 +7,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from housing import analysis, data, finance, model, ui
+from housing import analysis, data, finance, model, precompute, ui
 from housing.ui import AMBER, GREY, INK, TEAL, UP, DOWN, VIOLET, fmt_pct, show, signed
 
 DISCLAIMER = ui.D1
@@ -74,7 +74,14 @@ def cached_affordability(data_dir: str | None = None) -> pd.DataFrame | None:
 
 @st.cache_resource(show_spinner="Training the forecast model (first load takes a minute)")
 def cached_forecast(as_of_key: str, _long_df: pd.DataFrame, _mortgage, _supply, horizon: int = 12, _months_supply=None) -> model.ForecastResult:
+    if (pre := precompute.use(_cached_precomputed(horizon), as_of_key)) is not None:
+        return pre
     return model.train_and_evaluate(_long_df, _mortgage, supply=_supply, horizon=horizon, months_supply=_months_supply)
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _cached_precomputed(horizon: int) -> str | None:
+    return precompute.fetch(horizon)
 
 
 def _safe_load_metro() -> pd.DataFrame | None:
