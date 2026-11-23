@@ -117,6 +117,7 @@ Navigation is grouped Market / Metro / Money, and the chosen metro carries acros
 4. **ML forecast** — a metro's 12-month forecast with its 80% range, how reliable the model has been, and all-metro predictions.
 5. **Financing estimator** — monthly payment, 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison, and equity projection.
 6. **Affordability** — ranks metros by the monthly payment against your income (30% rule), with Zillow context and the 12-month forecast.
+7. **Rent vs buy** — year-by-year net worth of buying vs renting with a break-even year; rent defaults to 0.5% of price (rule of thumb), editable.
 
 ## Project structure
 
@@ -127,7 +128,7 @@ housing/
   ui.py             theme, shared widgets
 api/                FastAPI service (uvicorn api.main:app)
   housing/shared.py cached loaders and cross-page helpers
-  housing/pages/    one Streamlit page script per page (overview, findings (redirect to overview), explorer, profile, forecast, financing, affordability)
+  housing/pages/    one Streamlit page script per page (overview, findings (redirect to overview), explorer, profile, forecast, financing, affordability, rent_vs_buy)
 tests/              offline pytest suite
 ```
 

@@ -12,7 +12,7 @@
 - `housing/finance.py` - mortgage, ARM and equity-projection math (no Streamlit).
 - `housing/ui.py` - theme, CSS, sidebar, shared widgets, disclaimer text.
 - `housing/shared.py` - cached loaders and helpers used by several pages.
-- `housing/pages/` - one script per page: overview, findings (hidden redirect to overview), explorer, profile, forecast, financing, affordability.
+- `housing/pages/` - one script per page: overview, findings (hidden redirect to overview), explorer, profile, forecast, financing, affordability, rent_vs_buy (Money section; math in `finance.rent_vs_buy`).
   Streamlit runs these files; they are not imported. Each ends with a call to its render function.
 
 ## Data flow
