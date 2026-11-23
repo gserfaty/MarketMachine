@@ -53,7 +53,7 @@ class MetroList(BaseModel):
 
 
 class ModelInfo(BaseModel):
-    source: Literal["registry", "trained on demand"]
+    source: Literal["registry", "trained on demand", "precomputed"]
     name: str | None = None
     version: str | None = None
 

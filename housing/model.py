@@ -15,7 +15,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import dataclasses
 import hashlib
+import io
+import json
 import math
 
 import numpy as np
@@ -407,3 +410,23 @@ def train_and_evaluate(
         blend_weight=w,
         model=full_model,
     )
+
+
+def result_to_json(res: ForecastResult) -> str:
+    """Every ForecastResult field except the fitted model, generic over dataclass fields."""
+    enc = {"DataFrame": lambda v: v.to_json(orient="split"), "Series": lambda v: v.to_json(orient="split"),
+           "Timestamp": lambda v: v.isoformat(), "tuple": list}
+    out = {}
+    for f in dataclasses.fields(res):
+        v = getattr(res, f.name)
+        if f.name != "model" and v is not None:
+            out[f.name] = {"t": type(v).__name__, "v": enc.get(type(v).__name__, lambda x: x)(v)}
+    return json.dumps(out)
+
+
+def result_from_json(s: str) -> ForecastResult:
+    dec = {"DataFrame": lambda v: pd.read_json(io.StringIO(v), orient="split", convert_dates=False),
+           "Series": lambda v: pd.read_json(io.StringIO(v), orient="split", typ="series", convert_dates=False),
+           "Timestamp": pd.Timestamp, "tuple": tuple}
+    d = {k: dec.get(e["t"], lambda x: x)(e["v"]) for k, e in json.loads(s).items()}
+    return ForecastResult(**d)
