@@ -7,6 +7,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ### CI fix: hold redis below 8.2 (2026-11-23)
 - `redis` 8.2.0 (released 2026-11-23) breaks `fakeredis` 2.40, so the API cache tests failed in CI, including the run for PR #15, which was merged before the failure was caught. `requirements-api.txt` now pins `redis>=5,<8.2` until fakeredis supports it.
+- PR: [#17](https://github.com/gserfaty/MarketMachine/pull/17), 1 review round (approved), 2 commits.
 
 ### Shorter page text (2026-11-23)
 - Cut about 15% of the user-facing text on every page (2,816 to 2,404 words in headings, captions, warnings, tooltips and table labels): removed repeated captions, shortened tooltips and the longest source and method notes, and used plainer words (for example "Change since a year ago" instead of "YoY").
