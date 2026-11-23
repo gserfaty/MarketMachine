@@ -21,14 +21,12 @@ def render_affordability() -> None:
 
     c1, c2, c3 = st.columns(3)
     income = c1.number_input("Household income ($ per year)", min_value=0, value=100_000, step=5_000,
-                             help="Before taxes. The 30% rule: lenders and Zillow treat a home as affordable when the monthly "
-                                  "payment, including property tax and insurance, is at most 30% of gross income.")
+                             help="Before taxes. A home counts as affordable when the monthly payment, with tax and insurance, is at most 30% of this.")
     c1.caption(f"${income:,.0f} per year")
     down = c2.number_input("Down payment (%)", min_value=3.0, max_value=99.0, value=20.0, step=1.0)
     debts = c3.number_input("Other monthly debts ($)", min_value=0.0, value=0.0, step=50.0,
-                            help="Car, student loan and card payments. If you enter debts, a metro also needs total debts under 43% of income.")
-    st.caption("Assumes a 30-year fixed conventional loan, credit score 740-759, and your state's average property tax and "
-               "insurance. Change these on the Financing estimator.")
+                            help="Car, student loan and card payments. With debts, a metro also needs total debts under 43% of income.")
+    st.caption("Assumes a 30-year fixed loan, credit score 740-759, and average state tax and insurance. Change these in the Financing estimator.")
 
     s30 = cached_fred("MORTGAGE30US", _data_dir_key())
     s30 = s30.dropna() if s30 is not None else None
@@ -42,13 +40,12 @@ def render_affordability() -> None:
     else:
         r30 = float(s30.iloc[-1])
         r15 = float(s15.iloc[-1]) if s15 is not None and not s15.empty else r30
-        st.caption(f"PMMS average, {_mon(s30.index[-1])}: 30-year fixed {r30:.2f}% (Freddie Mac via FRED).")
+        st.caption(f"Freddie Mac via FRED, {_mon(s30.index[-1])}: 30-year fixed {r30:.2f}%.")
     rb = finance.base_rates(r30, r15)
 
     z = cached_affordability(_data_dir_key())
     if z is None:
-        st.warning("Heads up: Zillow's affordability data is unavailable, so we rank all metros and hide Zillow's own "
-                   "payment and income columns.")
+        st.warning("Heads up: Zillow's affordability data is unavailable, so Zillow's own columns are hidden.")
     else:
         table = table[table["region"].isin(z["region"])]
     try:
@@ -56,7 +53,7 @@ def render_affordability() -> None:
     except ValueError as e:
         with head:
             ui.headline("Affordability unavailable.")
-        st.error(f"Error: {e} Change the value and the ranking will update.")
+        st.error(f"Error: {e} Change it and the ranking will update.")
         _footer_disclaimer()
         return
     t = t.merge(table[["region", "size_rank"]], on="region")
@@ -69,7 +66,7 @@ def render_affordability() -> None:
         t["pred"] = [fmt_range(p, lo, hi) for p, lo, hi in zip(t["pred_12m"], t["lo_12m"], t["hi_12m"])]
     else:
         t["pred_12m"], t["pred"] = float("nan"), "n/a"
-        st.info("The 12-month forecast is unavailable right now, so that column shows n/a.")
+        st.info("The forecast is unavailable right now, so that column shows n/a.")
 
     n, N = int(t["affordable"].sum()), len(t)
     ok = t[t["affordable"]]
@@ -122,11 +119,11 @@ def render_affordability() -> None:
         shown = shown.assign(share_txt=shown["share"].map("{:.0%}".format))
         cols = ["region", "state", "value", "payment", "share_txt", "pred"] + (["z_payment", "z_income_needed", "z_share"] if z is not None else [])
         cfg = _num_cols() | {
-            "payment": CC.NumberColumn("Estimated payment", format="$%,d", help="Principal, interest, property tax, insurance and any mortgage insurance at your down payment."),
+            "payment": CC.NumberColumn("Estimated payment", format="$%,d", help="Principal, interest, tax, insurance and any mortgage insurance."),
             "share_txt": CC.TextColumn("Share of your income"),
             "z_payment": CC.NumberColumn("Zillow payment (20% down)", format="$%,d"),
             "z_income_needed": CC.NumberColumn("Zillow income needed", format="$%,d"),
-            "z_share": CC.NumberColumn("Zillow payment share", format="percent", help="Zillow's estimate of the share of the metro's median income a new buyer spends on the payment, 20% down."),
+            "z_share": CC.NumberColumn("Zillow payment share", format="percent", help="Zillow's estimate of median income spent on the payment, 20% down."),
         }
         ev = st.dataframe(shown[cols], hide_index=True, width="stretch", column_config=cfg,
                           on_select="rerun", selection_mode="single-row", key="afford_table")
@@ -144,10 +141,10 @@ def render_affordability() -> None:
     when = f" (Zillow, through {_mon(z['date'].max())})" if z is not None else ""
     with st.expander("Sources and assumptions"):
         st.markdown(
-            "- Payment: `finance.estimate` with the Freddie Mac PMMS 30-year rate and state tax and insurance tables, same as the Financing estimator.\n"
-            "- 30% rule: a metro is affordable when the payment is at most 30% of gross income.\n"
-            f"- Zillow columns: Zillow affordability files, 20% down, metro median income{when}.\n"
-            "- Forecast: the served 12-month blend from the ML forecast page.")
+            "- Payment: Freddie Mac 30-year rate plus state tax and insurance, same as Financing.\n"
+            "- Affordable: payment is at most 30% of gross income.\n"
+            f"- Zillow columns: 20% down, metro median income{when}.\n"
+            "- Forecast: the 12-month forecast from the ML forecast page.")
     _footer_disclaimer()
 
 

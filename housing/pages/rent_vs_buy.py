@@ -27,18 +27,18 @@ def render_rent_vs_buy() -> None:
         row = None if res is None else res.predictions[res.predictions["region"] == metro]
         if row is not None and not row.empty:
             app0 = float(row.iloc[0]["pred_12m"]) * 100
-            app_note = f"Default is {metro}'s 12-month ML forecast; long-run growth is uncertain."
+            app_note = f"Default is {metro}'s 12-month forecast. Long-run growth is uncertain."
     s30 = cached_fred("MORTGAGE30US", _data_dir_key())
     s30 = s30.dropna() if s30 is not None else None
     rate0 = float(s30.iloc[-1]) if s30 is not None and not s30.empty else 6.5
     if s30 is None or s30.empty:
-        st.warning("Heads up: live mortgage rates are unavailable, so the rate below is an assumption.")
+        st.warning("Heads up: live mortgage rates are unavailable, so the rate below is a guess.")
 
     k = f"_{metro}"
     c = st.columns(3)
     price = c[0].number_input("Home price ($)", 10_000.0, value=float(round(price0, -3)), step=10_000.0, key="rb_price" + k)
     rent = c[1].number_input("Monthly rent ($)", 0.0, value=float(round(price0 * RENT_TO_PRICE, -1)), step=50.0, key="rb_rent" + k,
-                             help="Default is 0.5% of the home price, a rule of thumb. Enter a real local rent for a better answer.")
+                             help="Default is 0.5% of the home price. Enter a real local rent for a better answer.")
     years = c[2].number_input("Years you will stay", 1, 30, 10, 1)
     c = st.columns(3)
     down = c[0].number_input("Down payment (%)", 0.0, 99.0, 20.0, 1.0)
@@ -77,9 +77,8 @@ def render_rent_vs_buy() -> None:
     t = pd.DataFrame({"Year": d["year"], "Buy": d["buy"], "Rent": d["rent"], "Buy minus rent": d["diff"]})
     st.dataframe(t, hide_index=True, width="stretch", column_config={
         "Year": CC.NumberColumn(format="%d", width="small"), **{x: CC.NumberColumn(format="$%,d") for x in t.columns[1:]}})
-    st.caption("Fixed 30-year loan, monthly steps. The renter invests the down payment, buying costs and any monthly "
-               "saving; the buyer's net worth is the home value minus the loan and selling costs. Taxes on gains and "
-               "mortgage-interest deductions are ignored.")
+    st.caption("Fixed 30-year loan. The renter invests the down payment, buying costs and any monthly savings. The buyer's net worth is "
+               "home value minus loan and selling costs. Ignores capital-gains tax and the mortgage interest deduction.")
     _footer_disclaimer()
 
 

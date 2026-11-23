@@ -160,7 +160,7 @@ def _num_cols() -> dict:
         "size_rank": CC.NumberColumn("Size rank", format="%d"),
         "chg_1y": CC.TextColumn("Change, 1 year"), "chg_5y": CC.TextColumn("Change, 5 years"),
         "chg_10y": CC.TextColumn("Change, 10 years"),
-        "pred": CC.TextColumn("Predicted change (80% range)"),
+        "pred": CC.TextColumn("Forecast (80% range)"),
         "zillow": CC.TextColumn("Zillow's forecast"),
     }
 
@@ -192,7 +192,7 @@ def _forecast(metro_df: pd.DataFrame, horizon: int = 12) -> model.ForecastResult
 
 
 def _forecast_failed() -> None:
-    st.error("Couldn't build the forecast right now. This is usually temporary. Try again in a few minutes.")
+    st.error("Couldn't build the forecast right now. Try again in a few minutes.")
     ui.retry_button("retry_forecast")
 
 
