@@ -20,7 +20,7 @@ def render_affordability() -> None:
     table = analysis.appreciation_table(metro_df[metro_df["region_type"] != "country"])
 
     c1, c2, c3 = st.columns(3)
-    income = c1.number_input("Household income ($ per year)", min_value=0.0, value=100_000.0, step=5_000.0, format="%d",
+    income = c1.number_input("Household income ($ per year)", min_value=0, value=100_000, step=5_000,
                              help="Before taxes. The 30% rule: lenders and Zillow treat a home as affordable when the monthly "
                                   "payment, including property tax and insurance, is at most 30% of gross income.")
     c1.caption(f"${income:,.0f} per year")
