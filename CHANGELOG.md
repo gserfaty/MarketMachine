@@ -5,6 +5,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Market-wide/metro split for 80% ranges (2026-11-22)
+- 80% ranges now add a market-wide part (median blend residual across metros at the same origin) and a vol12-scaled metro part (residual minus that median), combined in quadrature (`model.z_quantiles`, `model.interval_bounds`). This applies at all horizons. The leakage rule is unchanged: year Y uses residuals from years <= Y - gap, gap = 1 + ceil(h/12). Served ranges use all resolved residuals.
+- The 24m calibration multiplier (`calibrate_intervals`) was removed. Using full-period numbers only, it lowered 24m coverage under the split (0.79 without it, 0.71 with it). `interval_k` is now always 1.
+- Tested offline on cached raw backtests with learned blend weights (re-verified after the PR #9 intercept). Alternatives tried: recency-weighted quantiles, last K years, vol12 terciles, quantile HGB, the calibration multiplier at all horizons. None met the pre-set bar (coverage80 within 0.75-0.85 at 3/12/24m on full and 2020-2025 holdout, width80 no more than 25% wider at 3m/12m, per-year coverage spread not worse). The split also misses it: 24m holdout coverage is 0.69 (bar 0.75), and the per-year spread rises at 3m/12m. The owner chose to ship it for better coverage and narrower ranges.
+- Hypothesis for the 24m gap: holdout misses look like market-wide shocks (median residual about +12 to +14 pp for 2019-2020 origins, -17 pp in 2022) larger than anything in earlier residual windows.
+- coverage80 / width80 (pp) / per-year coverage SD, full / holdout, on the bias-corrected blend (PR #9):
+
+  | h | Current cov | (e) cov | Current width | (e) width | Current SD | (e) SD |
+  |---|---|---|---|---|---|---|
+  | 3m | 0.81 / 0.81 | 0.82 / 0.81 | 3.3 / 3.9 | 3.1 / 3.6 | 0.068 / 0.087 | 0.078 / 0.101 |
+  | 12m | 0.79 / 0.82 | 0.83 / 0.83 | 13.7 / 17.0 | 12.6 / 14.9 | 0.132 / 0.166 | 0.134 / 0.178 |
+  | 24m | 0.71 / 0.62 | 0.79 / 0.69 | 33.8 / 45.1 | 28.7 / 34.3 | 0.173 / 0.202 | 0.185 / 0.197 |
+- PR: [#12](https://github.com/gserfaty/MarketMachine/pull/12), 2 review rounds (approved as docs-only, then approved after converting to the code change), 3 commits.
+
 ### Capped bias correction at 3m/12m (2026-11-22)
 - Shipped: the served blend is now `w*model + (1-w)*naive_momentum + c`, where c (`model.fit_blend_intercept`, `ForecastResult.blend_intercept`) is the median residual of resolved rows capped at |c| <= 1 pp x h/12, at 3m and 12m only (c = 0 at 24m). In the backtest it is fit per year with the same leakage rule as the weight (`apply_blend_weights`); the served c is fit on all rows. Intervals are computed on the corrected blend. Served c: +0.13 pp at 3m, +0.88 pp at 12m. The forecast page caption shows it.
 - Served results, full / 2020-2025 holdout: 3m MAE 0.869 -> 0.867 / 1.042 -> 1.042, bias -0.14 -> +0.01 / -0.10 -> +0.06; 12m MAE 3.326 -> 3.293 / 3.924 -> 3.842, bias -1.10 -> -0.38 / -1.21 -> -0.29, cov80 0.80 -> 0.79 / 0.81 -> 0.82; 24m unchanged (8.392 / 11.299, -1.41 / +4.06). Rank IC unchanged.

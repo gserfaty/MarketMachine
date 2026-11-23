@@ -6,8 +6,8 @@ The model fit uses exponential recency weights with a 3-year half-life.
 
 Supply features (inventory YoY, price-cut share) start in 2018 and may be NaN; HGB handles NaN natively.
 
-Each served forecast carries an 80% interval: empirical vol12-scaled quantiles of past blend backtest residuals.
-At 24m the width is scaled by an out-of-sample conformal multiplier (calibrate_intervals, same gap as add_intervals).
+Each served forecast carries an 80% interval from past blend backtest residuals, split into a market-wide part
+(cross-metro median per origin) and a vol12-scaled metro part, combined in quadrature. No width multiplier (interval_k = 1).
 
 No Streamlit import here.
 """
@@ -218,26 +218,22 @@ def interval_scale(vol12) -> np.ndarray:
     return np.maximum(np.asarray(vol12, float), VOL_FLOOR)
 
 
-def z_quantiles(preds: pd.DataFrame) -> tuple[float, float]:
-    """INTERVAL_Q quantiles of vol12-scaled blend residuals (NaN skipped)."""
-    z = (preds["actual"] - preds[SERVED]) / interval_scale(preds["vol12"])
-    lo, hi = z.dropna().quantile(list(INTERVAL_Q))
-    return float(lo), float(hi)
+def z_quantiles(preds: pd.DataFrame) -> tuple[float, float, float, float]:
+    """INTERVAL_Q quantiles of vol12-scaled metro residuals (minus the cross-metro median at the same origin) and of that market-wide median."""
+    r = preds["actual"] - preds[SERVED]
+    e = r.groupby(preds["date"] if "date" in preds else preds["year"]).transform("median")
+    zi = (r - e) / interval_scale(preds["vol12"])
+    ok = zi.notna()
+    ilo, ihi = zi[ok].quantile(list(INTERVAL_Q))
+    clo, chi = e[ok].quantile(list(INTERVAL_Q))
+    return float(ilo), float(ihi), float(clo), float(chi)
 
 
-def calibrate_intervals(preds: pd.DataFrame, horizon: int = 12) -> tuple[pd.DataFrame, float]:
-    """Scale lo/hi about their center by the past 0.8-quantile of |actual-center|/half-width (years <= Y-gap). Returns (out, k_all)."""
-    gap = 1 + math.ceil(horizon / 12)
-    out = preds.copy()
-    c, half = (preds["lo"] + preds["hi"]) / 2, (preds["hi"] - preds["lo"]) / 2
-    s = (preds["actual"] - c).abs() / half
-    for year in out["year"].unique():
-        past = s[(preds["year"] <= year - gap) & preds["lo"].notna()].dropna()
-        k = past.quantile(0.8) if not past.empty else 1.0
-        m = (out["year"] == year) & preds["lo"].notna()
-        out.loc[m, "lo"] = c[m] - k * half[m]
-        out.loc[m, "hi"] = c[m] + k * half[m]
-    return out, float(s.dropna().quantile(0.8))
+def interval_bounds(center, vol12, q) -> tuple[np.ndarray, np.ndarray]:
+    """lo/hi: metro and market-wide parts combined in quadrature, q from z_quantiles."""
+    ilo, ihi, clo, chi = q
+    s = interval_scale(vol12)
+    return center - np.hypot(ilo * s, clo), center + np.hypot(ihi * s, chi)
 
 
 def add_intervals(preds: pd.DataFrame, horizon: int = 12) -> pd.DataFrame:
@@ -250,11 +246,8 @@ def add_intervals(preds: pd.DataFrame, horizon: int = 12) -> pd.DataFrame:
         hist = preds[preds["year"] <= year - gap]
         if hist.empty:
             continue
-        zlo, zhi = z_quantiles(hist)
         m = out["year"] == year
-        scale = interval_scale(out.loc[m, "vol12"])
-        out.loc[m, "lo"] = out.loc[m, SERVED] + zlo * scale
-        out.loc[m, "hi"] = out.loc[m, SERVED] + zhi * scale
+        out.loc[m, "lo"], out.loc[m, "hi"] = interval_bounds(out.loc[m, SERVED], out.loc[m, "vol12"], z_quantiles(hist))
     return out
 
 
@@ -374,12 +367,8 @@ def train_and_evaluate(
     w = fit_blend_weight(raw)
     c0 = fit_blend_intercept(raw.assign(blend=blend(raw["model"], raw["naive_momentum"], w)), horizon)
     raw = add_intervals(raw, horizon)
-    k = 1.0
-    # ponytail: only 24m is calibrated (3m/12m already ~0.80 coverage); one global multiplier, per-year k is out-of-sample
-    if horizon >= 24:
-        raw, k = calibrate_intervals(raw, horizon)
     backtest = score_backtest(raw, PREDICTORS)
-    zlo, zhi = z_quantiles(raw)
+    q = z_quantiles(raw)
     metrics = summarize_backtest(backtest)
 
     # Final fit on every row with a known target, then predict at the latest date.
@@ -395,13 +384,12 @@ def train_and_evaluate(
     naive_latest = np.exp(latest_feat["r12"].to_numpy() * horizon / 12) - 1.0
     served = blend(latest_pred_simple, naive_latest, w) + c0
 
-    scale = interval_scale(latest_feat["vol12"].to_numpy())
+    lo, hi = interval_bounds(served, latest_feat["vol12"].to_numpy(), q)
     latest_snapshot = long_df[long_df["date"] == as_of][["region", "state", "value"]].drop_duplicates(
         "region"
     )
-    c, half = served + (zlo + zhi) / 2 * scale, (zhi - zlo) / 2 * scale
     predictions = pd.DataFrame(
-        {"region": latest_feat.index, "pred_12m": served, "lo_12m": c - k * half, "hi_12m": c + k * half}
+        {"region": latest_feat.index, "pred_12m": served, "lo_12m": lo, "hi_12m": hi}
     ).merge(latest_snapshot, on="region", how="left")
     predictions = predictions[["region", "state", "value", "pred_12m", "lo_12m", "hi_12m"]].sort_values(
         "pred_12m", ascending=False
@@ -422,7 +410,6 @@ def train_and_evaluate(
         as_of=as_of,
         feature_importance=None,
         national_interval=national_interval,
-        interval_k=k,
         blend_weight=w,
         blend_intercept=c0,
         model=full_model,
