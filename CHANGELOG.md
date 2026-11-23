@@ -5,24 +5,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
-### 80% interval variants tested, none kept (2026-11-22)
-- Offline test on cached raw backtests (learned blend weights, same leakage rule: year Y uses residuals from years <= Y - gap, gap = 1 + ceil(h/12)). Pre-set bar: coverage80 within 0.75-0.85 at 3/12/24m on full and 2020-2025 holdout, width80 at most 25% wider at 3m/12m, per-year coverage spread not worse.
-- Variants: (a) recency-weighted residual quantiles, half-life 3y (and 1.5y); (b) last K resolved years (K=3, 5); (c) quantiles by vol12 tercile, and HistGradientBoosting quantile regression on vol12-scaled residuals (features vol12, blend, model - naive); (d) calibration multiplier at all horizons (all past years, last 5, last 3; also on top of (a)); (e) residual split into a per-origin common shock (cross-metro median) plus idiosyncratic part, combined in quadrature.
-- Result: none passes. 24m holdout misses are market-wide shocks (median residual +12 to +14 pp in 2019-2020 origins, -17 pp in 2022) that no earlier residual window contains. Recency and last-K narrow the range before those shocks and do worse. Common-shock (e) is the best at 24m (0.79 full, narrower) but holdout stays at 0.69 and per-year spread rises. Intervals are unchanged.
-- coverage80 / width80 (pp), full / holdout:
+### Market-wide/metro split for 80% ranges (2026-11-22)
+- 80% ranges now add a market-wide part (median blend residual across metros at the same origin) and a vol12-scaled metro part (residual minus that median), combined in quadrature (`model.z_quantiles`, `model.interval_bounds`). This applies at all horizons. The leakage rule is unchanged: year Y uses residuals from years <= Y - gap, gap = 1 + ceil(h/12). Served ranges use all resolved residuals.
+- The 24m calibration multiplier (`calibrate_intervals`) was removed. Using full-period numbers only, it lowered 24m coverage under the split (0.79 without it, 0.71 with it). `interval_k` is now always 1.
+- Tested offline on cached raw backtests with learned blend weights. Alternatives tried: recency-weighted quantiles, last K years, vol12 terciles, quantile HGB, the calibration multiplier at all horizons. None met the pre-set bar (coverage80 within 0.75-0.85 at 3/12/24m on full and 2020-2025 holdout, width80 no more than 25% wider at 3m/12m, per-year coverage spread not worse). The split also misses it: 24m holdout coverage is 0.69 (bar 0.75), and the per-year spread rises at 3m/12m. The owner chose to ship it for better coverage and narrower ranges.
+- Hypothesis for the 24m gap: holdout misses look like market-wide shocks (median residual about +12 to +14 pp for 2019-2020 origins, -17 pp in 2022) larger than anything in earlier residual windows.
+- coverage80 / width80 (pp) / per-year coverage SD, full / holdout:
 
-  | Variant | 3m cov | 3m width | 12m cov | 12m width | 24m cov | 24m width |
+  | h | Current cov | (e) cov | Current width | (e) width | Current SD | (e) SD |
   |---|---|---|---|---|---|---|
-  | Current | 0.81 / 0.81 | 3.3 / 3.9 | 0.80 / 0.81 | 13.4 / 16.7 | 0.71 / 0.62 | 33.8 / 45.1 |
-  | (a) recency hl 3y | 0.80 / 0.80 | 3.3 / 3.9 | 0.78 / 0.80 | 13.6 / 17.4 | 0.64 / 0.52 | 31.6 / 43.0 |
-  | (b) last 3 years | 0.80 / 0.81 | 3.3 / 4.0 | 0.75 / 0.74 | 13.9 / 18.5 | 0.61 / 0.47 | 33.0 / 47.9 |
-  | (b) last 5 years | 0.81 / 0.81 | 3.3 / 3.9 | 0.78 / 0.80 | 13.7 / 17.6 | 0.64 / 0.51 | 31.0 / 41.3 |
-  | (c) vol12 terciles | 0.79 / 0.77 | 2.8 / 3.2 | 0.78 / 0.78 | 11.0 / 12.9 | 0.64 / 0.49 | 22.6 / 26.8 |
-  | (c) quantile HGB | 0.76 / 0.74 | 2.6 / 2.9 | 0.73 / 0.73 | 10.1 / 11.4 | 0.67 / 0.60 | 19.8 / 24.0 |
-  | (d) calibrate all h | 0.81 / 0.81 | 3.4 / 3.9 | 0.83 / 0.84 | 15.3 / 18.2 | 0.71 / 0.62 | 33.8 / 45.1 |
-  | (d) calibrate, last 3y | 0.81 / 0.81 | 3.4 / 4.1 | 0.82 / 0.84 | 15.6 / 19.5 | 0.73 / 0.67 | 37.8 / 54.7 |
-  | (a)+(d) | 0.81 / 0.81 | 3.4 / 4.0 | 0.82 / 0.84 | 15.8 / 19.5 | 0.71 / 0.64 | 36.0 / 51.2 |
-  | (e) common shock | 0.82 / 0.81 | 3.1 / 3.6 | 0.83 / 0.83 | 12.5 / 14.7 | 0.79 / 0.69 | 28.7 / 34.3 |
+  | 3m | 0.81 / 0.81 | 0.82 / 0.81 | 3.3 / 3.9 | 3.1 / 3.6 | 0.072 / 0.090 | 0.081 / 0.100 |
+  | 12m | 0.80 / 0.81 | 0.83 / 0.83 | 13.4 / 16.7 | 12.5 / 14.7 | 0.124 / 0.170 | 0.144 / 0.193 |
+  | 24m | 0.71 / 0.62 | 0.79 / 0.69 | 33.8 / 45.1 | 28.7 / 34.3 | 0.173 / 0.202 | 0.185 / 0.197 |
 
 ### Stale forecast cache after deploy fixed (2026-11-22)
 - After PR #7 deployed, the live forecast page raised `AttributeError` on `blend_weight`: Streamlit Cloud reloads code without restarting, so `st.cache_resource` kept a `ForecastResult` built by the old model code.
