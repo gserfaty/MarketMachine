@@ -5,6 +5,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Forecast map on the Market overview (2026-11-22)
+- New "Forecast by state, next 12 months" map on the Market overview: each state is colored by the median 12-month forecast of its metros, with a sorted table beside it.
+- `_state_map` moved from the explorer page to `housing/shared.py` so both pages use it.
+- PR: [#14](https://github.com/gserfaty/MarketMachine/pull/14), 1 review round (approved; non-blocking nit fixed), 3 commits.
+
 ### Affordability income input warning fixed (2026-11-22)
 - The household income input now uses whole numbers, so Streamlit no longer warns that a `%d` format was used on a float value.
 - PR: [#13](https://github.com/gserfaty/MarketMachine/pull/13), 1 review round (approved), 2 commits.

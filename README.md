@@ -111,7 +111,7 @@ In Grafana add a Prometheus data source at `http://localhost:9090`, then import 
 
 Navigation is grouped Market / Metro / Money, and the chosen metro carries across pages (also in the `?metro=` URL parameter).
 
-1. **Market overview** — one-sentence US headline with forecast, KPIs (typical value, 12-month change, mortgage rate, Case-Shiller), trend charts, and top markets (predicted gainers and laggards, best past performers, most valuable metros).
+1. **Market overview** — one-sentence US headline with forecast, KPIs (typical value, 12-month change, mortgage rate, Case-Shiller), trend charts, and top markets (predicted gainers and laggards, best past performers, most valuable metros), plus a US map of the median 12-month forecast by state.
 2. **Regional explorer** — filter/sort metros or states, bar chart of top movers, state map, per-region history.
 3. **Market profile** — single-metro profile, comparison, and similar markets.
 4. **ML forecast** — a metro's 12-month forecast with its 80% range, how reliable the model has been, and all-metro predictions.
