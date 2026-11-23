@@ -8,7 +8,7 @@
 - `housing/analysis.py` - growth, rankings and market-profile calculations.
 - `housing/benchmark.py` - CLI (`python -m housing.benchmark DIR`) scoring the rolling backtest against Zillow forecast snapshots per BaseDate via `model.score_backtest`. Never imported by the app.
 - `housing/track.py` - CLI (`python -m housing.track`) logging each horizon's run to a local MLflow sqlite store, registering `marketmachine-{h}m` with `champion`/`challenger` aliases; `load_champion(h)`/`champion_version(h)` serve the API; `load_inputs` aliases `data.load_forecast_inputs`. Never imported by the app.
-- `housing/model.py` - feature builder (national macro features merged by date, lagged per release) and `HistGradientBoostingRegressor` forecast with backtest; `calibrate_intervals` (out-of-sample conformal width multiplier, 24m only); learned blend weight (`fit_blend_weight`, per backtest year via `apply_blend_weights`, exposed as `ForecastResult.blend_weight`).
+- `housing/model.py` - feature builder (national macro features merged by date, lagged per release) and `HistGradientBoostingRegressor` forecast with backtest; `calibrate_intervals` (out-of-sample conformal width multiplier, 24m only); learned blend weight (`fit_blend_weight`, per backtest year via `apply_blend_weights`, exposed as `ForecastResult.blend_weight`) and capped bias correction at 3m/12m (`fit_blend_intercept`, `ForecastResult.blend_intercept`).
 - `housing/finance.py` - mortgage, ARM and equity-projection math (no Streamlit).
 - `housing/ui.py` - theme, CSS, sidebar, shared widgets, disclaimer text.
 - `housing/shared.py` - cached loaders and helpers used by several pages.

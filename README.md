@@ -182,8 +182,8 @@ under-covers because outcomes span market-wide shocks. Backtest (mortgage on, FR
 
 | Horizon | Blend MAE (pp) | Bias (pp) | Rank IC | Coverage80 | Interval gap |
 |---|---|---|---|---|---|
-| 3 months | 0.87 | -0.14 | 0.67 | 0.81 | 2 yrs |
-| 12 months | 3.33 | -1.10 | 0.49 | 0.80 | 2 yrs |
+| 3 months | 0.87 | +0.01 | 0.67 | 0.81 | 2 yrs |
+| 12 months | 3.29 | -0.38 | 0.49 | 0.79 | 2 yrs |
 | 24 months | 8.39 | -1.41 | 0.42 | 0.71 | 3 yrs |
 
 **Prediction intervals.** A forecast like "+3% (-1% to +6%)" means an 80% range: about 8 of 10 past forecasts
@@ -191,10 +191,11 @@ landed inside it. The range comes from past blend backtest residuals, scaled by 
 so volatile metros get wider ranges; for each year only earlier, already-resolved years are used. Backtest coverage
 is about 80% at 12 months (71% at 24 after the range is widened by a factor learned only from earlier years; still under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee.
 
-**Served forecast.** The page and Market overview serve `blend` = w × model + (1 - w) × naive momentum (simple returns).
+**Served forecast.** The page and Market overview serve `blend` = w × model + (1 - w) × naive momentum + c (simple returns).
 The weight w is learned (currently 0.95 at 3m, 0.8 at 12m, 0.65 at 24m; `ForecastResult.blend_weight`), see "Learned blend weight" below.
-Backtest average MAE is about 3.33 pp for the blend at 12m; the page shows live model and momentum numbers. The backtest still shows a pessimistic bias
-(~-1.10 pp blend at 12m), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
+c is a bias correction at 3m and 12m only (`ForecastResult.blend_intercept`): the median past miss, capped at 1 pp × h/12, fit out-of-sample per backtest year like w (currently +0.13 pp at 3m, +0.88 pp at 12m, 0 at 24m).
+It cut the 12m bias from -1.10 to -0.38 pp (holdout -1.21 to -0.29) and 12m MAE from 3.33 to 3.29; at 24m it raised MAE, so it is off there. The 3m/12m-only choice was made with the 2020-2025 holdout in view, so the next year of outcomes is the real test (see "Capped bias correction" in `CHANGELOG.md`).
+Backtest average MAE is about 3.29 pp for the blend at 12m; the page shows live model and momentum numbers. Remaining misses are largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
 
 **Baselines and predictors.** `blend`, `model`, `naive_momentum` (predict the trailing 12-month return) and `zero` (no change;
 rank IC and lift are n/a because it ranks nothing).
