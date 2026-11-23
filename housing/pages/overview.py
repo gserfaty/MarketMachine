@@ -28,7 +28,7 @@ def render_overview() -> None:
     latest_yoy = yoy_series.iloc[-1] if len(yoy_series) else float("nan")
 
     metro = st.session_state.get("metro")
-    takeaway = f"Continue with {metro}." if metro else "Next, choose a metro to see its forecast."
+    takeaway = f"Continue with {metro}." if metro else "Choose a metro to see its forecast."
 
     def fill_head(fc) -> None:
         if pd.notna(latest_yoy):
@@ -47,25 +47,24 @@ def render_overview() -> None:
 
     col1, col2, col3, col4 = st.columns(4)
     ui.kpi(col1, "Typical home value", f"${latest_value:,.0f}",
-           help="Zillow Home Value Index (ZHVI): the middle of the market, smoothed.")
-    ui.kpi(col2, "Change over 12 months", fmt_pct(latest_yoy), help="Year over year (YoY).")
+           help="Zillow Home Value Index: the middle of the market, smoothed.")
+    ui.kpi(col2, "Change over 12 months", fmt_pct(latest_yoy), help="Change since a year ago.")
     if has_mort:
         mort_latest = mortgage.iloc[-1]
         mort_chg = mort_latest - mortgage.iloc[-13] if len(mortgage) > 12 else float("nan")
         # neutral gray: a higher rate is not good or bad news in itself
         ui.kpi(col3, "30-year mortgage rate", f"{mort_latest:.2f}%",
                f"{'▲ +' if mort_chg >= 0 else '▼ −'}{abs(mort_chg):.2f} points vs a year ago" if pd.notna(mort_chg) else None,
-               help="Freddie Mac weekly average via FRED.")
+               help="Freddie Mac weekly average.")
     else:
         ui.kpi(col3, "30-year mortgage rate", "n/a")
-        st.warning("Heads up: mortgage rates are unavailable right now. The headline and home-value chart are "
-                   "unaffected; the rate chart is hidden.")
+        st.warning("Heads up: mortgage rates are unavailable right now, so the rate chart is hidden.")
     cs_yoy = float("nan")
     if case_shiller is not None and not case_shiller.empty:
         s = analysis.yoy(case_shiller)
         cs_yoy = s.iloc[-1] if len(s) else float("nan")
     ui.kpi(col4, "Case-Shiller, 12 months", fmt_pct(cs_yoy), "Differs from Zillow's method.",
-           help="S&P Case-Shiller US National index, year over year.")
+           help="S&P Case-Shiller US National index.")
 
     st.subheader("US typical home value since 2000")
     window = st.radio("Chart window", ["Last 10 years", "All"], horizontal=True, label_visibility="collapsed")
@@ -79,7 +78,7 @@ def render_overview() -> None:
 
     fill_chart(None)
 
-    st.subheader("Next: pick a metro")
+    st.subheader("Pick a metro")
     ui.metro_picker(metro_regions(), "overview")
     if st.session_state.get("metro"):
         ui.go_to("forecast", "See this metro's forecast", primary=True)
@@ -120,8 +119,6 @@ def render_overview() -> None:
         fill_chart(fc)
     _top_markets(metro_df, res)
 
-    st.caption(f"Zillow data as of {_mon(us_series.index.max())}."
-               + (f" Mortgage rates as of {_mon(mortgage.index.max())}." if has_mort else ""))
     _footer_disclaimer()
 
 
@@ -130,7 +127,7 @@ def _top_markets(metro_df: pd.DataFrame, res) -> None:
     metro_only = metro_df[metro_df["region_type"] != "country"]
     table = analysis.appreciation_table(metro_only)
     if table.empty:
-        st.info("No metros to show. Change the size filter or choose another view.")
+        st.info("No metros to show.")
         return
     best5 = table[table["size_rank"] <= 200].sort_values("chg_5y", ascending=False)
     best1 = table[table["size_rank"] <= 200].sort_values("chg_1y", ascending=False)
@@ -149,12 +146,11 @@ def _top_markets(metro_df: pd.DataFrame, res) -> None:
     if text:
         st.markdown(ui.color_deltas(html.escape(text)), unsafe_allow_html=True)
     if up is not None:
-        ui.disclaimer(ui.D1 + " The 80% range is the span the actual change landed in about 80% of the time in past tests. "
-                      "It is not a guarantee.")
+        ui.disclaimer(ui.D1 + " The 80% range is the span the actual change landed in about 80% of the time in past tests.")
     if res is None:
         _forecast_failed()
     if cached_supply(_data_dir_key()) is None:
-        st.warning("Heads up: Zillow listings data is unavailable, so the forecast runs without inventory data.")
+        st.warning("Heads up: Zillow listings data is unavailable, so the forecast skips inventory.")
 
     k1, k2, k3 = st.columns(3)
     if up is not None:
@@ -175,7 +171,7 @@ def _top_markets(metro_df: pd.DataFrame, res) -> None:
         by = preds.groupby("state", as_index=False).agg(pred_12m=("pred_12m", "median"), value=("value", "median"))
         by["state"] = by["region"] = by["state"].map(name)
         _state_map(by, "pred_12m", "Forecast")
-        st.caption("Median 12-month forecast of each state's metros. A metro that spans states counts under its main state.")
+        st.caption("Median forecast of each state's metros.")
 
     tab1, tab5 = st.tabs(["Past year", "Past 5 years"])
     with tab1:

@@ -16,8 +16,7 @@ def render_explorer() -> None:
     kind = "metro" if mode == "Metro" else "state"
     long_df = _need(_safe_load_metro() if mode == "Metro" else _safe_load_state(),
                     text=f"Heads up: we can't reach Zillow's {kind}-level home-value data right now. "
-                    "Check your connection, or try again in a few minutes."
-                    + " The other region type may still work.")
+                    "Check your connection, or try again in a few minutes.")
     sort_choice = st.selectbox("Sort by", list(SORTS))
     sort_col = SORTS[sort_choice]
 
@@ -34,7 +33,7 @@ def render_explorer() -> None:
             chosen_states = st.multiselect("States", states, key="f_states")
             max_rank = int(table["size_rank"].max()) if not table.empty else 200
             top_n = st.slider("Largest metros to include", 1, max(max_rank, 1), min(200, max(max_rank, 1)), key="f_rank",
-                              help="Size rank: 1 is the largest metro.")
+                              help="1 is the largest metro.")
             table = table[table["size_rank"] <= top_n]
             if chosen_states:
                 table = table[table["state"].isin(chosen_states)]
@@ -47,7 +46,7 @@ def render_explorer() -> None:
 
     table = table.sort_values(sort_col, ascending=False)
     if table.empty:
-        st.info("No regions match these filters. Widen the size or value range, or reset the filters.")
+        st.info("No regions match these filters. Try resetting them.")
         _footer_disclaimer()
         return
 
@@ -55,7 +54,7 @@ def render_explorer() -> None:
     med = table["chg_1y"].median()
     top = table.loc[table["chg_1y"].idxmax()] if table["chg_1y"].notna().any() else None
     with head:
-        ui.headline(f"{len(table)} {noun} shown." + (f" The median 1-year change is {fmt_pct(med)}, led by {top['region']} ({fmt_pct(top['chg_1y'])})."
+        ui.headline(f"{len(table)} {noun} shown." + (f" Median 1-year change: {fmt_pct(med)}, led by {top['region']} ({fmt_pct(top['chg_1y'])})."
                                                      if top is not None else ""))
     k1, k2, k3 = kpis.columns(3)
     ui.kpi(k1, "Regions shown", f"{len(table):,}")
@@ -110,7 +109,7 @@ def render_explorer() -> None:
         if us_hist is not None and not us_hist.empty:
             lines.append(("United States", us_hist, GREY, "dash"))
         show(_lines(lines, "Typical value ($)"))
-        st.caption(f"{_short(region)} compared with the United States. Zillow, through {_mon(hist.index.max())}.")
+        st.caption(f"{_short(region)} vs the US. Zillow, through {_mon(hist.index.max())}.")
         if mode == "Metro":
             c1, c2, _ = st.columns([1, 1, 2])
             with c1:
@@ -118,7 +117,7 @@ def render_explorer() -> None:
             with c2:
                 ui.go_to("forecast", "See forecast")
     else:
-        st.write("Choose a region from the table to see its price history.")
+        st.write("Choose a region to see its price history.")
 
     _footer_disclaimer()
 

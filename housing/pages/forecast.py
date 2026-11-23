@@ -41,14 +41,14 @@ def render_forecast() -> None:
         pred, (lo, hi), region = result.national_pred, result.national_interval, "United States"
         text = (f"US home values: forecast {fmt_pct(pred)} over the next {label} (80% range {signed(lo)} to {signed(hi)})."
                 + ("" if metro else " Choose a metro for its forecast."))
-    ui.headline(text, f"80% range: in past tests, the actual change landed inside a range this wide {bl['coverage80']:.0%} of the time.")
+    ui.headline(text, f"80% range: in past tests, the actual change landed inside it {bl['coverage80']:.0%} of the time.")
     if h == 24:
-        st.caption("24-month forecasts are the total (cumulative) change over two years, not a yearly rate.")
+        st.caption("24-month forecasts are the total change over two years, not a yearly rate.")
     ui.disclaimer()
     zf = cached_zillow_forecast(_data_dir_key())
     cmp = analysis.compare_to_zillow(result.predictions, zf, h) if zf is not None else None
     if h == 24:
-        st.caption("Zillow doesn't publish a 24-month forecast, so there's no comparison at this horizon.")
+        st.caption("Zillow has no 24-month forecast to compare.")
     elif cmp is None:
         st.caption("Zillow's own forecast is unavailable right now, so there's no comparison.")
     else:
@@ -57,36 +57,35 @@ def render_forecast() -> None:
         st.markdown(
             f"Zillow's forecast for {_short(region)}: {signed(z)} over the next {label}. "
             f"We vs Zillow: {cmp['same_dir']} of {cmp['n']} metros in the same direction; "
-            f"median difference {signed_pp(cmp['median_diff_pp'])} points (ours minus Zillow)."
+            f"median difference {signed_pp(cmp['median_diff_pp'])} points (ours minus Zillow's)."
         )
-        st.caption(f"Zillow's forecast from {_mon(zf['base_date'].iloc[0])} data. This compares forecasts only, "
-                   "not which has been more accurate; that needs the forecasts to come due.")
+        st.caption(f"Zillow's forecast from {_mon(zf['base_date'].iloc[0])} data. This compares forecasts, not accuracy.")
     if len(row) and st.session_state.get("metro_src") == "overview":
         st.caption(f"Using {metro} (from Market overview).")
     if metro and not len(row):
-        st.info(f"No forecast for {metro} yet. It doesn't have enough price history. Showing the US forecast instead.")
+        st.info(f"No forecast for {metro}: not enough price history. Showing the US forecast.")
     ui.metro_picker(metro_regions(), "forecast", placeholder="Choose a metro to see its forecast")
     if supply is None:
-        st.warning("Heads up: Zillow listings data is unavailable, so the forecast runs without inventory data.")
+        st.warning("Heads up: Zillow listings data is unavailable, so the forecast skips inventory.")
     if cached_fred("MORTGAGE30US", _data_dir_key()) is None:
-        st.warning("Heads up: mortgage rates are unavailable, so the forecast runs without them and may be less accurate.")
+        st.warning("Heads up: mortgage rates are unavailable, so the forecast skips them and may be less accurate.")
     if bl["MAE"] > mo["MAE"]:
-        st.warning("Heads up: in this round of tests the combined forecast was slightly less accurate than the model alone.")
+        st.warning("Heads up: in these tests the combined forecast was slightly less accurate than the model alone.")
 
     k1, k2, k3 = st.columns(3)
     ui.kpi(k1, "Typical miss (points)", f"{bl['MAE']:.1f}",
-              help="Average miss (mean absolute error, MAE) of the combined forecast.")
+              help="Average miss of the combined forecast.")
     dacc = bl["direction_acc"] if pd.notna(bl["direction_acc"]) else mo["direction_acc"]
     ui.kpi(k2, "Direction calls right", f"{round(dacc * 10)} of 10",
-              help="Share of cases where the forecast got up versus down right (direction accuracy).")
+              help="How often the forecast got up versus down right.")
     ui.kpi(k3, "Versus a no-change guess (points)", f"{bl['MAE']:.1f} vs {zr['MAE']:.1f}",
-              help="Typical miss of our combined forecast versus assuming prices stay flat.")
+              help="Our typical miss versus assuming prices stay flat.")
     st.caption("Across all metros, past tests.")
 
     hist = metro_df[metro_df["region"] == region].sort_values("date").set_index("date")["value"]
     st.subheader(f"{_short(region)} price history and forecast" if region != "United States" else "US price history and forecast")
     ui.show(ui.history_band(hist, pred, lo, hi, name=_short(region), months=h))
-    st.caption(f"Zillow, through {_mon(hist.index.max())}. Dashed line and shaded area: forecast and its 80% range.")
+    st.caption(f"Zillow, through {_mon(hist.index.max())}. Dashed line and shaded area: forecast and 80% range.")
 
     st.subheader("What goes into this forecast")
     mort = cached_fred("MORTGAGE30US", _data_dir_key())
@@ -107,7 +106,6 @@ def render_forecast() -> None:
             ui.go_to("profile", f"See {_short(metro)} profile")
 
     st.subheader("All metro forecasts")
-    st.caption("How many metros fall at each predicted change.")
     fig = go.Figure(go.Histogram(x=result.predictions["pred_12m"] * 100, nbinsx=30, marker_color=GREY))
     fig.add_vline(x=0, line_width=1, line_color=INK, annotation_text="0% (no change)", annotation_font=dict(size=12, color="#696160"))
     px_ = result.predictions["pred_12m"] * 100
@@ -129,14 +127,10 @@ def render_forecast() -> None:
 
     with st.expander("How the forecast works"):
         st.write(
-            f"A gradient-boosted tree model is trained on point-in-time price-momentum, "
-            f"volatility, and macro features to predict each metro's {h}-month log return. "
-            "It is evaluated with a yearly rolling-origin backtest (2010 onward): each year is "
-            f"predicted by a model trained only on rows whose {h}-month outcome was already known "
-            "at the start of that year, and compared with a naive momentum baseline and a "
-            "zero-change baseline. Backtest fits use quarterly origins only, for speed. The served forecast is the equal-weight "
-            "average of the model and the trailing-12-month momentum scaled to the horizon, in simple-return space, and it "
-            "is scored in the same backtest."
+            f"A gradient-boosted tree model learns from past price momentum, volatility and economic data to predict each "
+            f"metro's {h}-month change. We test it year by year since 2010: each year is predicted by a model that only saw "
+            f"outcomes already known at the start of that year, then compared with a recent-trend guess and a no-change guess. "
+            "The forecast you see averages the model with the trailing 12-month trend scaled to the horizon, and is scored the same way."
         )
 
     _footer_disclaimer()
@@ -181,27 +175,25 @@ def _backtest_detail(result: model.ForecastResult, h: int) -> None:
         f"- Typical miss: model {mo['MAE']:.2f} points vs combined forecast {bl['MAE']:.2f} vs recent trend {nv['MAE']:.2f} vs no-change {zr['MAE']:.2f}.\n"
         f"- The model leans {tone} by {abs(mo['bias']):.2f} points on average.\n"
         f"- Ranking skill (rank IC {mo['rank_ic']:.2f} model, {bl['rank_ic']:.2f} blend, {nv['rank_ic']:.2f} momentum): "
-        "how well forecasts order metros from best to worst. 0 = random ordering, 1 = perfect; above ~0.3 is useful.\n"
+        "how well forecasts order metros from best to worst. 0 is random, 1 is perfect.\n"
         f"- Top picks (top 10%) beat the average metro by {mo['top_decile_lift']:.2f} points over {h} months "
         f"(recent trend: {nv['top_decile_lift']:.2f}).\n"
         f"- Direction right {mo['direction_acc'] * 100:.0f}% of the time."
     )
     st.info(
-        f"Served forecast: **blend** (combined forecast) = {result.blend_weight:.2f} x ML model + "
-        f"{1 - result.blend_weight:.2f} x naive momentum "
-        f"{result.blend_intercept * 100:+.2f} pp bias correction (simple returns; weight and correction learned on past backtest misses, correction off at 24 months). "
-        f"Backtest average MAE: blend {bl['MAE']:.2f} pp vs model {mo['MAE']:.2f} pp vs momentum {nv['MAE']:.2f} pp; "
-        f"rank IC: blend {bl['rank_ic']:.2f} vs model {mo['rank_ic']:.2f} vs momentum {nv['rank_ic']:.2f}. "
-        "The blend is served because combining two partly independent forecasts cuts the miss. "
-        "The model weights recent history more (3-year half-life), which lowered backtest MAE slightly; "
-        "it does not remove the pessimistic bias. "
-        "Since step 4 the model also uses metro for-sale inventory (YoY) and the share of listings "
-        "with a price cut (Zillow, from 2018)."
+        f"Served forecast: **blend** = {result.blend_weight:.2f} x ML model + "
+        f"{1 - result.blend_weight:.2f} x recent trend "
+        f"{result.blend_intercept * 100:+.2f} pp bias correction (learned from past misses, off at 24 months). "
+        f"Average miss: combined {bl['MAE']:.2f} pp vs model {mo['MAE']:.2f} pp vs trend {nv['MAE']:.2f} pp; "
+        f"rank IC: combined {bl['rank_ic']:.2f} vs model {mo['rank_ic']:.2f} vs trend {nv['rank_ic']:.2f}. "
+        "Combining two partly independent forecasts cuts the miss. "
+        "The model weights recent history more (3-year half-life) and also uses for-sale inventory and price-cut "
+        "share (Zillow, from 2018)."
     )
     st.caption(
-        f"80% range: in the backtest ({2010 + 1 + math.ceil(h / 12)}+, ranges built only from earlier years) the actual {h}-month change "
+        f"80% range: in tests from {2010 + 1 + math.ceil(h / 12)} on (ranges built only from earlier years) the actual {h}-month change "
         f"fell inside it {bl['coverage80']:.0%} of the time; average width {bl['width80']:.1f} pp. "
-        "Misses cluster in market-wide shocks (2020, 2022), when the range is too narrow for every metro at once."
+        "Misses cluster in market-wide shocks (2020, 2022)."
     )
 
 

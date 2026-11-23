@@ -13,7 +13,7 @@ from housing.shared import CC, _data_dir_key, cached_fred, _safe_load_metro, _fo
 
 def _render_arm(res: dict, loan_type: str) -> dict[str, pd.DataFrame]:
     if loan_type != "conventional":
-        st.info("ARM comparison is only shown for conventional loans.")
+        st.info("ARM comparison is for conventional loans only.")
         return {}
     with st.expander("Adjustable-rate (ARM) comparison"):
         s = cached_fred("SOFR30DAYAVG", _data_dir_key())
@@ -23,7 +23,7 @@ def _render_arm(res: dict, loan_type: str) -> dict[str, pd.DataFrame]:
             sofr = st.number_input("SOFR 30-day average (%)", 0.0, 15.0, 4.0, 0.05)
         else:
             sofr = float(s.iloc[-1])
-            st.caption(f"30-day average SOFR, {s.index[-1]:%b %Y} avg (NY Fed via FRED): {sofr:.2f}%")
+            st.caption(f"30-day average SOFR, {s.index[-1]:%b %Y} (NY Fed via FRED): {sofr:.2f}%")
         margin = st.number_input("ARM margin (points)", 1.0, 3.0, finance.ARM_MARGIN, 0.125)
         fixed30 = res[30]["schedule"]
         rows = {"30-year fixed": [f"{res[30]['rate']:.3f}%", f"${fixed30['payment'].iloc[0]:,.0f}", "-", "-",
@@ -50,7 +50,7 @@ def _render_arm(res: dict, loan_type: str) -> dict[str, pd.DataFrame]:
         fig.update_layout(xaxis_title="Month", yaxis_title="Monthly payment, principal and interest ($)")
         fig.update_yaxes(tickformat="$,.0f")
         show(fig)
-        st.caption("ARM initial rates are approximations (no public ARM rate survey since 2022); payments after reset depend on the future index.")
+        st.caption("ARM initial rates are approximate. Payments after a reset depend on the future index.")
     return {f"{p} ARM (index flat)": sc["Index flat"] for p, sc in all_sc.items()}
 
 
@@ -70,7 +70,7 @@ def _render_equity(metro_df, region, price, schedules) -> None:
     try:
         mu, sd5 = finance.appreciation_params(hist["value"])
     except ValueError:
-        st.caption(f"{region} has under {finance.MIN_HISTORY_MONTHS} months of price history, so this uses United States growth.")
+        st.caption(f"{region} has under {finance.MIN_HISTORY_MONTHS} months of price history, so this uses US growth.")
         region = "United States"
         hist = metro_df[metro_df["region"] == region].sort_values("date")
         mu, sd5 = finance.appreciation_params(hist["value"])
@@ -84,14 +84,14 @@ def _render_equity(metro_df, region, price, schedules) -> None:
     except Exception:
         pass
     if year1 is None:
-        st.caption(f"No ML forecast for {region}, so year 1 uses the historical trend.")
+        st.caption(f"No forecast for {region}, so year 1 uses its past trend.")
     d = finance.equity_projection(price, schedules[loan], mu, sd5, year1, sell)
 
     rows = d[d["year"].isin(finance.PROJECTION_YEARS)]
     t = pd.DataFrame({"Year": rows["year"].astype(int), "Home value": rows["value"], "Value low": rows["value_lo"],
                       "Value high": rows["value_hi"], "Balance": rows["balance"], "Equity": rows["equity"],
                       "Equity low": rows["equity_lo"], "Equity high": rows["equity_hi"], "Net if sold": rows["net"]})
-    st.caption("Low and high are the 80% range.")
+    st.caption("Low and high show the 80% range.")
     st.dataframe(t, hide_index=True, width="stretch", column_config={
         "Year": CC.NumberColumn(format="%d", width="small"),
         **{c: CC.NumberColumn(format="$%,d") for c in t.columns[1:]}})
@@ -106,10 +106,10 @@ def _render_equity(metro_df, region, price, schedules) -> None:
     fig.update_yaxes(tickformat="$,.2s")
     show(fig)
     st.warning(ui.D3)
-    y1 = (f"Year 1 uses the ML forecast with its 80% range (as of {result.as_of:%b %Y})." if year1 is not None
-          else "Year 1 uses the historical trend.")
+    y1 = (f"Year 1 uses the forecast and its 80% range (as of {result.as_of:%b %Y})." if year1 is not None
+          else "Year 1 uses the past trend.")
     st.caption(f"{y1} Years 2+ use {region}'s average growth since {hist['date'].min():%Y} ({np.exp(mu) - 1:.1%} a year). "
-               "Values are nominal and exclude maintenance, taxes and improvements.")
+               "Excludes maintenance, taxes and improvements.")
 
 
 def render_financing() -> None:
@@ -120,7 +120,7 @@ def render_financing() -> None:
     if metro_df is not None:
         table = analysis.appreciation_table(metro_df[metro_df["region_type"] != "country"]).sort_values("size_rank")
     else:
-        st.warning("Heads up: we can't reach Zillow's home-value data right now, so metro prices are unavailable. "
+        st.warning("Heads up: we can't reach Zillow's home-value data right now. "
                    "Enter a home price below, or try again in a few minutes.")
         ui.retry_button("retry_zillow")
 
@@ -132,7 +132,7 @@ def render_financing() -> None:
             src = st.radio("Home price source", ["Metro typical value", "Enter my own price"], index=0 if metro else 1)
             use_metro = bool(metro) and src == "Metro typical value"
         else:
-            st.caption("Metro prices unavailable - enter a home price.")
+            st.caption("Metro prices unavailable. Enter a home price.")
         state_default = "CA"
         if metro and table is not None and (table["region"] == metro).any():
             row = table[table["region"] == metro].iloc[0]
@@ -156,14 +156,14 @@ def render_financing() -> None:
         states = sorted(finance.PROPERTY_TAX_PCT)
         state = st.selectbox("State", states, index=states.index(state_default), key=f"state_{state_default}")
         fees_pct = st.number_input("Lender fees (% of loan)", min_value=0.0, max_value=10.0, value=1.0, step=0.25,
-                                   help="Used only to compute the APR.")
+                                   help="Used for the APR only.")
 
     with st.expander("Change property tax and insurance"):
         tax_pct = st.number_input("Property tax (% of home value per year)", min_value=0.0, value=float(finance.PROPERTY_TAX_PCT[state]), step=0.05, key=f"tax_{state}")
         ins_annual = st.number_input("Home insurance ($ per year)", min_value=0.0, value=float(finance.HOME_INS_ANNUAL[state]), step=100.0, key=f"ins_{state}")
     with st.expander("Check debt-to-income"):
         income = st.number_input("Gross monthly income ($)", min_value=0.0, value=0.0, step=500.0,
-                                 help="Used for the debt-to-income ratio (DTI).")
+                                 help="Used for your debt-to-income ratio.")
         debts = st.number_input("Other monthly debts ($)", min_value=0.0, value=0.0, step=50.0)
 
     s30 = cached_fred("MORTGAGE30US", _data_dir_key())
@@ -177,8 +177,8 @@ def render_financing() -> None:
         r15 = st.number_input("15-year fixed rate (%)", min_value=0.0, max_value=20.0, value=5.8, step=0.05)
     else:
         r30, r15 = float(s30.iloc[-1]), float(s15.iloc[-1])
-        st.caption(f"PMMS average, {s30.index[-1]:%b %Y}: 30y {r30:.2f}%, 15y {r15:.2f}% (Freddie Mac via FRED). "
-                   "20y is interpolated and 10y extrapolated from these.")
+        st.caption(f"Freddie Mac via FRED, {s30.index[-1]:%b %Y}: 30y {r30:.2f}%, 15y {r15:.2f}%. "
+                   "Other terms are estimated from these.")
     rb = finance.base_rates(r30, r15)
 
     try:
@@ -187,7 +187,7 @@ def render_financing() -> None:
     except ValueError as e:
         with head:
             ui.headline("Estimated payment unavailable.")
-            st.error(f"Error: {e} Change the value and the estimate will update.")
+            st.error(f"Error: {e} Change it and the estimate will update.")
         _footer_disclaimer()
         return
 
@@ -196,17 +196,17 @@ def render_financing() -> None:
     with head:
         ui.headline(f"Estimated payment on a ${price:,.0f} home {where}: ${res[30]['piti']:,.0f}/month "
                     f"(30-year fixed at {r:.2f}%{' (your rate)' if hand_rates else ''}, {down_pct:g}% down).",
-                    None if metro else "Tax and insurance use US averages. Choose a metro for a local equity projection.")
+                    None if metro else "Uses US average tax and insurance. Choose a metro for local numbers.")
         ui.disclaimer(ui.D2)
     k = kpis.columns(4)
     ui.kpi(k[0], "Monthly payment", f"${res[30]['piti']:,.0f}",
-                help="Principal, interest, property tax and insurance (PITI), 30-year.")
+                help="Principal, interest, property tax and insurance, 30-year.")
     ui.kpi(k[1], "Rate and APR", f"{r:.2f}% / {res[30]['apr']:.2f}%", help="APR includes lender fees.")
     ui.kpi(k[2], "Cash down", f"${price * down_pct / 100:,.0f}")
     ui.kpi(k[3], "Total interest, 30 years", f"${res[30]['total_interest']:,.0f}")
 
     if res[30]["jumbo"]:
-        st.info("Loan is above the standard conforming limit. Pricing varies by lender; high-cost counties allow up to $1,249,125.")
+        st.info("This loan is above the standard conforming limit, so pricing varies by lender.")
     st.subheader("Rates by loan term")
     m = lambda k: [f"${res[t][k]:,.0f}" for t in finance.TERMS]  # noqa: E731
     st.dataframe(pd.DataFrame(
@@ -251,26 +251,26 @@ def render_financing() -> None:
 
     with st.expander("Sources and assumptions"):
         st.markdown(
-            "- **Base rates:** Freddie Mac PMMS 30y and 15y via FRED (monthly average); 20y linearly interpolated, 10y linearly extrapolated.\n"
-            "- **Conforming limit:** $832,750 (FHFA, release of 2025-11-25); high-cost ceiling $1,249,125.\n"
-            "- **Property tax:** Tax Foundation, Property Taxes by State and County (2024 ACS, published 2026-03-16).\n"
-            "- **Insurance:** NAIC 2022 via III Facts + Statistics. 2022 data, likely below 2026 premiums.\n"
-            "- **Conventional rate adjustment:** approximate Fannie Mae LLPA Matrix Table 1 (purchase, effective 2023-05-01), terms over 15 years only, at 0.25% rate per point vs the PMMS reference borrower. Approximate.\n"
-            "- **PMI:** illustrative rate card, not verified; drops off when the balance reaches 78% of price.\n"
-            "- **FHA MIP:** HUD Mortgagee Letter 2023-05 (effective 2023-03-20); 1.75% upfront, financed.\n"
-            "- **VA funding fee:** first use, purchase, VA.gov effective 2023-04-07; financed; no MI.\n"
+            "- **Base rates:** Freddie Mac 30y and 15y via FRED (monthly average); 20y interpolated, 10y extrapolated.\n"
+            "- **Conforming limit:** $832,750 (FHFA); high-cost ceiling $1,249,125.\n"
+            "- **Property tax:** Tax Foundation, 2024 ACS data.\n"
+            "- **Insurance:** NAIC 2022 via III. Likely below 2026 premiums.\n"
+            "- **Conventional rate adjustment:** approximates Fannie Mae's LLPA table (terms over 15 years only), 0.25% rate per point.\n"
+            "- **PMI:** illustrative rates, not verified; drops off at 78% of price.\n"
+            "- **FHA MIP:** HUD Mortgagee Letter 2023-05; 1.75% upfront, financed.\n"
+            "- **VA funding fee:** first use, purchase; financed; no MI.\n"
             "- **FHA/VA rate:** conventional base minus 0.25 plus a small credit adder (rule of thumb).\n"
-            "- **APR:** rate at which the present value of payments (P&I plus MI) equals the loan less lender fees.\n"
-            "- **ARM index:** 30-day Average SOFR (FRED `SOFR30DAYAVG`); required by both GSEs for new SOFR ARMs (Freddie Mac SOFR ARMs Fact Sheet, April 2025).\n"
-            "- **ARM caps:** ARRC SOFR-indexed ARM white paper (2019): 5/6 = 2/1/5, 10/6 = 5/1/5 (initial/periodic/lifetime), 6-month resets.\n"
-            "- **ARM floor:** rate never falls below the margin (Fannie Mae Selling Guide B2-1.4-02, effective 2025-12-10).\n"
-            "- **ARM margin:** 2.75 default (ARRC range 2.75-3; Freddie Mac allows 1.00-3.00).\n"
-            "- **ARM rounding:** new rate = index + margin rounded to the nearest 0.125 (unverified convention).\n"
-            "- **ARM initial rate:** approximation, adjusted 30y fixed rate minus 0.50 (5/6) or 0.25 (10/6); not sourced.\n"
-            "- **Equity projection:** year 1 = served ML blend with its 80% range (historical trend if unavailable); years 2+ = region's "
-            "average log growth since 2000 with an 80% range of 1.2816 x sd of historical 5-year returns x sqrt(years/5). Nominal dollars. "
-            "Selling costs default to ~6% (rule of thumb). ARMs assume the index stays flat.\n"
-            "- **Not modeled:** county loan limits, points, HOA, flood insurance, ARM APR/MI, index paths; MI and FHA/VA adjustments are approximations."
+            "- **APR:** the rate at which payments (P&I plus MI) equal the loan less lender fees.\n"
+            "- **ARM index:** 30-day average SOFR (FRED `SOFR30DAYAVG`).\n"
+            "- **ARM caps:** ARRC white paper: 5/6 = 2/1/5, 10/6 = 5/1/5 (initial/periodic/lifetime), 6-month resets.\n"
+            "- **ARM floor:** rate never falls below the margin (Fannie Mae B2-1.4-02).\n"
+            "- **ARM margin:** 2.75 default (range 1.00-3.00).\n"
+            "- **ARM rounding:** new rate = index + margin, rounded to the nearest 0.125 (unverified).\n"
+            "- **ARM initial rate:** the adjusted 30y fixed rate minus 0.50 (5/6) or 0.25 (10/6); not sourced.\n"
+            "- **Equity projection:** year 1 = ML forecast with its 80% range (historical trend if unavailable); years 2+ = average "
+            "log growth since 2000, with an 80% range of 1.2816 x sd of 5-year returns x sqrt(years/5). Nominal dollars. "
+            "Selling costs default to ~6%. ARMs assume the index stays flat.\n"
+            "- **Not modeled:** county loan limits, points, HOA, flood insurance, ARM APR/MI, index paths. MI and FHA/VA adjustments are approximate."
         )
     _footer_disclaimer()
 
