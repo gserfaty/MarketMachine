@@ -213,3 +213,19 @@ def test_affordability_table_errors():
         f.affordability_table(m, 0, 20.0, rb)
     with pytest.raises(ValueError):
         f.affordability_table(m, 100_000, 1.0, rb)
+
+
+def test_rent_vs_buy_hand_case():
+    # all cash, no growth, no costs: buyer holds 100k; renter spends 1000/month out of 100k
+    d = f.rent_vs_buy(100_000, 100, 0, 1000, 3, 0, 0, 0, 0, 0, 0, 0, 0)
+    assert list(d["year"]) == [0, 1, 2, 3]
+    assert d["buy"].tolist() == pytest.approx([100_000] * 4)
+    assert d["rent"].tolist() == pytest.approx([100_000, 88_000, 76_000, 64_000])
+    assert f.break_even_year(d) == 1
+
+
+def test_break_even_found_and_not_found():
+    d = f.rent_vs_buy(400_000, 20, 6.5, 2000, 30, 4, 3, 5, 1, 1500, 1, 2, 6)
+    be = f.break_even_year(d)
+    assert be is not None and d.loc[d["year"] >= be, "diff"].ge(0).all() and d.loc[d["year"] == be - 1, "diff"].lt(0).all()
+    assert f.break_even_year(f.rent_vs_buy(400_000, 20, 6.5, 1000, 3, 0, 0, 5)) is None

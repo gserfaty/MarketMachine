@@ -297,3 +297,36 @@ def equity_projection(v0: float, schedule: pd.DataFrame, mu: float, sd5: float,
         out["value" + s], out["equity" + s], out["net" + s] = v, v - balance, v * keep - balance
     return pd.DataFrame(out)[["year", "value_lo", "value", "value_hi", "balance", "equity_lo", "equity", "equity_hi",
                               "net_lo", "net", "net_hi"]]
+
+
+BUY_COST_PCT = 2.0  # buyer closing costs, % of price (rule of thumb)
+
+
+def rent_vs_buy(price: float, down_pct: float, rate_pct: float, rent: float, years: int = 10, appreciation_pct: float = 3.0,
+                rent_growth_pct: float = 3.0, invest_pct: float = 5.0, tax_pct: float = 1.0, ins_annual: float = 1500.0,
+                maint_pct: float = 1.0, buy_pct: float = BUY_COST_PCT, sell_pct: float = SELL_COST_PCT) -> pd.DataFrame:
+    """Year-by-year net worth of buying (equity less selling costs) vs renting (invested down payment, closing costs
+    and the monthly cost difference). 30-year fixed loan, monthly steps. Columns: year, buy, rent, diff (buy - rent)."""
+    down = price * down_pct / 100
+    sched = amortization_schedule(price - down, rate_pct, 360)
+    g, inv = (1 + appreciation_pct / 100) ** (1 / 12), (1 + invest_pct / 100) ** (1 / 12)
+    value, port = price, down + price * buy_pct / 100
+    rows = [(0, price * (1 - sell_pct / 100) - (price - down), port)]
+    for m in range(1, years * 12 + 1):
+        own = sched["payment"].iloc[m - 1] + (value * (tax_pct + maint_pct) / 100 + ins_annual) / 12
+        r = rent * (1 + rent_growth_pct / 100) ** ((m - 1) // 12)
+        port = port * inv + own - r  # the cheaper path's savings are invested; a negative flow is a withdrawal
+        value *= g
+        if m % 12 == 0:
+            rows.append((m // 12, value * (1 - sell_pct / 100) - sched["balance"].iloc[m - 1], port))
+    d = pd.DataFrame(rows, columns=["year", "buy", "rent"])
+    d["diff"] = d["buy"] - d["rent"]
+    return d
+
+
+def break_even_year(d: pd.DataFrame) -> int | None:
+    """First year from which buying stays ahead of renting; None if it never does within the horizon."""
+    y = d[d["year"] > 0]
+    behind = y.loc[y["diff"] < 0, "year"]
+    after = y[y["year"] > behind.max()] if len(behind) else y
+    return int(after["year"].min()) if len(after) else None

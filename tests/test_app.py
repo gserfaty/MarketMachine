@@ -7,7 +7,7 @@ from streamlit.testing.v1 import AppTest
 from housing import ui
 
 APP_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app.py")
-PAGES = ["overview", "explorer", "profile", "forecast", "financing", "affordability"]
+PAGES = ["overview", "explorer", "profile", "forecast", "financing", "affordability", "rent_vs_buy"]
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 
