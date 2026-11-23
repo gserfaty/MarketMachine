@@ -179,14 +179,17 @@ under-covers because outcomes span market-wide shocks. Backtest (mortgage on, FR
 
 | Horizon | Blend MAE (pp) | Bias (pp) | Rank IC | Coverage80 | Interval gap |
 |---|---|---|---|---|---|
-| 3 months | 0.87 | -0.14 | 0.67 | 0.81 | 2 yrs |
-| 12 months | 3.33 | -1.10 | 0.49 | 0.80 | 2 yrs |
-| 24 months | 8.39 | -1.41 | 0.42 | 0.71 | 3 yrs |
+| 3 months | 0.87 | -0.14 | 0.67 | 0.82 | 2 yrs |
+| 12 months | 3.33 | -1.10 | 0.49 | 0.83 | 2 yrs |
+| 24 months | 8.39 | -1.41 | 0.42 | 0.79 | 3 yrs |
 
 **Prediction intervals.** A forecast like "+3% (-1% to +6%)" means an 80% range: about 8 of 10 past forecasts
-landed inside it. The range comes from past blend backtest residuals, scaled by the metro's 12-month volatility,
-so volatile metros get wider ranges; for each year only earlier, already-resolved years are used. Backtest coverage
-is about 80% at 12 months (71% at 24 after the range is widened by a factor learned only from earlier years; still under nominal) and drops sharply in market-wide shocks (2020, 2022). The range is not a guarantee. Recency-weighted, last-K-year, volatility-bucket, quantile-regression, all-horizon calibration and common-shock variants were tested on 2026-11-22; none kept 24m coverage within 0.75-0.85 on the 2020-2025 holdout, so the method is unchanged (table in `CHANGELOG.md`).
+landed inside it. Since 2026-11-22 the range adds two parts from past blend backtest residuals: a market-wide
+part (the median residual across metros at the same origin) and a metro part (the rest, scaled by the metro's 12-month
+volatility, so volatile metros get wider ranges), combined in quadrature. For each year only earlier, already-resolved
+years are used; there is no extra width multiplier. Backtest coverage is 0.82 / 0.83 / 0.79 at 3 / 12 / 24 months
+(2020-2025 holdout 0.81 / 0.83 / 0.69, so 24 months still under-covers), with narrower ranges than before. It drops
+sharply in market-wide shocks (2020, 2022). The range is not a guarantee. Details in `CHANGELOG.md`.
 
 **Served forecast.** The page and Market overview serve `blend` = w × model + (1 - w) × naive momentum (simple returns).
 The weight w is learned (currently 0.95 at 3m, 0.8 at 12m, 0.65 at 24m; `ForecastResult.blend_weight`), see "Learned blend weight" below.
