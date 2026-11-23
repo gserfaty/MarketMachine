@@ -5,6 +5,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Cleaner state maps (2026-11-23)
+- State maps (Market overview forecast, Regional explorer) no longer print a label on every state, which overlapped in the Northeast. Values show on hover and in the sorted table beside the map.
+- Change maps use a smooth scale that only covers the side the data is on, with the same color intensity for the same size of move up or down, so a -1% state no longer looks as strong as a +5% one. The legend sits under the map, which also fits better on phones.
+- Removed the unused state-centroid table (`shared.CENTER`).
+
 ### Forecast map on the Market overview (2026-11-22)
 - New "Forecast by state, next 12 months" map on the Market overview: each state is colored by the median 12-month forecast of its metros, with a sorted table beside it.
 - `_state_map` moved from the explorer page to `housing/shared.py` so both pages use it.

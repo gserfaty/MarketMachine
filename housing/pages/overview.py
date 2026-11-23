@@ -175,7 +175,7 @@ def _top_markets(metro_df: pd.DataFrame, res) -> None:
         by = preds.groupby("state", as_index=False).agg(pred_12m=("pred_12m", "median"), value=("value", "median"))
         by["state"] = by["region"] = by["state"].map(name)
         _state_map(by, "pred_12m", "Forecast")
-        st.caption("Median 12-month forecast of each state's metros. A metro that spans states counts under its main state.")
+        st.caption("Each state shows the median forecast of its metros. Hover for values.")
 
     tab1, tab5 = st.tabs(["Past year", "Past 5 years"])
     with tab1:
