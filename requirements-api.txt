@@ -8,4 +8,4 @@ pydantic>=2
 prometheus-client>=0.20
 python-json-logger>=3.1
 psycopg[binary]>=3.1
-redis>=5
+redis>=5,<8.2  # 8.2 breaks fakeredis 2.40 in tests; lift when fakeredis catches up
