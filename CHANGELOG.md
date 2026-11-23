@@ -5,6 +5,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
+### Affordability income input warning fixed (2026-11-22)
+- The household income input now uses whole numbers, so Streamlit no longer warns that a `%d` format was used on a float value.
+
 ### Market-wide/metro split for 80% ranges (2026-11-22)
 - 80% ranges now add a market-wide part (median blend residual across metros at the same origin) and a vol12-scaled metro part (residual minus that median), combined in quadrature (`model.z_quantiles`, `model.interval_bounds`). This applies at all horizons. The leakage rule is unchanged: year Y uses residuals from years <= Y - gap, gap = 1 + ceil(h/12). Served ranges use all resolved residuals.
 - The 24m calibration multiplier (`calibrate_intervals`) was removed. Using full-period numbers only, it lowered 24m coverage under the split (0.79 without it, 0.71 with it). `interval_k` is now always 1.
