@@ -8,10 +8,10 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from housing import analysis, ui
+from housing import analysis, data, ui
 from housing.ui import GREY, INK, TEAL, fmt_pct, show, signed
 from housing.shared import (_data_dir_key, cached_fred, cached_supply, _safe_load_metro, metro_regions, _footer_disclaimer, _need, _mon,
-                            _try_forecast, _short, _table, _range_table, _forecast_failed)
+                            _try_forecast, _short, _table, _range_table, _forecast_failed, _state_map)
 
 
 def render_overview() -> None:
@@ -170,6 +170,12 @@ def _top_markets(metro_df: pd.DataFrame, res) -> None:
         _table(_range_table(up.head(15)), ["region", "state", "value", "pred"])
         st.subheader("Predicted to lag, next 12 months")
         _table(_range_table(preds.sort_values("pred_12m").head(10)), ["region", "state", "value", "pred"])
+        st.subheader("Forecast by state, next 12 months")
+        name = {a: n for n, a in data.STATE_ABBR.items()}
+        by = preds.groupby("state", as_index=False).agg(pred_12m=("pred_12m", "median"), value=("value", "median"))
+        by["state"] = by["region"] = by["state"].map(name)
+        _state_map(by, "pred_12m", "Forecast")
+        st.caption("Median 12-month forecast of each state's metros. A metro that spans states counts under its main state.")
 
     tab1, tab5 = st.tabs(["Past year", "Past 5 years"])
     with tab1:

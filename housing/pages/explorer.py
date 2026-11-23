@@ -1,58 +1,13 @@
 """Regional explorer page."""
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from housing import analysis, data, ui
+from housing import analysis, ui
 from housing.ui import GREY, INK, UP, DOWN, fmt_pct, show, signed
-from housing.shared import CC, SORTS, CENTER, _safe_load_metro, _safe_load_state, _footer_disclaimer, _need, _mon, _lines, _short, _num_cols
-
-
-def _state_map(table: pd.DataFrame, metric: str, label: str) -> None:
-    t = table.dropna(subset=[metric]).copy()
-    t["abbr"] = t["state"].map(data.STATE_ABBR).fillna(t["region"].map(data.STATE_ABBR))
-    t = t.dropna(subset=["abbr"])
-    if t.empty:
-        return
-    is_val = metric == "value"
-    v = t[metric] if is_val else t[metric] * 100
-    if is_val:
-        steps = [[0, "#e3dcdc"], [0.4, "#b4a7a7"], [0.4, "#696160"], [1, "#312d2c"]]
-        zmin, zmax = float(v.min()), float(v.max())
-        zmax = zmax if zmax > zmin else zmin + 1
-        z = v
-        tv = [zmin, zmax]
-        tt = [f"${zmin / 1000:,.0f}k", f"${zmax / 1000:,.0f}k"]
-        frac = (z - zmin) / (zmax - zmin)
-        white = frac > 0.4  # ink label on the light classes, white on the dark ones
-    else:
-        m = float(max(abs(np.nanpercentile(v, 5)), abs(np.nanpercentile(v, 95)))) or 1.0
-        steps = [[0, DOWN], [0.2, DOWN], [0.2, "#e9f1ff"], [0.5, "#e3dcdc"], [0.8, "#e0f9dd"], [0.8, UP], [1, UP]]
-        zmin, zmax, z = -m, m, v.clip(-m, m)
-        tv = [-m, 0, m]
-        tt = [f"−{m:.0f}%", "0%", f"+{m:.0f}%"]
-        frac = (z + m) / (2 * m)
-        white = (frac <= 0.2) | (frac > 0.8)
-    txt = [f"{a} {fmt_pct(c)}" if not is_val else f"{a} ${x / 1000:,.0f}k" for a, c, x in zip(t["abbr"], t[metric], t["value"])]
-    fig = go.Figure(go.Choropleth(
-        locations=t["abbr"], locationmode="USA-states", z=z, zmin=zmin, zmax=zmax, colorscale=steps,
-        marker=dict(line=dict(color="#fdfcfc", width=1)), text=txt, hoverinfo="text",
-        colorbar=dict(title=label if is_val else "Change", tickvals=tv, ticktext=tt, thickness=12)))
-    lat = [CENTER[a][0] for a in t["abbr"]]
-    lon = [CENTER[a][1] for a in t["abbr"]]
-    fig.add_trace(go.Scattergeo(lat=lat, lon=lon, mode="text", text=txt, hoverinfo="skip", showlegend=False,
-                                textfont=dict(size=12, color=["#fdfcfc" if w else INK for w in white])))
-    fig.update_geos(scope="usa", showlakes=False, bgcolor="#fdfcfc")
-    fig.update_layout(height=420, margin=dict(l=0, r=0, t=0, b=0))
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        show(fig)
-    with c2:
-        st.dataframe(pd.DataFrame({"State": t["abbr"], label: [fmt_pct(x) if not is_val else f"${x:,.0f}" for x in t[metric]]})
-                     .iloc[np.argsort(-t[metric].to_numpy())], hide_index=True, width="stretch")
+from housing.shared import CC, SORTS, _state_map, _safe_load_metro, _safe_load_state, _footer_disclaimer, _need, _mon, _lines, _short, _num_cols
 
 
 def render_explorer() -> None:
