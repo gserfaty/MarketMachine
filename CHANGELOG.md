@@ -17,6 +17,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
   | 3m | 0.81 / 0.81 | 0.82 / 0.81 | 3.3 / 3.9 | 3.1 / 3.6 | 0.068 / 0.087 | 0.078 / 0.101 |
   | 12m | 0.79 / 0.82 | 0.83 / 0.83 | 13.7 / 17.0 | 12.6 / 14.9 | 0.132 / 0.166 | 0.134 / 0.178 |
   | 24m | 0.71 / 0.62 | 0.79 / 0.69 | 33.8 / 45.1 | 28.7 / 34.3 | 0.173 / 0.202 | 0.185 / 0.197 |
+- PR: [#12](https://github.com/gserfaty/MarketMachine/pull/12), 2 review rounds (approved as docs-only, then approved after converting to the code change), 3 commits.
 
 ### Capped bias correction at 3m/12m (2026-11-22)
 - Shipped: the served blend is now `w*model + (1-w)*naive_momentum + c`, where c (`model.fit_blend_intercept`, `ForecastResult.blend_intercept`) is the median residual of resolved rows capped at |c| <= 1 pp x h/12, at 3m and 12m only (c = 0 at 24m). In the backtest it is fit per year with the same leakage rule as the weight (`apply_blend_weights`); the served c is fit on all rows. Intervals are computed on the corrected blend. Served c: +0.13 pp at 3m, +0.88 pp at 12m. The forecast page caption shows it.
