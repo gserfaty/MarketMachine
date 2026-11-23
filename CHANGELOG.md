@@ -8,7 +8,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 ### Rent vs buy calculator (2026-11-22)
 - New Money page `rent_vs_buy`: headline answer, buy-vs-rent net worth chart and table, break-even year.
 - `finance.rent_vs_buy` and `break_even_year` are pure functions reusing `amortization_schedule`; rent defaults to 0.5% of price (rule of thumb, no rent data source), appreciation to the metro's 12-month forecast (3% if unavailable).
-- PR: [#10](https://github.com/gserfaty/MarketMachine/pull/10)
+- PR: [#10](https://github.com/gserfaty/MarketMachine/pull/10), 1 review round (approved), 3 commits.
+
+### Monthly precomputed forecasts (2026-11-22)
+- `python -m housing.precompute OUT_DIR` trains the 3/12/24m forecasts on live data and writes `<h>m.json` (every `ForecastResult` field except the fitted model, plus the `as_of_key`). The new `precompute` workflow runs it monthly (22nd) and publishes the files to the orphan `forecasts` branch.
+- The app (`cached_forecast`, 6 h `st.cache_data` fetch) and the API load these first and use them only when their `as_of_key` equals the current one (same data month and `CODE_VERSION`); otherwise, or on any fetch error, they train on demand as before. API `model.source` can now be `precomputed`.
+- `model.result_to_json` / `result_from_json` (generic over dataclass fields) replace the hand-written Redis codec, which also fixes `blend_weight` and the backtest not round-tripping through Redis.
+- PR: [#11](https://github.com/gserfaty/MarketMachine/pull/11), 1 review round (approved), 2 commits.
 
 ### Stale forecast cache after deploy fixed (2026-11-22)
 - After PR #7 deployed, the live forecast page raised `AttributeError` on `blend_weight`: Streamlit Cloud reloads code without restarting, so `st.cache_resource` kept a `ForecastResult` built by the old model code.
