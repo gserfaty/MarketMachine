@@ -9,6 +9,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 - Cut about 15% of the user-facing text on every page (2,816 to 2,404 words in headings, captions, warnings, tooltips and table labels): removed repeated captions, shortened tooltips and the longest source and method notes, and used plainer words (for example "Change since a year ago" instead of "YoY").
 - All "not financial advice" disclaimers, the 80% range explanation and every data-source-down message are kept.
 
+- PR: [#15](https://github.com/gserfaty/MarketMachine/pull/15), 1 review round (approved; non-blocking nits on lost caveats and next-step hints fixed), 2 commits.
 ### Forecast map on the Market overview (2026-11-22)
 - New "Forecast by state, next 12 months" map on the Market overview: each state is colored by the median 12-month forecast of its metros, with a sorted table beside it.
 - `_state_map` moved from the explorer page to `housing/shared.py` so both pages use it.

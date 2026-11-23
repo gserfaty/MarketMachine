@@ -127,7 +127,7 @@ def _top_markets(metro_df: pd.DataFrame, res) -> None:
     metro_only = metro_df[metro_df["region_type"] != "country"]
     table = analysis.appreciation_table(metro_only)
     if table.empty:
-        st.info("No metros to show.")
+        st.info("No metros to show. Change the size filter.")
         return
     best5 = table[table["size_rank"] <= 200].sort_values("chg_5y", ascending=False)
     best1 = table[table["size_rank"] <= 200].sort_values("chg_1y", ascending=False)

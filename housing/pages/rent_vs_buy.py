@@ -77,8 +77,8 @@ def render_rent_vs_buy() -> None:
     t = pd.DataFrame({"Year": d["year"], "Buy": d["buy"], "Rent": d["rent"], "Buy minus rent": d["diff"]})
     st.dataframe(t, hide_index=True, width="stretch", column_config={
         "Year": CC.NumberColumn(format="%d", width="small"), **{x: CC.NumberColumn(format="$%,d") for x in t.columns[1:]}})
-    st.caption("The renter invests the down payment, buying costs and any monthly savings. The buyer's net worth is "
-               "home value minus loan and selling costs. Income taxes are ignored.")
+    st.caption("Fixed 30-year loan. The renter invests the down payment, buying costs and any monthly savings. The buyer's net worth is "
+               "home value minus loan and selling costs. Ignores capital-gains tax and the mortgage interest deduction.")
     _footer_disclaimer()
 
 

@@ -193,7 +193,7 @@ def _backtest_detail(result: model.ForecastResult, h: int) -> None:
     st.caption(
         f"80% range: in tests from {2010 + 1 + math.ceil(h / 12)} on (ranges built only from earlier years) the actual {h}-month change "
         f"fell inside it {bl['coverage80']:.0%} of the time; average width {bl['width80']:.1f} pp. "
-        "Misses cluster in market-wide shocks (2020, 2022)."
+        "Misses cluster in market-wide shocks (2020, 2022), when the range is too narrow."
     )
 
 

@@ -26,7 +26,7 @@ def render_affordability() -> None:
     down = c2.number_input("Down payment (%)", min_value=3.0, max_value=99.0, value=20.0, step=1.0)
     debts = c3.number_input("Other monthly debts ($)", min_value=0.0, value=0.0, step=50.0,
                             help="Car, student loan and card payments. With debts, a metro also needs total debts under 43% of income.")
-    st.caption("Assumes a 30-year fixed loan, credit score 740-759, and average state tax and insurance. Change these in Financing.")
+    st.caption("Assumes a 30-year fixed loan, credit score 740-759, and average state tax and insurance. Change these in the Financing estimator.")
 
     s30 = cached_fred("MORTGAGE30US", _data_dir_key())
     s30 = s30.dropna() if s30 is not None else None
@@ -114,7 +114,7 @@ def render_affordability() -> None:
         shown["region"] = shown["region"].where(shown["region"] != metro, metro + " (your metro)")
     st.subheader("Metros ranked by payment")
     if shown.empty:
-        st.info("No metros match these filters.")
+        st.info("No metros match these filters. Clear the state filter or turn off 'Only metros within 30%'.")
     else:
         shown = shown.assign(share_txt=shown["share"].map("{:.0%}".format))
         cols = ["region", "state", "value", "payment", "share_txt", "pred"] + (["z_payment", "z_income_needed", "z_share"] if z is not None else [])
