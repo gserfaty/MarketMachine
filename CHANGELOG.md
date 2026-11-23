@@ -5,8 +5,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 ## [Unreleased]
 
-### Bias correction tried, not kept (2026-11-22)
-- Goal: reduce the served blend's pessimistic bias (12m -1.10 pp full, -1.21 pp 2020-2025 holdout). Docs only; the served forecast is unchanged.
+### Capped bias correction at 3m/12m (2026-11-22)
+- Shipped: the served blend is now `w*model + (1-w)*naive_momentum + c`, where c (`model.fit_blend_intercept`, `ForecastResult.blend_intercept`) is the median residual of resolved rows capped at |c| <= 1 pp x h/12, at 3m and 12m only (c = 0 at 24m). In the backtest it is fit per year with the same leakage rule as the weight (`apply_blend_weights`); the served c is fit on all rows. Intervals are computed on the corrected blend. Served c: +0.13 pp at 3m, +0.88 pp at 12m. The forecast page caption shows it.
+- Served results, full / 2020-2025 holdout: 3m MAE 0.869 -> 0.867 / 1.042 -> 1.042, bias -0.14 -> +0.01 / -0.10 -> +0.06; 12m MAE 3.326 -> 3.293 / 3.924 -> 3.842, bias -1.10 -> -0.38 / -1.21 -> -0.29, cov80 0.80 -> 0.79 / 0.81 -> 0.82; 24m unchanged (8.392 / 11.299, -1.41 / +4.06). Rank IC unchanged.
+- Caveat: restricting the correction to 3m/12m was chosen with the 2020-2025 holdout in view (every variant failed 24m MAE, but 2010-2019 data alone favored it at 24m too), so these holdout numbers are not a clean out-of-sample test. The next year of outcomes is the real test.
+- Goal: reduce the served blend's pessimistic bias (12m -1.10 pp full, -1.21 pp 2020-2025 holdout).
 - Method: add an intercept c to the learned-weight blend (after the weight). Same leakage rule as the weight: year Y uses only rows with date + h months <= Y's first origin, c = 0 with fewer than 2 resolved years. Variants: (a) median residual of all resolved rows, optionally shrunk x0.5 and/or capped at |c| <= 1 pp x h/12; (b) median of the most recent K = 2 or 3 resolved years; (c) regime median, split by the sign of the cross-metro mean trailing momentum at the origin (proxy for national r12; the cached backtest has no mortgage column). Scored offline on the cached raw backtests (2010-2025, same rows as PR #7), intervals recomputed (24m also calibrated).
 - Results, full period / 2020-2025 holdout (MAE pp, bias pp, cov80). Rank IC is unchanged for every variant (constant shift): 3m 0.669 / 0.673, 12m 0.492 / 0.528, 24m 0.422 / 0.464.
 
@@ -25,13 +28,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 
 - Pre-set keep bar: 12m |bias| at least 0.3 pp better on full and holdout, MAE no more than 0.02 pp worse at any horizon on either period, rank IC unchanged, cov80 in 0.70-0.90 at 3m and 12m.
   - Every variant fails on 24m MAE (best: +0.09 pp full, +0.56 pp holdout). The 2020-2025 24m blend already runs high (+4.06 pp), so any upward shift learned from the 2010s overshoots.
-  - At 3m and 12m several pass: (a) median cap 1pp is best (12m bias -0.38 / -0.29, MAE 3.293 / 3.842). (b) K=2/3 fail 12m MAE. A 3m/12m-only intercept was not adopted: pre-2020 data favors the intercept at 24m too (cap 1pp: 24m MAE 6.94 to 6.66 in 2010-2019), so the h <= 12 gate could only be chosen from the holdout. 2010-2019 only (MAE pp, bias pp, cov80):
+  - At 3m and 12m several pass: (a) median cap 1pp is best (12m bias -0.38 / -0.29, MAE 3.293 / 3.842). (b) K=2/3 fail 12m MAE. A 3m/12m-only intercept was not part of the pre-set plan: pre-2020 data favors the intercept at 24m too (cap 1pp: 24m MAE 6.94 to 6.66 in 2010-2019), so the h <= 12 gate could only be chosen from the holdout. 2010-2019 only (MAE pp, bias pp, cov80):
 
     | Variant | 3m MAE | 3m bias | 3m cov80 | 12m MAE | 12m bias | 12m cov80 | 24m MAE | 24m bias | 24m cov80 |
     |---|---|---|---|---|---|---|---|---|---|
     | shipped (no intercept) | 0.747 | -0.16 | 0.81 | 2.966 | -1.03 | 0.78 | 6.939 | -4.14 | 0.77 |
     | (a) median cap 1pp | 0.744 | -0.02 | 0.80 | 2.964 | -0.44 | 0.76 | 6.657 | -2.74 | 0.74 |
-- Possible follow-up: revisit the capped intercept at 3m/12m once 2026 outcomes give a fresh out-of-sample year.
+- The repo owner chose to ship (a) median cap 1pp at 3m/12m anyway (see the caveat above). Re-check it once 2026 outcomes give a fresh out-of-sample year.
 
 ### Stale forecast cache after deploy fixed (2026-11-22)
 - After PR #7 deployed, the live forecast page raised `AttributeError` on `blend_weight`: Streamlit Cloud reloads code without restarting, so `st.cache_resource` kept a `ForecastResult` built by the old model code.
