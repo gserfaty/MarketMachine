@@ -8,15 +8,58 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 ### Market-wide/metro split for 80% ranges (2026-11-22)
 - 80% ranges now add a market-wide part (median blend residual across metros at the same origin) and a vol12-scaled metro part (residual minus that median), combined in quadrature (`model.z_quantiles`, `model.interval_bounds`). This applies at all horizons. The leakage rule is unchanged: year Y uses residuals from years <= Y - gap, gap = 1 + ceil(h/12). Served ranges use all resolved residuals.
 - The 24m calibration multiplier (`calibrate_intervals`) was removed. Using full-period numbers only, it lowered 24m coverage under the split (0.79 without it, 0.71 with it). `interval_k` is now always 1.
-- Tested offline on cached raw backtests with learned blend weights. Alternatives tried: recency-weighted quantiles, last K years, vol12 terciles, quantile HGB, the calibration multiplier at all horizons. None met the pre-set bar (coverage80 within 0.75-0.85 at 3/12/24m on full and 2020-2025 holdout, width80 no more than 25% wider at 3m/12m, per-year coverage spread not worse). The split also misses it: 24m holdout coverage is 0.69 (bar 0.75), and the per-year spread rises at 3m/12m. The owner chose to ship it for better coverage and narrower ranges.
+- Tested offline on cached raw backtests with learned blend weights (re-verified after the PR #9 intercept). Alternatives tried: recency-weighted quantiles, last K years, vol12 terciles, quantile HGB, the calibration multiplier at all horizons. None met the pre-set bar (coverage80 within 0.75-0.85 at 3/12/24m on full and 2020-2025 holdout, width80 no more than 25% wider at 3m/12m, per-year coverage spread not worse). The split also misses it: 24m holdout coverage is 0.69 (bar 0.75), and the per-year spread rises at 3m/12m. The owner chose to ship it for better coverage and narrower ranges.
 - Hypothesis for the 24m gap: holdout misses look like market-wide shocks (median residual about +12 to +14 pp for 2019-2020 origins, -17 pp in 2022) larger than anything in earlier residual windows.
-- coverage80 / width80 (pp) / per-year coverage SD, full / holdout:
+- coverage80 / width80 (pp) / per-year coverage SD, full / holdout, on the bias-corrected blend (PR #9):
 
   | h | Current cov | (e) cov | Current width | (e) width | Current SD | (e) SD |
   |---|---|---|---|---|---|---|
-  | 3m | 0.81 / 0.81 | 0.82 / 0.81 | 3.3 / 3.9 | 3.1 / 3.6 | 0.072 / 0.090 | 0.081 / 0.100 |
-  | 12m | 0.80 / 0.81 | 0.83 / 0.83 | 13.4 / 16.7 | 12.5 / 14.7 | 0.124 / 0.170 | 0.144 / 0.193 |
+  | 3m | 0.81 / 0.81 | 0.82 / 0.81 | 3.3 / 3.9 | 3.1 / 3.6 | 0.068 / 0.087 | 0.078 / 0.101 |
+  | 12m | 0.79 / 0.82 | 0.83 / 0.83 | 13.7 / 17.0 | 12.6 / 14.9 | 0.132 / 0.166 | 0.134 / 0.178 |
   | 24m | 0.71 / 0.62 | 0.79 / 0.69 | 33.8 / 45.1 | 28.7 / 34.3 | 0.173 / 0.202 | 0.185 / 0.197 |
+
+### Capped bias correction at 3m/12m (2026-11-22)
+- Shipped: the served blend is now `w*model + (1-w)*naive_momentum + c`, where c (`model.fit_blend_intercept`, `ForecastResult.blend_intercept`) is the median residual of resolved rows capped at |c| <= 1 pp x h/12, at 3m and 12m only (c = 0 at 24m). In the backtest it is fit per year with the same leakage rule as the weight (`apply_blend_weights`); the served c is fit on all rows. Intervals are computed on the corrected blend. Served c: +0.13 pp at 3m, +0.88 pp at 12m. The forecast page caption shows it.
+- Served results, full / 2020-2025 holdout: 3m MAE 0.869 -> 0.867 / 1.042 -> 1.042, bias -0.14 -> +0.01 / -0.10 -> +0.06; 12m MAE 3.326 -> 3.293 / 3.924 -> 3.842, bias -1.10 -> -0.38 / -1.21 -> -0.29, cov80 0.80 -> 0.79 / 0.81 -> 0.82; 24m unchanged (8.392 / 11.299, -1.41 / +4.06). Rank IC unchanged.
+- Caveat: restricting the correction to 3m/12m was chosen with the 2020-2025 holdout in view (every variant failed 24m MAE, but 2010-2019 data alone favored it at 24m too), so these holdout numbers are not a clean out-of-sample test. The next year of outcomes is the real test.
+- Goal: reduce the served blend's pessimistic bias (12m -1.10 pp full, -1.21 pp 2020-2025 holdout).
+- Method: add an intercept c to the learned-weight blend (after the weight). Same leakage rule as the weight: year Y uses only rows with date + h months <= Y's first origin, c = 0 with fewer than 2 resolved years. Variants: (a) median residual of all resolved rows, optionally shrunk x0.5 and/or capped at |c| <= 1 pp x h/12; (b) median of the most recent K = 2 or 3 resolved years; (c) regime median, split by the sign of the cross-metro mean trailing momentum at the origin (proxy for national r12; the cached backtest has no mortgage column). Scored offline on the cached raw backtests (2010-2025, same rows as PR #7), intervals recomputed (24m also calibrated).
+- Results, full period / 2020-2025 holdout (MAE pp, bias pp, cov80). Rank IC is unchanged for every variant (constant shift): 3m 0.669 / 0.673, 12m 0.492 / 0.528, 24m 0.422 / 0.464.
+
+  | Variant | 3m MAE | 3m bias | 3m cov80 | 12m MAE | 12m bias | 12m cov80 | 24m MAE | 24m bias | 24m cov80 |
+  |---|---|---|---|---|---|---|---|---|---|
+  | shipped (no intercept) | 0.869 / 1.042 | -0.14 / -0.10 | 0.81 / 0.81 | 3.326 / 3.924 | -1.10 / -1.21 | 0.80 / 0.81 | 8.392 / 11.299 | -1.41 / +4.06 | 0.71 / 0.62 |
+  | (a) median | 0.867 / 1.042 | +0.01 / +0.06 | 0.81 / 0.81 | 3.327 / 3.849 | -0.30 / -0.26 | 0.78 / 0.83 | 9.014 / 12.858 | +1.64 / +7.17 | 0.75 / 0.84 |
+  | (a) median x0.5 | 0.865 / 1.040 | -0.06 / -0.02 | 0.81 / 0.81 | 3.300 / 3.862 | -0.70 / -0.73 | 0.79 / 0.82 | 8.519 / 12.022 | +0.12 / +5.61 | 0.73 / 0.75 |
+  | (a) median cap 1pp | 0.867 / 1.042 | +0.01 / +0.06 | 0.81 / 0.81 | 3.293 / 3.842 | -0.38 / -0.29 | 0.79 / 0.82 | 8.482 / 12.134 | +0.19 / +6.06 | 0.73 / 0.71 |
+  | (a) x0.5 + cap 1pp | 0.865 / 1.040 | -0.06 / -0.02 | 0.81 / 0.81 | 3.300 / 3.862 | -0.70 / -0.73 | 0.79 / 0.82 | 8.486 / 12.022 | -0.05 / +5.61 | 0.73 / 0.71 |
+  | (b) K=2 | 0.888 / 1.083 | -0.01 / +0.01 | 0.80 / 0.81 | 3.634 / 4.366 | -0.17 / +0.30 | 0.77 / 0.82 | 10.246 / 16.229 | +1.64 / +8.80 | 0.73 / 0.77 |
+  | (b) K=3 | 0.873 / 1.057 | -0.00 / +0.04 | 0.80 / 0.80 | 3.455 / 4.123 | -0.20 / +0.34 | 0.77 / 0.81 | 9.830 / 15.069 | +1.77 / +8.95 | 0.72 / 0.78 |
+  | (b) K=3 x0.5 | 0.868 / 1.047 | -0.07 / -0.03 | 0.81 / 0.81 | 3.337 / 3.932 | -0.65 / -0.43 | 0.79 / 0.81 | 8.954 / 13.098 | +0.18 / +6.50 | 0.71 / 0.70 |
+  | (c) regime | 0.867 / 1.042 | -0.02 / +0.03 | 0.81 / 0.81 | 3.359 / 3.867 | -0.54 / -0.43 | 0.78 / 0.82 | 8.845 / 12.470 | +0.48 / +6.23 | 0.74 / 0.79 |
+  | (c) regime x0.5 | 0.866 / 1.040 | -0.08 / -0.04 | 0.81 / 0.81 | 3.322 / 3.878 | -0.82 / -0.82 | 0.79 / 0.82 | 8.528 / 11.855 | -0.47 / +5.14 | 0.73 / 0.70 |
+
+- Pre-set keep bar: 12m |bias| at least 0.3 pp better on full and holdout, MAE no more than 0.02 pp worse at any horizon on either period, rank IC unchanged, cov80 in 0.70-0.90 at 3m and 12m.
+  - Every variant fails on 24m MAE (best: +0.09 pp full, +0.56 pp holdout). The 2020-2025 24m blend already runs high (+4.06 pp), so any upward shift learned from the 2010s overshoots.
+  - At 3m and 12m several pass: (a) median cap 1pp is best (12m bias -0.38 / -0.29, MAE 3.293 / 3.842). (b) K=2/3 fail 12m MAE. A 3m/12m-only intercept was not part of the pre-set plan: pre-2020 data favors the intercept at 24m too (cap 1pp: 24m MAE 6.94 to 6.66 in 2010-2019), so the h <= 12 gate could only be chosen from the holdout. 2010-2019 only (MAE pp, bias pp, cov80):
+
+    | Variant | 3m MAE | 3m bias | 3m cov80 | 12m MAE | 12m bias | 12m cov80 | 24m MAE | 24m bias | 24m cov80 |
+    |---|---|---|---|---|---|---|---|---|---|
+    | shipped (no intercept) | 0.747 | -0.16 | 0.81 | 2.966 | -1.03 | 0.78 | 6.939 | -4.14 | 0.77 |
+    | (a) median cap 1pp | 0.744 | -0.02 | 0.80 | 2.964 | -0.44 | 0.76 | 6.657 | -2.74 | 0.74 |
+- The repo owner chose to ship (a) median cap 1pp at 3m/12m anyway (see the caveat above). Re-check it once 2026 outcomes give a fresh out-of-sample year.
+- PR: [#9](https://github.com/gserfaty/MarketMachine/pull/9), 3 review rounds (changes requested on the docs-only version, changes requested for a CHANGELOG merge conflict, then approved), 4 commits.
+
+### Rent vs buy calculator (2026-11-22)
+- New Money page `rent_vs_buy`: headline answer, buy-vs-rent net worth chart and table, break-even year.
+- `finance.rent_vs_buy` and `break_even_year` are pure functions reusing `amortization_schedule`; rent defaults to 0.5% of price (rule of thumb, no rent data source), appreciation to the metro's 12-month forecast (3% if unavailable).
+- PR: [#10](https://github.com/gserfaty/MarketMachine/pull/10), 1 review round (approved), 3 commits.
+
+### Monthly precomputed forecasts (2026-11-22)
+- `python -m housing.precompute OUT_DIR` trains the 3/12/24m forecasts on live data and writes `<h>m.json` (every `ForecastResult` field except the fitted model, plus the `as_of_key`). The new `precompute` workflow runs it monthly (22nd) and publishes the files to the orphan `forecasts` branch.
+- The app (`cached_forecast`, 6 h `st.cache_data` fetch) and the API load these first and use them only when their `as_of_key` equals the current one (same data month and `CODE_VERSION`); otherwise, or on any fetch error, they train on demand as before. API `model.source` can now be `precomputed`.
+- `model.result_to_json` / `result_from_json` (generic over dataclass fields) replace the hand-written Redis codec, which also fixes `blend_weight` and the backtest not round-tripping through Redis.
+- PR: [#11](https://github.com/gserfaty/MarketMachine/pull/11), 1 review round (approved), 2 commits.
 
 ### Stale forecast cache after deploy fixed (2026-11-22)
 - After PR #7 deployed, the live forecast page raised `AttributeError` on `blend_weight`: Streamlit Cloud reloads code without restarting, so `st.cache_resource` kept a `ForecastResult` built by the old model code.

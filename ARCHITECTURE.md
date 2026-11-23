@@ -8,11 +8,11 @@
 - `housing/analysis.py` - growth, rankings and market-profile calculations.
 - `housing/benchmark.py` - CLI (`python -m housing.benchmark DIR`) scoring the rolling backtest against Zillow forecast snapshots per BaseDate via `model.score_backtest`. Never imported by the app.
 - `housing/track.py` - CLI (`python -m housing.track`) logging each horizon's run to a local MLflow sqlite store, registering `marketmachine-{h}m` with `champion`/`challenger` aliases; `load_champion(h)`/`champion_version(h)` serve the API; `load_inputs` aliases `data.load_forecast_inputs`. Never imported by the app.
-- `housing/model.py` - feature builder (national macro features merged by date, lagged per release) and `HistGradientBoostingRegressor` forecast with backtest; `calibrate_intervals` (out-of-sample conformal width multiplier, 24m only); learned blend weight (`fit_blend_weight`, per backtest year via `apply_blend_weights`, exposed as `ForecastResult.blend_weight`).
+- `housing/model.py` - feature builder (national macro features merged by date, lagged per release) and `HistGradientBoostingRegressor` forecast with backtest; 80% ranges from a market-wide + vol12-scaled metro residual split (`z_quantiles`, `interval_bounds`, `add_intervals`); learned blend weight (`fit_blend_weight`, per backtest year via `apply_blend_weights`, exposed as `ForecastResult.blend_weight`) and capped bias correction at 3m/12m (`fit_blend_intercept`, `ForecastResult.blend_intercept`).
 - `housing/finance.py` - mortgage, ARM and equity-projection math (no Streamlit).
 - `housing/ui.py` - theme, CSS, sidebar, shared widgets, disclaimer text.
 - `housing/shared.py` - cached loaders and helpers used by several pages.
-- `housing/pages/` - one script per page: overview, findings (hidden redirect to overview), explorer, profile, forecast, financing, affordability.
+- `housing/pages/` - one script per page: overview, findings (hidden redirect to overview), explorer, profile, forecast, financing, affordability, rent_vs_buy (Money section; math in `finance.rent_vs_buy`).
   Streamlit runs these files; they are not imported. Each ends with a call to its render function.
 
 ## Data flow
@@ -26,6 +26,8 @@ Validation also runs live-only freshness and minimum-count checks (off when `MAR
 All in `housing/shared.py`, so every page shares the same caches:
 - `st.cache_data` (ttl 24h) for Zillow, FRED, supply and affordability (`cached_affordability`, `cached_zillow_forecast`) loaders, keyed by the data directory.
 - `st.cache_resource` for the trained model, keyed by `as_of_key` (latest data date, supply flags and a hash of `housing/model.py`, so a deploy that changes model code retrains instead of serving a stale result) plus `horizon`. The API and Redis caches use the same key. 12m is shared by all pages; 3m/24m are trained only when picked on the forecast page.
+
+- Precomputed forecasts: `housing/precompute.py` (`python -m housing.precompute OUT_DIR`, run monthly by `.github/workflows/precompute.yml`) publishes `<h>m.json` to the `forecasts` branch. `cached_forecast` and `api.main.forecast` fetch it (app: `st.cache_data` ttl 6h) and use it only if its `as_of_key` matches; else they train on demand. Serialization: `model.result_to_json` / `result_from_json`, also used by the Redis cache.
 
 ## Navigation
 `app.py` registers `st.Page("housing/pages/<name>.py", ...)` entries and runs `st.navigation`. `findings` is registered with `visibility="hidden"` as an alias for old /findings links (6 visible items).
@@ -65,7 +67,7 @@ training and sets the data as-of gauge. `/metrics` is scraped by `ops/prometheus
 `tests/fixtures/` (built by `tests/make_fixtures.py`) and blocks sockets. `tests/test_app.py` uses
 `AppTest` and `switch_page` to render each page file. `tests/test_track.py` runs one fixture training against a tmp sqlite MLflow store.
 CI: `.github/workflows/tests.yml` runs `python -m pytest -q` on Python 3.13 for PRs to and pushes on `main`; its `pytest` job is a required status check.
-`.github/workflows/zillow-snapshot.yml` is the monthly snapshot job (not a test).
+`.github/workflows/zillow-snapshot.yml` is the monthly snapshot job and `precompute.yml` the monthly forecast job (neither is a test).
 
 ## Snapshots and future track record
 - The `snapshots` branch holds `zillow_forecast/<BaseDate>.csv`, one file per month.

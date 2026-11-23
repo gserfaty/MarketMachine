@@ -201,7 +201,8 @@ def test_add_intervals_gap_24m():
     assert not np.allclose(alt.loc[alt.year == 2015, "lo"], base.loc[base.year == 2015, "lo"])
 
 
-def test_fit_blend_weight():
+def test_fit_blend_weight(monkeypatch):
+    monkeypatch.setattr(model, "fit_blend_intercept", lambda rows, h: 0.0)  # weight only
     # actual = 0.8*model + 0.2*naive, so w=0.8 has zero MAE
     rows = pd.DataFrame({"year": [2010, 2010, 2011, 2011], "model": [0.1, 0.0, 0.05, -0.02],
                          "naive_momentum": [0.0, 0.1, -0.05, 0.03]})
@@ -218,13 +219,26 @@ def test_fit_blend_weight():
     assert np.allclose(out.loc[out.year == 2013, "blend"], (0.8 * m + 0.2 * n)[out.year == 2013])
 
 
+def test_fit_blend_intercept():
+    rows = pd.DataFrame({"year": [2010, 2010, 2011, 2011], "blend": 0.0, "actual": [0.002, 0.004, 0.006, 0.05]})
+    assert np.isclose(model.fit_blend_intercept(rows, 12), 0.005)  # median residual
+    assert np.isclose(model.fit_blend_intercept(rows, 3), 0.0025)  # capped at 1 pp * h/12
+    assert model.fit_blend_intercept(rows, 24) == 0.0  # 24m gate
+    assert model.fit_blend_intercept(rows[rows["year"] == 2010], 12) == 0.0  # < 2 resolved years
+    # backtest leakage: 2012 sees 2010-2011 only; 2013 also sees 2012's large miss
+    bt = pd.DataFrame({"year": [2010, 2011, 2012, 2013], "date": pd.to_datetime(["2010-01-01", "2011-01-01",
+                       "2012-01-01", "2013-01-01"]), "model": 0.0, "naive_momentum": 0.0, "actual": [0.002, 0.004, 0.5, 0.0]})
+    assert np.allclose(model.apply_blend_weights(bt, 12)["blend"], [0, 0, 0.003, 0.004])
+    assert np.allclose(model.apply_blend_weights(bt, 24)["blend"], 0)
+
+
 def test_served_is_blend(monkeypatch):
     assert model.blend(np.array([0.02]), np.array([0.06]))[0] == 0.04
     monkeypatch.setattr(model, "blend", lambda m, n, w=0.5: n)
     long_df, mortgage = _load()
     r = model.train_and_evaluate(long_df, mortgage)
     us_r12 = model.build_features(long_df, mortgage).loc[("United States", r.as_of), "r12"]
-    assert np.isclose(r.national_pred, np.exp(us_r12) - 1)
+    assert np.isclose(r.national_pred, np.exp(us_r12) - 1 + r.blend_intercept)
 
 
 def test_train_and_evaluate_without_mortgage():

@@ -70,6 +70,8 @@ REDIS_URL=redis://localhost:6379/0 RATE_LIMIT_PER_MIN=60 uvicorn api.main:app --
 
 `REDIS_URL` unset or unreachable = in-process cache only, no rate limit (a warning is logged once). Forecasts are cached in Redis as JSON for 6 h; over `RATE_LIMIT_PER_MIN` (default 60, per client IP, fixed 1-minute window) returns 429 with `Retry-After`. `/v1/health` and `/v1/ready` are exempt.
 
+Forecasts are precomputed monthly (GitHub Actions `precompute`, `python -m housing.precompute OUT_DIR`) and published to the `forecasts` branch; the app and API use them when they match the current data month and model code, and otherwise train on demand.
+
 Interactive docs at `http://localhost:8000/docs`. The first forecast request takes 60-120 s on live data (computed on demand, then cached 24 h).
 Metro paths take a Zillow RegionID or the URL-encoded name. Forecasts are statistical estimates, not financial advice.
 
@@ -115,6 +117,7 @@ Navigation is grouped Market / Metro / Money, and the chosen metro carries acros
 4. **ML forecast** — a metro's 12-month forecast with its 80% range, how reliable the model has been, and all-metro predictions.
 5. **Financing estimator** — monthly payment, 30/20/15/10-year fixed and 5/6, 10/6 SOFR ARM comparison, and equity projection.
 6. **Affordability** — ranks metros by the monthly payment against your income (30% rule), with Zillow context and the 12-month forecast.
+7. **Rent vs buy** — year-by-year net worth of buying vs renting with a break-even year; rent defaults to 0.5% of price (rule of thumb), editable.
 
 ## Project structure
 
@@ -125,7 +128,7 @@ housing/
   ui.py             theme, shared widgets
 api/                FastAPI service (uvicorn api.main:app)
   housing/shared.py cached loaders and cross-page helpers
-  housing/pages/    one Streamlit page script per page (overview, findings (redirect to overview), explorer, profile, forecast, financing, affordability)
+  housing/pages/    one Streamlit page script per page (overview, findings (redirect to overview), explorer, profile, forecast, financing, affordability, rent_vs_buy)
 tests/              offline pytest suite
 ```
 
@@ -179,8 +182,8 @@ under-covers because outcomes span market-wide shocks. Backtest (mortgage on, FR
 
 | Horizon | Blend MAE (pp) | Bias (pp) | Rank IC | Coverage80 | Interval gap |
 |---|---|---|---|---|---|
-| 3 months | 0.87 | -0.14 | 0.67 | 0.82 | 2 yrs |
-| 12 months | 3.33 | -1.10 | 0.49 | 0.83 | 2 yrs |
+| 3 months | 0.87 | +0.01 | 0.67 | 0.82 | 2 yrs |
+| 12 months | 3.29 | -0.38 | 0.49 | 0.83 | 2 yrs |
 | 24 months | 8.39 | -1.41 | 0.42 | 0.79 | 3 yrs |
 
 **Prediction intervals.** A forecast like "+3% (-1% to +6%)" means an 80% range: about 8 of 10 past forecasts
@@ -191,10 +194,11 @@ years are used; there is no extra width multiplier. Backtest coverage is 0.82 / 
 (2020-2025 holdout 0.81 / 0.83 / 0.69, so 24 months still under-covers), with narrower ranges than before. It drops
 sharply in market-wide shocks (2020, 2022). The range is not a guarantee. Details in `CHANGELOG.md`.
 
-**Served forecast.** The page and Market overview serve `blend` = w × model + (1 - w) × naive momentum (simple returns).
+**Served forecast.** The page and Market overview serve `blend` = w × model + (1 - w) × naive momentum + c (simple returns).
 The weight w is learned (currently 0.95 at 3m, 0.8 at 12m, 0.65 at 24m; `ForecastResult.blend_weight`), see "Learned blend weight" below.
-Backtest average MAE is about 3.33 pp for the blend at 12m; the page shows live model and momentum numbers. The backtest still shows a pessimistic bias
-(~-1.10 pp blend at 12m), largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
+c is a bias correction at 3m and 12m only (`ForecastResult.blend_intercept`): the median past miss, capped at 1 pp × h/12, fit out-of-sample per backtest year like w (currently +0.13 pp at 3m, +0.88 pp at 12m, 0 at 24m).
+It cut the 12m bias from -1.10 to -0.38 pp (holdout -1.21 to -0.29) and 12m MAE from 3.33 to 3.29; at 24m it raised MAE, so it is off there. The 3m/12m-only choice was made with the 2020-2025 holdout in view, so the next year of outcomes is the real test (see "Capped bias correction" in `CHANGELOG.md`).
+Backtest average MAE is about 3.29 pp for the blend at 12m; the page shows live model and momentum numbers. Remaining misses are largest at turning points (2012, 2020, 2023). `blend` is scored in the same backtest.
 
 **Baselines and predictors.** `blend`, `model`, `naive_momentum` (predict the trailing 12-month return) and `zero` (no change;
 rank IC and lift are n/a because it ranks nothing).
