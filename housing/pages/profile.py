@@ -61,7 +61,7 @@ def render_market_profiles():
     st.subheader("Similar markets")
     try:
         similar = analysis.find_similar_markets(metro_only, selected, n_neighbors=5)
-        st.caption(f"Metros whose price history and size look most like {_short(selected)}.")
+        st.caption(f"Metros with price history and size closest to {_short(selected)}.")
         sim = similar[["region", "state", "value", "chg_1y", "chg_5y"]].copy()
         sim[["chg_1y", "chg_5y"]] *= 100
         st.dataframe(sim, hide_index=True, width="stretch", column_config={
@@ -70,7 +70,7 @@ def render_market_profiles():
             "chg_1y": CC.NumberColumn("Change, 1 year", format="%+.1f%%", help="Blank means no data for that period."),
             "chg_5y": CC.NumberColumn("Change, 5 years", format="%+.1f%%", help="Blank means no data for that period.")})
     except ValueError:
-        st.info(f"Similar markets aren't available for {_short(selected)}. There isn't enough comparable data.")
+        st.info(f"No similar markets for {_short(selected)}: not enough comparable data.")
 
     b1, b2, b3 = st.columns(3)
     with b1:

@@ -10,10 +10,8 @@ import plotly.io as pio
 import streamlit as st
 
 D1 = "Forecasts are statistical estimates, not financial advice."
-D2 = ("This is an estimate, not a loan quote or offer, and not financial advice. Nothing you enter is stored, "
-      "and we collect no personal data beyond a credit band.")
-D3 = ("Long-horizon projections are highly uncertain: years 2 and later extend this market's past growth. "
-      "Not a prediction and not financial advice.")
+D2 = "This is an estimate, not a loan quote or financial advice. Nothing you enter is stored."
+D3 = "Long-range projections are highly uncertain: years 2 and later extend past growth. Not a prediction or financial advice."
 ZILLOW_DOWN = ("Heads up: we can't reach Zillow's home-value data right now. "
                "Check your connection, or try again in a few minutes.")
 UP, DOWN, FLAT = "#35742f", "#41629f", "#948584"  # --viz-up, --viz-down, --viz-flat
@@ -171,7 +169,7 @@ def sync_metro(regions: list[str] | None) -> None:
     if not metro and st.query_params.get("metro"):
         metro, st.session_state["metro_src"] = st.query_params["metro"], "url"
     if metro and regions is not None and metro not in regions:
-        st.info(f"We couldn't find '{metro}'. Choose a metro.")
+        st.info(f"We couldn't find '{metro}'. Choose another metro.")
         metro = None
     st.session_state["metro"] = metro
     if metro:
@@ -201,7 +199,7 @@ def metro_picker(regions: list[str] | None, key: str, label: str = "Metro", plac
 
 def sidebar(regions: list[str] | None) -> None:
     sb = st.sidebar
-    sb.markdown('<div class="mm-brand">MarketMachine<small>US housing market analytics and forecasts</small></div>',
+    sb.markdown('<div class="mm-brand">MarketMachine<small>US housing market forecasts</small></div>',
                 unsafe_allow_html=True)
     metro = st.session_state.get("metro")
     sb.markdown(f'<div class="mm-readout"><small>Selected metro</small>{html.escape(metro) if metro else "No metro selected"}</div>',

@@ -9,6 +9,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
 - State maps (Market overview forecast, Regional explorer) no longer print a label on every state, which overlapped in the Northeast. Values show on hover and in the sorted table beside the map.
 - Change maps use a smooth scale that only covers the side the data is on, with the same color intensity for the same size of move up or down, so a -1% state no longer looks as strong as a +5% one. The legend sits under the map, which also fits better on phones.
 - Removed the unused state-centroid table (`shared.CENTER`).
+- PR: [#16](https://github.com/gserfaty/MarketMachine/pull/16), 1 review round (approved; non-blocking duplicate-tick nit fixed), 3 commits.
+
+### Shorter page text (2026-11-23)
+- Cut about 15% of the user-facing text on every page (2,816 to 2,404 words in headings, captions, warnings, tooltips and table labels): removed repeated captions, shortened tooltips and the longest source and method notes, and used plainer words (for example "Change since a year ago" instead of "YoY").
+- All "not financial advice" disclaimers, the 80% range explanation and every data-source-down message are kept.
+- PR: [#15](https://github.com/gserfaty/MarketMachine/pull/15), 1 review round (approved; non-blocking nits on lost caveats and next-step hints fixed), 2 commits.
 
 ### Forecast map on the Market overview (2026-11-22)
 - New "Forecast by state, next 12 months" map on the Market overview: each state is colored by the median 12-month forecast of its metros, with a sorted table beside it.
