@@ -5,6 +5,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import plotly.colors as pcolors
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -14,20 +15,6 @@ from housing.ui import AMBER, GREY, INK, TEAL, UP, DOWN, VIOLET, fmt_pct, show, 
 DISCLAIMER = ui.D1
 CC = st.column_config
 SORTS = {"1-year change": "chg_1y", "5-year change": "chg_5y", "10-year change": "chg_10y", "Typical value": "value"}
-# approximate state centroids (lat, lon) for the map's per-state labels
-CENTER = {
-    "AL": (32.8, -86.8), "AK": (64.2, -152.5), "AZ": (34.3, -111.7), "AR": (34.9, -92.4), "CA": (37.2, -119.5),
-    "CO": (39.0, -105.5), "CT": (41.6, -72.7), "DE": (39.0, -75.5), "DC": (38.9, -77.0), "FL": (28.6, -82.4),
-    "GA": (32.7, -83.4), "HI": (20.8, -156.3), "ID": (44.4, -114.6), "IL": (40.0, -89.2), "IN": (39.9, -86.3),
-    "IA": (42.1, -93.5), "KS": (38.5, -98.4), "KY": (37.5, -85.3), "LA": (31.1, -92.0), "ME": (45.3, -69.2),
-    "MD": (39.0, -76.8), "MA": (42.3, -71.8), "MI": (44.3, -85.4), "MN": (46.3, -94.3), "MS": (32.7, -89.7),
-    "MO": (38.4, -92.5), "MT": (47.0, -109.6), "NE": (41.5, -99.8), "NV": (39.3, -116.6), "NH": (43.7, -71.6),
-    "NJ": (40.1, -74.7), "NM": (34.4, -106.1), "NY": (42.9, -75.5), "NC": (35.5, -79.4), "ND": (47.5, -100.5),
-    "OH": (40.3, -82.8), "OK": (35.6, -97.5), "OR": (43.9, -120.6), "PA": (40.9, -77.8), "RI": (41.7, -71.5),
-    "SC": (33.9, -80.9), "SD": (44.4, -100.2), "TN": (35.9, -86.4), "TX": (31.5, -99.3), "UT": (39.3, -111.7),
-    "VT": (44.0, -72.7), "VA": (37.5, -78.8), "WA": (47.4, -120.5), "WV": (38.6, -80.6), "WI": (44.6, -89.9),
-    "WY": (43.0, -107.6),
-}
 
 
 def _data_dir_key() -> str | None:
@@ -196,45 +183,46 @@ def _forecast_failed() -> None:
     ui.retry_button("retry_forecast")
 
 
+NEUTRAL = "#e9e3e2"  # map color for 0% / lowest value; dark enough to show against the page
+
+
 def _state_map(table: pd.DataFrame, metric: str, label: str) -> None:
+    """US choropleth of one metric per state; numbers on hover and in the sorted table beside it."""
     t = table.dropna(subset=[metric]).copy()
     t["abbr"] = t["state"].map(data.STATE_ABBR).fillna(t["region"].map(data.STATE_ABBR))
     t = t.dropna(subset=["abbr"])
     if t.empty:
         return
     is_val = metric == "value"
-    v = t[metric] if is_val else t[metric] * 100
+    name = t["state"].where(t["state"].isin(data.STATE_ABBR), t["region"])
+    shown = [f"${x:,.0f}" if is_val else fmt_pct(x) for x in t[metric]]
     if is_val:
-        steps = [[0, "#e3dcdc"], [0.4, "#b4a7a7"], [0.4, "#696160"], [1, "#312d2c"]]
-        zmin, zmax = float(v.min()), float(v.max())
-        zmax = zmax if zmax > zmin else zmin + 1
-        z = v
-        tv = [zmin, zmax]
-        tt = [f"${zmin / 1000:,.0f}k", f"${zmax / 1000:,.0f}k"]
-        frac = (z - zmin) / (zmax - zmin)
-        white = frac > 0.4  # ink label on the light classes, white on the dark ones
+        z, zmin, zmax = t[metric], float(t[metric].min()), float(t[metric].max())
+        scale = [[0, NEUTRAL], [1, INK]]
+        tv, tt = [zmin, zmax], [f"${zmin / 1000:,.0f}k", f"${zmax / 1000:,.0f}k"]
     else:
-        m = float(max(abs(np.nanpercentile(v, 5)), abs(np.nanpercentile(v, 95)))) or 1.0
-        steps = [[0, DOWN], [0.2, DOWN], [0.2, "#e9f1ff"], [0.5, "#e3dcdc"], [0.8, "#e0f9dd"], [0.8, UP], [1, UP]]
-        zmin, zmax, z = -m, m, v.clip(-m, m)
-        tv = [-m, 0, m]
-        tt = [f"−{m:.0f}%", "0%", f"+{m:.0f}%"]
-        frac = (z + m) / (2 * m)
-        white = (frac <= 0.2) | (frac > 0.8)
-    txt = [f"{a} {fmt_pct(c)}" if not is_val else f"{a} ${x / 1000:,.0f}k" for a, c, x in zip(t["abbr"], t[metric], t["value"])]
+        v = t[metric] * 100
+        lo, hi = min(0.0, float(np.nanpercentile(v, 5))), max(0.0, float(np.nanpercentile(v, 95)))
+        hi = hi if hi > lo else lo + 1.0
+        z, zmin, zmax = v.clip(lo, hi), lo, hi
+        mid = -lo / (hi - lo)  # where 0% sits, so the scale only spends color on the side the data uses
+        m = max(-lo, hi)  # same intensity for the same size of move up or down
+        tint = lambda c, x: pcolors.label_rgb(pcolors.find_intermediate_color(pcolors.hex_to_rgb(NEUTRAL), pcolors.hex_to_rgb(c), x / m, "tuple"))
+        scale = [[0, tint(DOWN, -lo)], [mid, NEUTRAL], [1, tint(UP, hi)]]
+        tv = sorted({x for x in (lo, 0.0, hi) if x == 0.0 or abs(x) > 0.12 * (hi - lo)})
+        tt = [f"{x:+.0f}%".replace("-", "−") if x else "0%" for x in tv]
     fig = go.Figure(go.Choropleth(
-        locations=t["abbr"], locationmode="USA-states", z=z, zmin=zmin, zmax=zmax, colorscale=steps,
-        marker=dict(line=dict(color="#fdfcfc", width=1)), text=txt, hoverinfo="text",
-        colorbar=dict(title=label if is_val else "Change", tickvals=tv, ticktext=tt, thickness=12)))
-    lat = [CENTER[a][0] for a in t["abbr"]]
-    lon = [CENTER[a][1] for a in t["abbr"]]
-    fig.add_trace(go.Scattergeo(lat=lat, lon=lon, mode="text", text=txt, hoverinfo="skip", showlegend=False,
-                                textfont=dict(size=12, color=["#fdfcfc" if w else INK for w in white])))
-    fig.update_geos(scope="usa", showlakes=False, bgcolor="#fdfcfc")
-    fig.update_layout(height=420, margin=dict(l=0, r=0, t=0, b=0))
-    c1, c2 = st.columns([3, 1])
+        locations=t["abbr"], locationmode="USA-states", z=z, zmin=zmin, zmax=max(zmax, zmin + 1e-9), colorscale=scale,
+        marker=dict(line=dict(color="#fdfcfc", width=1)), customdata=list(zip(name, shown)),
+        hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
+        colorbar=dict(tickvals=tv, ticktext=tt, orientation="h", x=0.5, y=0, yanchor="top", len=0.5, thickness=8,
+                      outlinewidth=0)))
+    fig.update_geos(scope="usa", showlakes=False, bgcolor="rgba(0,0,0,0)")
+    fig.update_layout(height=380, margin=dict(l=0, r=0, t=0, b=40), dragmode=False)
+    c1, c2 = st.columns([5, 2])
     with c1:
         show(fig)
     with c2:
-        st.dataframe(pd.DataFrame({"State": t["abbr"], label: [fmt_pct(x) if not is_val else f"${x:,.0f}" for x in t[metric]]})
-                     .iloc[np.argsort(-t[metric].to_numpy())], hide_index=True, width="stretch")
+        order = np.argsort(-t[metric].to_numpy())
+        st.dataframe(pd.DataFrame({"State": name.to_numpy()[order], label: np.array(shown)[order]}),
+                     hide_index=True, width="stretch", height=380)
