@@ -209,7 +209,7 @@ def _state_map(table: pd.DataFrame, metric: str, label: str) -> None:
         m = max(-lo, hi)  # same intensity for the same size of move up or down
         tint = lambda c, x: pcolors.label_rgb(pcolors.find_intermediate_color(pcolors.hex_to_rgb(NEUTRAL), pcolors.hex_to_rgb(c), x / m, "tuple"))
         scale = [[0, tint(DOWN, -lo)], [mid, NEUTRAL], [1, tint(UP, hi)]]
-        tv = [x for x in (lo, 0.0, hi) if x == 0.0 or abs(x) > 0.12 * (hi - lo)]
+        tv = sorted({x for x in (lo, 0.0, hi) if x == 0.0 or abs(x) > 0.12 * (hi - lo)})
         tt = [f"{x:+.0f}%".replace("-", "−") if x else "0%" for x in tv]
     fig = go.Figure(go.Choropleth(
         locations=t["abbr"], locationmode="USA-states", z=z, zmin=zmin, zmax=max(zmax, zmin + 1e-9), colorscale=scale,
