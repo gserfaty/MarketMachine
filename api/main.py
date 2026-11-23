@@ -20,7 +20,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api import cache as rc
 from api import ledger, models as m, obs
-from housing import analysis, data, finance, model
+from housing import analysis, data, finance, model, precompute
 from housing.schemas import DataValidationError
 
 T = TypeVar("T")
@@ -109,6 +109,12 @@ def forecast(h: int) -> tuple[model.ForecastResult, m.ModelInfo]:
         if (hit := rc.load_forecast(key)) is not None:
             obs.CACHE.labels("forecast", "redis_hit").inc()  # the in-process miss was already counted
             return hit
+        if (pre := precompute.use(precompute.fetch(h), key[2])) is not None:
+            out = (pre, m.ModelInfo(source="precomputed"))
+            obs.DATA_AS_OF.labels(str(h)).set(pre.as_of.timestamp())
+            ledger.record(pre, h, None)
+            rc.save_forecast(key, out)
+            return out
         champ = _champion(h)
         with obs.FORECAST_SECONDS.labels(str(h)).time():
             res = model.train_and_evaluate(
