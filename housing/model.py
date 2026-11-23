@@ -151,6 +151,7 @@ class ForecastResult:
     national_interval: tuple[float, float] = (float("nan"), float("nan"))
     interval_k: float = 1.0
     blend_weight: float = 0.5  # w on the model in the served blend
+    blend_intercept: float = 0.0  # learned shift added to the served blend (0 at 24m)
     model: HistGradientBoostingRegressor | None = None
 
 
@@ -195,6 +196,17 @@ def fit_blend_weight(rows: pd.DataFrame) -> float:
         return 0.5
     mae = [(blend(rows["model"], rows["naive_momentum"], w) - rows["actual"]).abs().mean() for w in BLEND_GRID]
     return float(BLEND_GRID[int(np.argmin(mae))])
+
+
+INTERCEPT_CAP = 0.01  # |c| <= 1 pp per 12 months of horizon
+
+
+def fit_blend_intercept(rows: pd.DataFrame, horizon: int) -> float:
+    """Median residual (actual - blend), capped at INTERCEPT_CAP * h/12; 0 if h >= 24 (it overshot there) or < 2 years."""
+    if horizon >= 24 or rows["year"].nunique() < 2:
+        return 0.0
+    cap = INTERCEPT_CAP * horizon / 12
+    return float(np.clip((rows["actual"] - rows["blend"]).median(), -cap, cap))
 
 
 METRICS = ["MAE", "bias", "direction_acc", "rank_ic", "top_decile_lift", "coverage80", "width80"]
@@ -279,13 +291,16 @@ def rolling_backtest(
 
 
 def apply_blend_weights(bt: pd.DataFrame, horizon: int) -> pd.DataFrame:
-    """Set `blend`; year Y's weight is fit only on rows resolved before Y's first origin (expanding window)."""
+    """Set `blend` (+ intercept); year Y's weight and intercept use only rows resolved before Y's first origin."""
     bt = bt.copy()
     resolved = bt["date"] + pd.DateOffset(months=horizon)
-    for year in bt["year"].unique():
+    past = {y: resolved <= bt.loc[bt["year"] == y, "date"].min() for y in bt["year"].unique()}
+    for year, p in past.items():
         m = bt["year"] == year
-        w = fit_blend_weight(bt[resolved <= bt.loc[m, "date"].min()])
+        w = fit_blend_weight(bt[p])
         bt.loc[m, "blend"] = blend(bt.loc[m, "model"], bt.loc[m, "naive_momentum"], w)
+    c = {year: fit_blend_intercept(bt[p], horizon) for year, p in past.items()}  # on the pre-intercept blend
+    bt["blend"] += bt["year"].map(c)
     return bt
 
 
@@ -357,6 +372,7 @@ def train_and_evaluate(
     feature_cols = _active_feature_cols(combined, feature_cols or FEATURE_COLS)
     raw = rolling_backtest(combined, feature_cols, horizon)
     w = fit_blend_weight(raw)
+    c0 = fit_blend_intercept(raw.assign(blend=blend(raw["model"], raw["naive_momentum"], w)), horizon)
     raw = add_intervals(raw, horizon)
     k = 1.0
     # ponytail: only 24m is calibrated (3m/12m already ~0.80 coverage); one global multiplier, per-year k is out-of-sample
@@ -377,7 +393,7 @@ def train_and_evaluate(
     latest_pred_log = full_model.predict(latest_feat[feature_cols])
     latest_pred_simple = np.exp(latest_pred_log) - 1.0
     naive_latest = np.exp(latest_feat["r12"].to_numpy() * horizon / 12) - 1.0
-    served = blend(latest_pred_simple, naive_latest, w)
+    served = blend(latest_pred_simple, naive_latest, w) + c0
 
     scale = interval_scale(latest_feat["vol12"].to_numpy())
     latest_snapshot = long_df[long_df["date"] == as_of][["region", "state", "value"]].drop_duplicates(
@@ -408,6 +424,7 @@ def train_and_evaluate(
         national_interval=national_interval,
         interval_k=k,
         blend_weight=w,
+        blend_intercept=c0,
         model=full_model,
     )
 
