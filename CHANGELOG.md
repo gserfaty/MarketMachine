@@ -36,6 +36,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
     | (a) median cap 1pp | 0.744 | -0.02 | 0.80 | 2.964 | -0.44 | 0.76 | 6.657 | -2.74 | 0.74 |
 - The repo owner chose to ship (a) median cap 1pp at 3m/12m anyway (see the caveat above). Re-check it once 2026 outcomes give a fresh out-of-sample year.
 
+### Monthly precomputed forecasts (2026-11-22)
+- `python -m housing.precompute OUT_DIR` trains the 3/12/24m forecasts on live data and writes `<h>m.json` (every `ForecastResult` field except the fitted model, plus the `as_of_key`). The new `precompute` workflow runs it monthly (22nd) and publishes the files to the orphan `forecasts` branch.
+- The app (`cached_forecast`, 6 h `st.cache_data` fetch) and the API load these first and use them only when their `as_of_key` equals the current one (same data month and `CODE_VERSION`); otherwise, or on any fetch error, they train on demand as before. API `model.source` can now be `precomputed`.
+- `model.result_to_json` / `result_from_json` (generic over dataclass fields) replace the hand-written Redis codec, which also fixes `blend_weight` and the backtest not round-tripping through Redis.
+- PR: [#11](https://github.com/gserfaty/MarketMachine/pull/11), 1 review round (approved), 2 commits.
+
 ### Stale forecast cache after deploy fixed (2026-11-22)
 - After PR #7 deployed, the live forecast page raised `AttributeError` on `blend_weight`: Streamlit Cloud reloads code without restarting, so `st.cache_resource` kept a `ForecastResult` built by the old model code.
 - `model.as_of_key` now includes `CODE_VERSION`, a hash of `housing/model.py`, so the Streamlit, in-process API and Redis caches all drop results from older model code.
